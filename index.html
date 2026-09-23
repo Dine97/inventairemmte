@@ -83,6 +83,14 @@ if (!firebase.apps.length) {
 }
 const auth = firebase.auth();
 const db = firebase.firestore();
+// Persistance hors-ligne : les pointages effectués pendant une coupure
+// réseau sont mis en file d'attente localement et renvoyés
+// automatiquement dès que la connexion revient, au lieu d'échouer.
+try {
+  db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+} catch (e) {
+  // navigateur/contexte ne supportant pas la persistance : on continue sans
+}
 const FieldValue = firebase.firestore.FieldValue;
 
 // Charte graphique Bénin Control : bleu / blanc
@@ -108,6 +116,11 @@ const DEFAULT_PARCS_LIST = [
 ];
 const DEFAULT_GUEST_ACCESS_CODE = "MMTE2026";
 
+// Nombre maximal de lignes affichées d'un coup dans une liste de
+// pointage, pour rester fluide sur tablette même avec un très gros parc.
+// Le filtre de recherche reste toujours actif au-delà de cette limite.
+const LIST_RENDER_CAP = 300;
+
 // E-mails admin de secours (utilisés même si Firestore est injoignable, et
 // tant que le document config/app n'a pas encore été initialisé).
 const FALLBACK_ADMIN_EMAILS = ["nourouloka@gmail.com"];
@@ -119,7 +132,11 @@ function agentDisplayName(user) {
 }
 
 function isGuestUser(user) {
-  return !!(user && user.isAnonymous);
+  if (!user) return false;
+  if (user.isAnonymous) return true;
+  // Filet de sécurité : un utilisateur invité n'a aucun fournisseur de
+  // connexion (ni e-mail, ni mot de passe) lié à son compte.
+  return Array.isArray(user.providerData) && user.providerData.length === 0;
 }
 
 function isAdminEmail(email, adminEmails) {
@@ -272,7 +289,11 @@ function InventaireMMTE() {
 
   const isGuest = isGuestUser(authUser);
   const isAdmin = !isGuest && isAdminEmail(authUser && authUser.email, ADMIN_EMAILS);
-  const currentAgent = authUser ? { name: agentDisplayName(authUser) } : null;
+  // Nom affiché localement, mis à jour immédiatement après connexion invité
+  // ou inscription — on évite de reconstruire l'objet Firebase (source du
+  // bug qui faisait passer les invités pour des agents en attente).
+  const [localDisplayName, setLocalDisplayName] = useState("");
+  const currentAgent = authUser ? { name: localDisplayName || agentDisplayName(authUser) } : null;
 
   // --- Fiche utilisateur (validation des comptes agents) ---
   const [userDoc, setUserDoc] = useState(undefined); // undefined=chargement, null=pas de fiche, objet=fiche
@@ -344,6 +365,29 @@ function InventaireMMTE() {
   const [importError, setImportError] = useState("");
   const [importedFileName, setImportedFileName] = useState("");
   const [starting, setStarting] = useState(false);
+
+  // --- Liste en direct des inventaires en cours (pour "Rejoindre") ---
+  const [activeInventories, setActiveInventories] = useState([]);
+  useEffect(() => {
+    if (!authUser) return;
+    const unsub = db
+      .collection("inventories")
+      .where("status", "==", "in_progress")
+      .onSnapshot(
+        (snap) => {
+          const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          list.sort((a, b) => {
+            const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+            const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+            return tb - ta;
+          });
+          setActiveInventories(list);
+        },
+        () => {}
+      );
+    return unsub;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser && authUser.uid]);
 
   // --- Inventaire courant (Firestore) ---
   const [invId, setInvId] = useState(null);
@@ -435,8 +479,28 @@ function InventaireMMTE() {
         const data = new Uint8Array(evt.target.result);
         const wb = XLSX.read(data, { type: "array" });
         const sheet = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
-        const values = rows.map((r) => (r && r[0] !== undefined ? String(r[0]) : "")).filter(Boolean);
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: "" });
+
+        // Cherche une colonne dont l'en-tête ressemble à "châssis" dans les
+        // 5 premières lignes, plutôt que de toujours lire la colonne A —
+        // évite un import silencieusement vide/faux si le fichier a des
+        // colonnes dans un autre ordre (ex : immatriculation en colonne A).
+        let colIdx = 0;
+        let startRow = 0;
+        let found = false;
+        for (let r = 0; r < Math.min(5, rows.length) && !found; r++) {
+          const row = rows[r] || [];
+          for (let c = 0; c < row.length; c++) {
+            if (isHeaderLike(row[c])) {
+              colIdx = c;
+              startRow = r + 1;
+              found = true;
+              break;
+            }
+          }
+        }
+
+        const values = rows.slice(startRow).map((r) => (r && r[colIdx] !== undefined ? String(r[colIdx]) : "")).filter(Boolean);
         applyImportedList(values);
       } catch (err) {
         setImportError("Impossible de lire ce fichier. Formats acceptés : CSV, XLS, XLSX.");
@@ -447,55 +511,35 @@ function InventaireMMTE() {
   };
   const handleLoadPaste = () => applyImportedList(pasteText.split(/\r?\n/));
 
-  const canStart = parcName.trim().length > 0 && invDate && (mmteMap.size > 0 || starting);
+  const canStart = parcName.trim().length > 0 && invDate && mmteMap.size > 0;
 
-  // Démarrer ou rejoindre un inventaire partagé pour ce parc + cette date
-  const startInventory = async () => {
-    if (!parcName.trim() || !invDate) return;
+  // Rejoindre un inventaire déjà en cours (démarré par un collègue) :
+  // aucune liste à importer, on récupère tout depuis Firestore.
+  const joinInventoryById = async (id) => {
     setStarting(true);
-    const id = inventoryId(parcName, invDate);
+    setImportError("");
     try {
       const ref = db.collection("inventories").doc(id);
       const snap = await ref.get();
-
-      if (snap.exists) {
-        // Rejoindre un inventaire déjà commencé par un collègue
-        const meta = snap.data();
-        const mmteSnap = await ref.collection("mmte").get();
-        const map = new Map();
-        mmteSnap.forEach((d) => map.set(d.id, d.data().chassis));
-        setMmteMap(map);
-        setInvMeta(meta);
-        setRestoredBanner(true);
-      } else {
-        if (mmteMap.size === 0) {
-          setImportError("Merci d'importer la liste des châssis MMTE avant de démarrer.");
-          setStarting(false);
-          return;
-        }
-        const meta = {
-          parcName: parcName.trim(),
-          invDate,
-          status: "in_progress",
-          mmteCount: mmteMap.size,
-          createdByUid: authUser.uid,
-          createdByName: currentAgent.name,
-          createdAt: FieldValue.serverTimestamp(),
-          updatedAt: FieldValue.serverTimestamp(),
-        };
-        await ref.set(meta);
-        // Écriture par lots de la liste MMTE (limite Firestore : 500 par lot)
-        const entries = Array.from(mmteMap.entries());
-        for (let i = 0; i < entries.length; i += 450) {
-          const batch = db.batch();
-          entries.slice(i, i + 450).forEach(([norm, chassis]) => {
-            batch.set(ref.collection("mmte").doc(norm), { norm, chassis });
-          });
-          await batch.commit();
-        }
-        setInvMeta(meta);
+      if (!snap.exists) {
+        setImportError("Cet inventaire n'est plus disponible (peut-être déjà clôturé).");
+        setStarting(false);
+        return;
       }
-
+      const meta = snap.data();
+      if (meta.status !== "in_progress") {
+        setImportError("Cet inventaire n'est pas encore prêt (création en cours par son créateur) ou a été clôturé. Réessayez dans un instant.");
+        setStarting(false);
+        return;
+      }
+      const mmteSnap = await ref.collection("mmte").get();
+      const map = new Map();
+      mmteSnap.forEach((d) => map.set(d.id, d.data().chassis));
+      setMmteMap(map);
+      setInvMeta(meta);
+      setParcName(meta.parcName);
+      setInvDate(meta.invDate);
+      setRestoredBanner(true);
       setInvId(id);
       setStartedAt(Date.now());
       setFeedback(null);
@@ -504,6 +548,78 @@ function InventaireMMTE() {
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (err) {
       setImportError("Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.");
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // Créer un nouvel inventaire (première personne à démarrer ce parc/date)
+  const startInventory = async () => {
+    if (!parcName.trim() || !invDate) return;
+    if (mmteMap.size === 0) {
+      setImportError("Merci d'importer la liste des châssis MMTE avant de démarrer.");
+      return;
+    }
+    setStarting(true);
+    setImportError("");
+    const id = inventoryId(parcName, invDate);
+    const ref = db.collection("inventories").doc(id);
+    try {
+      const snap = await ref.get();
+
+      if (snap.exists) {
+        setImportError(
+          "Un inventaire pour ce parc et cette date existe déjà. Utilisez « Rejoindre un inventaire en cours » ci-dessus."
+        );
+        setStarting(false);
+        return;
+      }
+
+      // Étape 1 : statut intermédiaire "creating" — invisible dans la liste
+      // "Rejoindre" (qui ne montre que status == in_progress) tant que la
+      // liste MMTE n'est pas entièrement écrite, pour qu'un collègue ne
+      // rejoigne jamais un inventaire à moitié importé.
+      const meta = {
+        parcName: parcName.trim(),
+        invDate,
+        status: "creating",
+        mmteCount: mmteMap.size,
+        createdByUid: authUser.uid,
+        createdByName: currentAgent.name,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+      await ref.set(meta);
+
+      // Étape 2 : écriture par lots de la liste MMTE (limite Firestore : 500/lot)
+      const entries = Array.from(mmteMap.entries());
+      for (let i = 0; i < entries.length; i += 450) {
+        const batch = db.batch();
+        entries.slice(i, i + 450).forEach(([norm, chassis]) => {
+          batch.set(ref.collection("mmte").doc(norm), { norm, chassis });
+        });
+        await batch.commit();
+      }
+
+      // Étape 3 : seulement maintenant, on rend l'inventaire visible/rejoignable
+      await ref.update({ status: "in_progress" });
+      meta.status = "in_progress";
+
+      setInvMeta(meta);
+      setInvId(id);
+      setStartedAt(Date.now());
+      setFeedback(null);
+      setPendingNotFound(null);
+      setPhase("inventory");
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
+    } catch (err) {
+      setImportError("Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.");
+      // Nettoyage best-effort : éviter de laisser un inventaire à moitié créé
+      try {
+        await ref.delete();
+      } catch (e) {
+        // ignore
+      }
     } finally {
       setStarting(false);
     }
@@ -607,8 +723,8 @@ function InventaireMMTE() {
   const handleSignup = async (email, password, displayName) => {
     const cred = await auth.createUserWithEmailAndPassword(email, password);
     if (displayName) {
-      await cred.user.updateProfile({ displayName });
-      setAuthUser({ ...auth.currentUser });
+      setLocalDisplayName(displayName);
+      cred.user.updateProfile({ displayName }).catch(() => {});
     }
     try {
       await cred.user.sendEmailVerification();
@@ -616,15 +732,23 @@ function InventaireMMTE() {
     return cred;
   };
   const handleGuestAccess = async (name) => {
+    // signInAnonymously suffit à donner l'accès immédiatement (aucune
+    // validation admin pour les invités). Le nom est affiché tout de
+    // suite via un état local — on ne touche jamais à l'objet Firebase
+    // authUser lui-même (source d'un bug qui faisait passer les invités
+    // pour des agents en attente de validation).
     const cred = await auth.signInAnonymously();
     if (name && name.trim()) {
-      await cred.user.updateProfile({ displayName: name.trim() });
-      setAuthUser({ ...auth.currentUser });
+      setLocalDisplayName(name.trim());
+      cred.user.updateProfile({ displayName: name.trim() }).catch(() => {});
     }
     return cred;
   };
   const handlePasswordReset = (email) => auth.sendPasswordResetEmail(email);
-  const handleLogout = () => auth.signOut();
+  const handleLogout = () => {
+    setLocalDisplayName("");
+    return auth.signOut();
+  };
 
   const resetAll = () => {
     setPhase("setup");
@@ -640,6 +764,27 @@ function InventaireMMTE() {
     setConfirmNewParc(false);
     setStartedAt(null);
     setRestoredBanner(false);
+  };
+
+  // Clôturer définitivement l'inventaire : il disparaît de la liste
+  // "Rejoindre un inventaire en cours" pour tout le monde. Les données
+  // restent consultables/exportables, elles ne sont jamais supprimées.
+  const closeInventory = async () => {
+    if (!invId) {
+      resetAll();
+      return;
+    }
+    try {
+      await db.collection("inventories").doc(invId).update({
+        status: "completed",
+        completedAt: FieldValue.serverTimestamp(),
+        completedByName: currentAgent ? currentAgent.name : "",
+        completedByUid: authUser ? authUser.uid : "",
+      });
+    } catch (e) {
+      // silencieux : au pire l'inventaire reste visible dans la liste, sans perte de données
+    }
+    resetAll();
   };
 
   // --- Exports ---
@@ -676,8 +821,6 @@ function InventaireMMTE() {
       ["Enregistrés (présents sur le parc, absents MMTE)", registeredList.length],
       ["Total présent sur le parc", totalList.length],
       ["Manquants (sur MMTE, absents du parc)", missingList.length],
-      [],
-      ["Conception", "Nourou Dine LOKA"],
     ];
     wb.SheetNames.push("Résumé");
     wb.Sheets["Résumé"] = XLSX.utils.aoa_to_sheet(summary);
@@ -755,7 +898,7 @@ function InventaireMMTE() {
       )}
 
       {authUser && !isApproved && userDoc !== undefined && (
-        <PendingApprovalScreen onLogout={handleLogout} />
+        <PendingApprovalScreen onLogout={handleLogout} status={userDoc && userDoc.status} />
       )}
 
       {authUser && isApproved && isAdmin && showAdmin && (
@@ -764,6 +907,7 @@ function InventaireMMTE() {
           parcsList={PARCS_LIST}
           guestAccessCode={GUEST_ACCESS_CODE}
           adminEmails={ADMIN_EMAILS}
+          currentUserEmail={authUser.email}
         />
       )}
 
@@ -786,6 +930,9 @@ function InventaireMMTE() {
           starting={starting}
           startInventory={startInventory}
           parcsList={PARCS_LIST}
+          activeInventories={activeInventories}
+          joinInventoryById={joinInventoryById}
+          isGuest={isGuest}
         />
       )}
 
@@ -840,6 +987,7 @@ function InventaireMMTE() {
           exportExcel={exportExcel}
           backToInventory={() => setPhase("inventory")}
           resetAll={resetAll}
+          closeInventory={closeInventory}
           isGuest={isGuest}
         />
       )}
@@ -904,13 +1052,7 @@ function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setSho
 function AppFooter() {
   return (
     <footer className="no-print max-w-3xl mx-auto px-5 py-6 mt-4">
-      <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-        <PenTool size={13} />
-        <span>
-          Conception &amp; réalisation : <span className="font-semibold text-slate-500">Nourou Dine LOKA</span>
-        </span>
-      </div>
-      <div className="text-center text-[10px] text-slate-300 mt-1">v{APP_VERSION}</div>
+      <div className="text-center text-[10px] text-slate-300">v{APP_VERSION}</div>
     </footer>
   );
 }
@@ -918,18 +1060,20 @@ function AppFooter() {
 // ============================================================================
 // ÉCRAN : EN ATTENTE DE VALIDATION
 // ============================================================================
-function PendingApprovalScreen({ onLogout }) {
+function PendingApprovalScreen({ onLogout, status }) {
+  const rejected = status === "rejected";
   return (
     <div className="max-w-sm mx-auto px-5 py-16 text-center">
-      <div className="mx-auto mb-4 w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
-        <ShieldCheck size={26} className="text-amber-600" />
+      <div className={`mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center ${rejected ? "bg-rose-100" : "bg-amber-100"}`}>
+        {rejected ? <XCircle size={26} className="text-rose-600" /> : <ShieldCheck size={26} className="text-amber-600" />}
       </div>
       <h2 className="text-lg font-extrabold" style={{ color: BLUE_DEEP }}>
-        Compte en attente de validation
+        {rejected ? "Accès refusé" : "Compte en attente de validation"}
       </h2>
       <p className="text-sm text-slate-500 mt-2">
-        Un administrateur doit approuver votre compte avant que vous puissiez accéder à l'application.
-        Contactez le service MAD-MAE si l'attente se prolonge.
+        {rejected
+          ? "Votre demande de compte agent n'a pas été approuvée. Contactez un administrateur MAD-MAE si vous pensez qu'il s'agit d'une erreur."
+          : "Un administrateur doit approuver votre compte avant que vous puissiez accéder à l'application. Contactez le service MAD-MAE si l'attente se prolonge."}
       </p>
       <button onClick={onLogout} className="mt-6 text-sm font-semibold text-[#1B4F8C] hover:underline">
         Se déconnecter
@@ -941,7 +1085,7 @@ function PendingApprovalScreen({ onLogout }) {
 // ============================================================================
 // PANNEAU ADMIN
 // ============================================================================
-function AdminPanel({ onClose, parcsList, guestAccessCode, adminEmails }) {
+function AdminPanel({ onClose, parcsList, guestAccessCode, adminEmails, currentUserEmail }) {
   const projectId = firebaseConfig.projectId;
   const [pending, setPending] = useState([]);
   const [loadingPending, setLoadingPending] = useState(true);
@@ -973,11 +1117,23 @@ function AdminPanel({ onClose, parcsList, guestAccessCode, adminEmails }) {
   };
 
   const saveConfig = async () => {
-    setSaving(true);
     setSaveMsg("");
+    const parcs = parcsText.split("\n").map((s) => s.trim()).filter(Boolean);
+    const admins = adminsText.split("\n").map((s) => s.trim().toLowerCase()).filter(Boolean);
+
+    const selfEmail = (currentUserEmail || "").toLowerCase();
+    const selfIsFallbackAdmin = FALLBACK_ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(selfEmail);
+    if (!admins.includes(selfEmail) && !selfIsFallbackAdmin) {
+      setSaveMsg(
+        "⚠️ Enregistrement bloqué : votre propre e-mail (" +
+          currentUserEmail +
+          ") n'est plus dans la liste des administrateurs. Gardez-le dans la liste pour ne pas vous retirer vous-même l'accès au panneau admin."
+      );
+      return;
+    }
+
+    setSaving(true);
     try {
-      const parcs = parcsText.split("\n").map((s) => s.trim()).filter(Boolean);
-      const admins = adminsText.split("\n").map((s) => s.trim().toLowerCase()).filter(Boolean);
       await db.collection("config").doc("app").set(
         { parcsList: parcs, guestAccessCode: codeText.trim(), adminEmails: admins },
         { merge: true }
@@ -1083,8 +1239,9 @@ function AdminPanel({ onClose, parcsList, guestAccessCode, adminEmails }) {
             rows={3}
             className="w-full rounded-lg border-2 border-slate-200 px-3 py-2.5 text-sm font-plex-mono focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
           />
-          <p className="text-xs text-amber-600 mt-1">
-            ⚠️ Pensez à aussi mettre à jour les règles de sécurité Firestore si vous changez cette liste (voir README).
+          <p className="text-xs text-slate-400 mt-1">
+            Cette liste fait autorité à la fois dans l'application et dans les règles de sécurité —
+            aucune synchronisation manuelle supplémentaire n'est nécessaire.
           </p>
         </div>
 
@@ -1214,7 +1371,7 @@ function LoginScreen({ onLogin, onSignup, onGuest, onReset, guestAccessCode }) {
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 autoComplete="name"
-                placeholder="Ex : Nourou Dine LOKA"
+                placeholder="Ex : Jean KOSSOU"
                 className="w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
               />
             </div>
@@ -1576,96 +1733,135 @@ function SetupScreen({
   parcName, setParcName, invDate, setInvDate, importMode, setImportMode,
   pasteText, setPasteText, handleFileChange, handleLoadPaste, importError,
   importedFileName, mmteSize, canStart, starting, startInventory, parcsList,
+  activeInventories, joinInventoryById, isGuest,
 }) {
   return (
     <div className="max-w-2xl mx-auto px-5 py-8">
-      <div className="mb-8">
-        <p className="text-slate-600">
-          Choisissez un parc : si un collègue a déjà démarré cet inventaire aujourd'hui, vous le
-          rejoignez automatiquement (les pointages se synchronisent en temps réel).
+      {/* --- Rejoindre un inventaire en cours --- */}
+      <div className="bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-3 mb-6">
+        <div className="font-bold text-slate-700">Rejoindre un inventaire en cours</div>
+        <p className="text-sm text-slate-500">
+          Aucune liste à charger : vous récupérez directement les données d'un collègue et vos
+          pointages se synchronisent en temps réel.
         </p>
+
+        {activeInventories.length === 0 && (
+          <p className="text-sm text-slate-400 italic">Aucun inventaire en cours pour le moment.</p>
+        )}
+
+        <div className="space-y-2">
+          {activeInventories.map((inv) => (
+            <button
+              key={inv.id}
+              onClick={() => joinInventoryById(inv.id)}
+              disabled={starting}
+              className="w-full text-left flex items-center justify-between border-2 border-slate-100 rounded-lg px-3 py-2.5 hover:bg-blue-50/40 disabled:opacity-60"
+            >
+              <div>
+                <div className="font-bold text-sm" style={{ color: BLUE_DEEP }}>{inv.parcName}</div>
+                <div className="text-xs text-slate-400">
+                  {inv.invDate} · démarré par {inv.createdByName} · {inv.mmteCount} châssis attendus
+                </div>
+              </div>
+              <span className="text-xs font-bold px-3 py-1.5 rounded-lg text-white" style={{ background: BLUE }}>
+                Rejoindre
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Nom du parc</label>
-            <ParcAutocomplete value={parcName} onChange={setParcName} parcsList={parcsList} />
+      {/* --- Démarrer un nouvel inventaire (agents / admin uniquement) --- */}
+      {isGuest ? (
+        activeInventories.length === 0 && (
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 text-sm text-amber-800">
+            Aucun inventaire disponible à rejoindre pour l'instant. Contactez un agent MAD-MAE pour
+            qu'il en démarre un.
           </div>
-          <div>
-            <label className="block text-sm font-bold text-slate-700 mb-1">Date de l'inventaire</label>
-            <input
-              type="date"
-              value={invDate}
-              onChange={(e) => setInvDate(e.target.value)}
-              className="w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-bold text-slate-700 mb-2">
-            Liste des châssis MMTE pour ce parc (si vous démarrez un nouvel inventaire)
-          </label>
-          <div className="flex rounded-lg overflow-hidden border-2 border-slate-200 mb-3 w-fit">
-            <button
-              onClick={() => setImportMode("file")}
-              className={`px-4 py-2 text-sm font-bold flex items-center gap-2 ${importMode === "file" ? "text-white" : "bg-white text-slate-600"}`}
-              style={importMode === "file" ? { background: BLUE_DEEP } : undefined}
-            >
-              <Upload size={16} /> Fichier
-            </button>
-            <button
-              onClick={() => setImportMode("paste")}
-              className={`px-4 py-2 text-sm font-bold flex items-center gap-2 border-l-2 border-slate-200 ${importMode === "paste" ? "text-white" : "bg-white text-slate-600"}`}
-              style={importMode === "paste" ? { background: BLUE_DEEP } : undefined}
-            >
-              <ClipboardPaste size={16} /> Coller
-            </button>
-          </div>
-
-          {importMode === "file" ? (
-            <div className="rounded-lg border-2 border-dashed border-[#2E7DC1]/40 bg-blue-50/40 p-5 text-center">
-              <FileSpreadsheet className="mx-auto text-[#2E7DC1] mb-2" size={28} />
-              <p className="text-sm text-slate-600 mb-3">Fichier CSV ou Excel (.csv, .xlsx, .xls)</p>
-              <label className="inline-block px-4 py-2 rounded-lg text-white font-bold text-sm cursor-pointer" style={{ background: BLUE_DEEP }}>
-                Choisir un fichier
-                <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileChange} />
-              </label>
-              {importedFileName && <p className="text-xs text-slate-500 mt-2">Fichier chargé : {importedFileName}</p>}
-            </div>
-          ) : (
+        )
+      ) : (
+        <div className="bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-5">
+          <div className="font-bold text-slate-700">Démarrer un nouvel inventaire</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <textarea
-                value={pasteText}
-                onChange={(e) => setPasteText(e.target.value)}
-                placeholder={"Collez la liste des châssis, un par ligne"}
-                rows={6}
-                className="w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-sm font-plex-mono focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+              <label className="block text-sm font-bold text-slate-700 mb-1">Nom du parc</label>
+              <ParcAutocomplete value={parcName} onChange={setParcName} parcsList={parcsList} />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Date de l'inventaire</label>
+              <input
+                type="date"
+                value={invDate}
+                onChange={(e) => setInvDate(e.target.value)}
+                className="w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
               />
-              <button onClick={handleLoadPaste} className="mt-2 px-4 py-2 rounded-lg text-white font-bold text-sm" style={{ background: BLUE_DEEP }}>
-                Charger la liste collée
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-2">
+              Liste des châssis MMTE pour ce parc
+            </label>
+            <div className="flex rounded-lg overflow-hidden border-2 border-slate-200 mb-3 w-fit">
+              <button
+                onClick={() => setImportMode("file")}
+                className={`px-4 py-2 text-sm font-bold flex items-center gap-2 ${importMode === "file" ? "text-white" : "bg-white text-slate-600"}`}
+                style={importMode === "file" ? { background: BLUE_DEEP } : undefined}
+              >
+                <Upload size={16} /> Fichier
+              </button>
+              <button
+                onClick={() => setImportMode("paste")}
+                className={`px-4 py-2 text-sm font-bold flex items-center gap-2 border-l-2 border-slate-200 ${importMode === "paste" ? "text-white" : "bg-white text-slate-600"}`}
+                style={importMode === "paste" ? { background: BLUE_DEEP } : undefined}
+              >
+                <ClipboardPaste size={16} /> Coller
               </button>
             </div>
-          )}
 
-          {importError && <p className="text-sm text-rose-600 mt-2 font-semibold">{importError}</p>}
-          {mmteSize > 0 && (
-            <div className="mt-3 inline-flex items-center gap-2 text-emerald-700 bg-emerald-50 border-2 border-emerald-200 rounded-lg px-3 py-2 text-sm font-bold">
-              <CheckCircle2 size={16} /> {mmteSize} châssis chargés depuis MMTE
-            </div>
-          )}
+            {importMode === "file" ? (
+              <div className="rounded-lg border-2 border-dashed border-[#2E7DC1]/40 bg-blue-50/40 p-5 text-center">
+                <FileSpreadsheet className="mx-auto text-[#2E7DC1] mb-2" size={28} />
+                <p className="text-sm text-slate-600 mb-3">Fichier CSV ou Excel (.csv, .xlsx, .xls)</p>
+                <label className="inline-block px-4 py-2 rounded-lg text-white font-bold text-sm cursor-pointer" style={{ background: BLUE_DEEP }}>
+                  Choisir un fichier
+                  <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileChange} />
+                </label>
+                {importedFileName && <p className="text-xs text-slate-500 mt-2">Fichier chargé : {importedFileName}</p>}
+              </div>
+            ) : (
+              <div>
+                <textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  placeholder={"Collez la liste des châssis, un par ligne"}
+                  rows={6}
+                  className="w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-sm font-plex-mono focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+                />
+                <button onClick={handleLoadPaste} className="mt-2 px-4 py-2 rounded-lg text-white font-bold text-sm" style={{ background: BLUE_DEEP }}>
+                  Charger la liste collée
+                </button>
+              </div>
+            )}
+
+            {importError && <p className="text-sm text-rose-600 mt-2 font-semibold">{importError}</p>}
+            {mmteSize > 0 && (
+              <div className="mt-3 inline-flex items-center gap-2 text-emerald-700 bg-emerald-50 border-2 border-emerald-200 rounded-lg px-3 py-2 text-sm font-bold">
+                <CheckCircle2 size={16} /> {mmteSize} châssis chargés depuis MMTE
+              </div>
+            )}
+          </div>
+
+          <button
+            disabled={!canStart || starting}
+            onClick={startInventory}
+            className={`w-full py-4 rounded-xl font-extrabold text-base flex items-center justify-center gap-2 transition ${canStart && !starting ? "text-white shadow-md" : "bg-slate-200 text-slate-400"}`}
+            style={canStart && !starting ? { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } : undefined}
+          >
+            <ScanLine size={20} /> {starting ? "Connexion..." : "Démarrer ce nouvel inventaire"}
+          </button>
         </div>
-
-        <button
-          disabled={!canStart || starting}
-          onClick={startInventory}
-          className={`w-full py-4 rounded-xl font-extrabold text-base flex items-center justify-center gap-2 transition ${canStart && !starting ? "text-white shadow-md" : "bg-slate-200 text-slate-400"}`}
-          style={canStart && !starting ? { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } : undefined}
-        >
-          <ScanLine size={20} /> {starting ? "Connexion..." : "Démarrer / rejoindre l'inventaire de ce parc"}
-        </button>
-      </div>
+      )}
     </div>
   );
 }
@@ -1844,36 +2040,48 @@ function InventoryScreen(props) {
             (totalList.filter((t) => filterFn(t.chassis)).length === 0 ? (
               <EmptyRow text="Aucun véhicule pointé pour l'instant." />
             ) : (
-              totalList.filter((t) => filterFn(t.chassis)).map((t) => (
-                <ListRow key={t.norm} chassis={t.chassis} agent={t.agentName} scannedAt={t.scannedAt} badge={t.source === "mmte" ? "MMTE" : "Parc"} badgeTone={t.source === "mmte" ? "emerald" : "sky"} />
-              ))
+              <>
+                {totalList.filter((t) => filterFn(t.chassis)).slice(0, LIST_RENDER_CAP).map((t) => (
+                  <ListRow key={t.norm} chassis={t.chassis} agent={t.agentName} scannedAt={t.scannedAt} badge={t.source === "mmte" ? "MMTE" : "Parc"} badgeTone={t.source === "mmte" ? "emerald" : "sky"} />
+                ))}
+                <TruncationNote count={totalList.filter((t) => filterFn(t.chassis)).length} />
+              </>
             ))}
 
           {activeTab === "found" &&
             (foundList.filter((f) => filterFn(f.chassis)).length === 0 ? (
               <EmptyRow text="Aucun châssis trouvé sur MMTE pour l'instant." />
             ) : (
-              foundList.filter((f) => filterFn(f.chassis)).map((f) => (
-                <ListRow key={f.norm} chassis={f.chassis} agent={f.agentName} scannedAt={f.scannedAt} onRemove={isGuest ? undefined : () => softDelete(f.norm)} />
-              ))
+              <>
+                {foundList.filter((f) => filterFn(f.chassis)).slice(0, LIST_RENDER_CAP).map((f) => (
+                  <ListRow key={f.norm} chassis={f.chassis} agent={f.agentName} scannedAt={f.scannedAt} onRemove={isGuest ? undefined : () => softDelete(f.norm)} />
+                ))}
+                <TruncationNote count={foundList.filter((f) => filterFn(f.chassis)).length} />
+              </>
             ))}
 
           {activeTab === "registered" &&
             (registeredList.filter((r) => filterFn(r.chassis)).length === 0 ? (
               <EmptyRow text="Aucun châssis enregistré hors MMTE pour l'instant." />
             ) : (
-              registeredList.filter((r) => filterFn(r.chassis)).map((r) => (
-                <ListRow key={r.norm} chassis={r.chassis} agent={r.agentName} scannedAt={r.scannedAt} onRemove={isGuest ? undefined : () => softDelete(r.norm)} />
-              ))
+              <>
+                {registeredList.filter((r) => filterFn(r.chassis)).slice(0, LIST_RENDER_CAP).map((r) => (
+                  <ListRow key={r.norm} chassis={r.chassis} agent={r.agentName} scannedAt={r.scannedAt} onRemove={isGuest ? undefined : () => softDelete(r.norm)} />
+                ))}
+                <TruncationNote count={registeredList.filter((r) => filterFn(r.chassis)).length} />
+              </>
             ))}
 
           {activeTab === "missing" &&
             (missingList.filter((m) => filterFn(m.chassis)).length === 0 ? (
               <EmptyRow text="Tous les châssis MMTE ont été retrouvés sur le parc." />
             ) : (
-              missingList.filter((m) => filterFn(m.chassis)).map((m) => (
-                <ListRow key={m.norm} chassis={m.chassis} badge="Absent" badgeTone="rose" />
-              ))
+              <>
+                {missingList.filter((m) => filterFn(m.chassis)).slice(0, LIST_RENDER_CAP).map((m) => (
+                  <ListRow key={m.norm} chassis={m.chassis} badge="Absent" badgeTone="rose" />
+                ))}
+                <TruncationNote count={missingList.filter((m) => filterFn(m.chassis)).length} />
+              </>
             ))}
         </div>
       </div>
@@ -1891,6 +2099,11 @@ function InventoryScreen(props) {
 
 function ListRow({ chassis, agent, scannedAt, onRemove, badge, badgeTone }) {
   const tones = { emerald: "bg-emerald-100 text-emerald-700", sky: "bg-blue-100 text-[#1B4F8C]", rose: "bg-rose-100 text-rose-700" };
+  const handleRemoveClick = () => {
+    if (window.confirm(`Supprimer le pointage du châssis ${chassis} ?\n\nCette action reste tracée (auteur + heure) mais retire l'entrée des listes de l'inventaire.`)) {
+      onRemove();
+    }
+  };
   return (
     <div className="flex items-center justify-between bg-white border-2 border-slate-100 rounded-lg px-3 py-2">
       <div>
@@ -1906,7 +2119,7 @@ function ListRow({ chassis, agent, scannedAt, onRemove, badge, badgeTone }) {
       <div className="flex items-center gap-2">
         {badge && <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${tones[badgeTone]}`}>{badge}</span>}
         {onRemove && (
-          <button onClick={onRemove} className="text-slate-400 hover:text-rose-600 p-1">
+          <button onClick={handleRemoveClick} className="text-slate-400 hover:text-rose-600 p-1">
             <Trash2 size={16} />
           </button>
         )}
@@ -1918,10 +2131,21 @@ function EmptyRow({ text }) {
   return <div className="text-sm text-slate-400 text-center py-6">{text}</div>;
 }
 
+function TruncationNote({ count }) {
+  if (count <= LIST_RENDER_CAP) return null;
+  return (
+    <div className="text-xs text-slate-400 text-center py-3">
+      {count - LIST_RENDER_CAP} entrée(s) supplémentaire(s) non affichée(s) — utilisez le filtre
+      ci-dessus pour retrouver un châssis précis.
+    </div>
+  );
+}
+
 // ============================================================================
 // RÉCAPITULATIF
 // ============================================================================
-function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList, totalList, missingList, exportCSVList, exportExcel, backToInventory, resetAll, isGuest }) {
+function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList, totalList, missingList, exportCSVList, exportExcel, backToInventory, resetAll, closeInventory, isGuest }) {
+  const [confirmClose, setConfirmClose] = useState(false);
   return (
     <div className="max-w-2xl mx-auto px-5 py-8">
       <button onClick={backToInventory} className="no-print flex items-center gap-1 text-sm font-bold text-slate-500 mb-4">
@@ -1963,9 +2187,37 @@ function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList,
       )}
 
       {!isGuest && (
-        <button onClick={resetAll} className="no-print w-full mt-6 py-3 rounded-xl text-white font-extrabold flex items-center justify-center gap-2 shadow-md" style={{ background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }}>
-          <RotateCcw size={18} /> Passer au parc suivant
-        </button>
+        <>
+          <button onClick={resetAll} className="no-print w-full mt-6 py-3 rounded-xl text-white font-extrabold flex items-center justify-center gap-2 shadow-md" style={{ background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }}>
+            <RotateCcw size={18} /> Passer au parc suivant (laisser cet inventaire ouvert)
+          </button>
+
+          {!confirmClose ? (
+            <button
+              onClick={() => setConfirmClose(true)}
+              className="no-print w-full mt-3 py-3 rounded-xl border-2 text-sm font-bold"
+              style={{ borderColor: "#FDA4AF", color: "#BE123C" }}
+            >
+              Clôturer définitivement cet inventaire
+            </button>
+          ) : (
+            <div className="no-print mt-3 rounded-xl border-2 border-rose-300 bg-rose-50 p-4">
+              <div className="font-bold text-rose-900">Clôturer cet inventaire ?</div>
+              <p className="text-sm text-rose-700 mt-1">
+                Il disparaîtra de la liste « Rejoindre un inventaire en cours » pour tout le monde.
+                Les données restent conservées et exportables, rien n'est supprimé.
+              </p>
+              <div className="flex gap-3 mt-3">
+                <button onClick={closeInventory} className="px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm">
+                  Oui, clôturer
+                </button>
+                <button onClick={() => setConfirmClose(false)} className="px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm">
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <div className="print-only mt-8">
@@ -1975,7 +2227,6 @@ function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList,
         <ReportTable title="Trouvés sur MMTE" rows={foundList} />
         <ReportTable title="Enregistrés sur le parc (hors MMTE)" rows={registeredList} />
         <ReportTable title="Manquants (attendus sur MMTE, absents du parc)" rows={missingList} />
-        <p className="text-xs text-slate-400 mt-6">Conception &amp; réalisation : Nourou Dine LOKA — Bénin Control / MAD-MAE</p>
       </div>
     </div>
   );
