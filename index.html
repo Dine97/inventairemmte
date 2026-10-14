@@ -63,7 +63,7 @@
     const Users = (p) => <Icon {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Icon>;
     const ShieldCheck = (p) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></Icon>;
 
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "3.1.2";
 
 // ============================================================================
 // Configuration Firebase — Firebase Console → Paramètres du projet.
@@ -162,6 +162,156 @@ function friendlyAuthError(err) {
 }
 
 // --- Utilitaires généraux --------------------------------------------------
+// --- Champs enrichis par châssis (import CSV/Excel type export MMTE) ------
+// Alias reconnus pour chaque champ "important" — comparaison faite après
+// normalisation (minuscules, sans accents, sans ponctuation), donc l'ordre
+// des mots ou les variantes d'écriture n'ont pas d'importance.
+const FIELD_ALIASES = {
+  chassis: ["chassis", "numerochassis", "numchassis", "nchassis", "vin"],
+  description: ["description", "nomduvehicule", "vehicule", "designation"],
+  registredAt: ["registredat", "registeredat", "dateenregistrement", "denregistrement"],
+  depotDate: ["expiratedat", "expiration", "dateexpiration", "dateentreeendepot", "dentreeendepot", "datedepot"],
+  atp: ["atp", "ptu", "parctamponunique", "parctampon"],
+  shipName: ["shipname", "navire", "nomdunavire"],
+  weight: ["weight", "poids"],
+  companyNumber: ["companynumber"],
+  bl: ["bl"],
+  entryDate: ["entrydate"],
+};
+// Libellés affichés pour chaque champ reconnu (fiche détail + exports).
+const FIELD_LABELS = {
+  atp: "Manifeste",
+  registredAt: "Date d'enregistrement du manifeste",
+  depotDate: "Date d'entrée en dépôt",
+  shipName: "Navire",
+  weight: "Poids du véhicule",
+  companyNumber: "Manutentionnaire",
+  bl: "BL",
+  entryDate: "Date d'entrée",
+};
+// Colonnes du fichier MMTE volontairement ignorées (ni affichées, ni
+// exportées) : source, id, vaf, state, importateur, constatable_id,
+// constat_CEN_id, num_colis2, extension_id, extension_state, ainsi que la
+// colonne "jours_restant" d'origine — ce nombre est recalculé nous-mêmes
+// à partir de la date d'entrée en dépôt (voir computeJoursRestant), pour
+// rester exact au jour de la consultation plutôt que figé à l'import.
+const EXCLUDED_HEADER_ALIASES = [
+  "source", "id", "vaf", "state", "importateur",
+  "constatableid", "constatcenid", "numcolis2", "extensionid", "extensionstate",
+  "joursrestant", "joursrestants", "jourrestant", "nombredejoursrestants",
+];
+// Libellés affichés pour les champs regroupés dans "Autres informations"
+// (tout ce qui n'est ni dans FIELD_ALIASES ni dans EXCLUDED_HEADER_ALIASES
+// reste sous son nom de colonne d'origine, mis en forme — ex. "type").
+function prettifyHeader(h) {
+  return String(h || "")
+    .replace(/_/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function stripAccentsLower(v) {
+  return String(v || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+function matchFieldAlias(header) {
+  const h = stripAccentsLower(header);
+  if (EXCLUDED_HEADER_ALIASES.includes(h)) return "ignore";
+  for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+    if (aliases.includes(h)) return field;
+  }
+  return null;
+}
+function isEmptyCsvValue(v) {
+  const t = String(v == null ? "" : v).trim();
+  return t === "" || t.toUpperCase() === "NULL";
+}
+// Convertit n'importe quelle représentation de date reçue d'un fichier
+// (objet Date, numéro de série Excel, "2022-07-22 00:00:00", "22/07/2022")
+// en texte JJ/MM/AAAA. Les numéros de série Excel (ex. 44764) sont ainsi
+// transformés en vraies dates au lieu d'être affichés comme un nombre.
+function formatCsvDate(v) {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    const p = (n) => String(n).padStart(2, "0");
+    return `${p(v.getDate())}/${p(v.getMonth() + 1)}/${v.getFullYear()}`;
+  }
+  if (typeof v === "number" && Number.isFinite(v)) {
+    if (v > 20000 && v < 100000) {
+      const d = new Date(Math.round((v - 25569) * 86400000));
+      const p = (n) => String(n).padStart(2, "0");
+      return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+    }
+    return String(v);
+  }
+  if (isEmptyCsvValue(v)) return "";
+  const raw = String(v).trim();
+  if (/^\d{5}(\.\d+)?$/.test(raw)) return formatCsvDate(Number(raw));
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const f = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+  if (f) return `${f[1].padStart(2, "0")}/${f[2].padStart(2, "0")}/${f[3]}`;
+  return raw;
+}
+// "22/07/2022" → numéro de série Excel (pour écrire une vraie date dans
+// le classeur exporté). Renvoie null si le texte n'est pas une date.
+function dmyToExcelSerial(s) {
+  const m = String(s || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  return Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1])) / 86400000 + 25569;
+}
+// Horodatage Firestore / Date → numéro de série Excel (heure locale)
+function timestampToExcelSerial(ts) {
+  if (!ts) return null;
+  try {
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    if (Number.isNaN(d.getTime())) return null;
+    return (d.getTime() - d.getTimezoneOffset() * 60000) / 86400000 + 25569;
+  } catch (e) { return null; }
+}
+// Remplace, dans une feuille construite par aoa_to_sheet, les cellules
+// texte des colonnes de dates par de vraies cellules date Excel.
+function applyDateCells(ws, dateCols, tsCol) {
+  const ref = ws["!ref"];
+  if (!ref) return;
+  const range = XLSX.utils.decode_range(ref);
+  for (let r = range.s.r + 1; r <= range.e.r; r++) {
+    dateCols.forEach((c) => {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      const cell = ws[addr];
+      if (!cell) return;
+      const serial = dmyToExcelSerial(cell.v);
+      if (serial !== null) ws[addr] = { t: "n", v: serial, z: "dd/mm/yyyy" };
+    });
+  }
+  if (tsCol != null) {
+    ws["!cols"] = ws["!cols"] || [];
+  }
+  ws["!cols"] = dateCols.reduce((acc, c) => { acc[c] = { wch: 14 }; return acc; }, ws["!cols"] || []);
+}
+
+// Calcule, à partir de la date d'entrée en dépôt (format JJ/MM/AAAA), le
+// nombre de jours restants avant cette date (positif) ou déjà écoulés
+// depuis qu'elle est dépassée (négatif) — toujours recalculé au moment de
+// la consultation, jamais figé à l'import.
+function computeJoursRestant(depotDateStr) {
+  if (!depotDateStr) return null;
+  const m = String(depotDateStr).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const depot = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  if (Number.isNaN(depot.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  depot.setHours(0, 0, 0, 0);
+  return Math.round((depot - today) / 86400000);
+}
+function formatJoursRestantText(depotDateStr) {
+  const n = computeJoursRestant(depotDateStr);
+  if (n === null) return "";
+  return n < 0 ? `Dépassé de ${Math.abs(n)} j` : `${n} j restants`;
+}
+
 function normalize(v) {
   return String(v || "")
     .replace(/\s+/g, "")
@@ -171,13 +321,50 @@ function isHeaderLike(v) {
   const t = String(v || "").trim();
   return /^(ch[aâ]ssis|n[°o]?\s*ch[aâ]ssis|numero\s*ch[aâ]ssis|num\s*ch[aâ]ssis|vin|chassis\s*n[°o]?)$/i.test(t);
 }
+// Construit la carte des châssis à partir d'une simple liste de textes
+// (collage manuel, ou fichier sans colonnes reconnues) — chaque entrée
+// n'a alors aucune information enrichie.
 function buildMap(list) {
   const map = new Map();
   list.forEach((v) => {
     const norm = normalize(v);
-    if (norm) map.set(norm, String(v).trim());
+    if (norm) map.set(norm, { chassis: String(v).trim(), extra: {} });
   });
   return map;
+}
+// Construit la carte des châssis à partir de lignes de tableau structurées
+// (fichier CSV/Excel avec en-têtes) — extrait les champs importants
+// reconnus, et regroupe tout le reste dans "extra" pour la fiche détail.
+function buildRichMap(headers, rows) {
+  const colField = headers.map((h) => matchFieldAlias(h));
+  const chassisColIdx = colField.indexOf("chassis");
+  if (chassisColIdx === -1) return null;
+
+  const map = new Map();
+  rows.forEach((row) => {
+    const chassisRaw = row[chassisColIdx];
+    if (isEmptyCsvValue(chassisRaw)) return;
+    const chassis = String(chassisRaw).trim();
+    const norm = normalize(chassis);
+    if (!norm) return;
+
+    const info = { chassis, extra: {} };
+    headers.forEach((h, i) => {
+      const field = colField[i];
+      const val = row[i];
+      if (isEmptyCsvValue(val)) return;
+      if (field === "chassis" || field === "ignore") return;
+      if (field === "registredAt" || field === "depotDate" || field === "entryDate") {
+        info[field] = formatCsvDate(val);
+      } else if (field) {
+        info[field] = String(val).trim();
+      } else {
+        info.extra[prettifyHeader(h)] = String(val).trim();
+      }
+    });
+    map.set(norm, info);
+  });
+  return map.size > 0 ? map : null;
 }
 function todayISO() {
   const d = new Date();
@@ -365,6 +552,10 @@ function InventaireMMTE() {
   const [importError, setImportError] = useState("");
   const [importedFileName, setImportedFileName] = useState("");
   const [starting, setStarting] = useState(false);
+  // Renseigné quand on tente de créer un inventaire pour un parc/date dont
+  // la version existante est déjà clôturée — laisse le choix de la rouvrir
+  // ou de la remplacer, au lieu de bloquer purement et simplement.
+  const [existingClosedInv, setExistingClosedInv] = useState(null);
 
   // --- Liste en direct des inventaires en cours (pour "Rejoindre") ---
   const [activeInventories, setActiveInventories] = useState([]);
@@ -434,8 +625,8 @@ function InventaireMMTE() {
 
   const missingList = useMemo(() => {
     const out = [];
-    mmteMap.forEach((chassis, norm) => {
-      if (!foundSet.has(norm)) out.push({ norm, chassis });
+    mmteMap.forEach((info, norm) => {
+      if (!foundSet.has(norm)) out.push({ norm, chassis: info.chassis, info });
     });
     return out;
   }, [mmteMap, foundSet]);
@@ -446,6 +637,17 @@ function InventaireMMTE() {
       const tb = b.scannedAt && b.scannedAt.toMillis ? b.scannedAt.toMillis() : 0;
       return ta - tb;
     });
+  }, [foundList, registeredList]);
+
+  // Liste des personnes distinctes ayant effectué au moins un pointage sur
+  // cet inventaire (agents, admin, ou invités) — pour les rapports de fin
+  // d'inventaire et la fiche de clôture.
+  const contributors = useMemo(() => {
+    const map = new Map();
+    [...foundList, ...registeredList].forEach((s) => {
+      if (s.agentUid && !map.has(s.agentUid)) map.set(s.agentUid, s.agentName || s.agentUid);
+    });
+    return Array.from(map.values()).sort();
   }, [foundList, registeredList]);
 
   const progressPct = useMemo(() => {
@@ -477,14 +679,36 @@ function InventaireMMTE() {
     reader.onload = (evt) => {
       try {
         const data = new Uint8Array(evt.target.result);
-        const wb = XLSX.read(data, { type: "array" });
+        const isCsv = /\.(csv|txt)$/i.test(file.name);
+        const wb = XLSX.read(data, { type: "array", raw: isCsv });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: "" });
 
-        // Cherche une colonne dont l'en-tête ressemble à "châssis" dans les
-        // 5 premières lignes, plutôt que de toujours lire la colonne A —
-        // évite un import silencieusement vide/faux si le fichier a des
-        // colonnes dans un autre ordre (ex : immatriculation en colonne A).
+        // Cherche une ligne d'en-têtes reconnaissable dans les 5 premières
+        // lignes (n'importe quelle colonne correspondant à "châssis" ou à
+        // un des champs enrichis connus — atp, description, poids, etc.).
+        let headerRowIdx = -1;
+        for (let r = 0; r < Math.min(5, rows.length); r++) {
+          const row = rows[r] || [];
+          if (row.some((cell) => isHeaderLike(cell) || matchFieldAlias(cell))) {
+            headerRowIdx = r;
+            break;
+          }
+        }
+
+        if (headerRowIdx !== -1) {
+          const headers = rows[headerRowIdx];
+          const dataRows = rows.slice(headerRowIdx + 1);
+          const richMap = buildRichMap(headers, dataRows);
+          if (richMap) {
+            setMmteMap(richMap);
+            setImportError("");
+            return;
+          }
+        }
+
+        // Repli : ancien comportement simple (une seule colonne de châssis,
+        // sans les informations enrichies).
         let colIdx = 0;
         let startRow = 0;
         let found = false;
@@ -499,7 +723,6 @@ function InventaireMMTE() {
             }
           }
         }
-
         const values = rows.slice(startRow).map((r) => (r && r[colIdx] !== undefined ? String(r[colIdx]) : "")).filter(Boolean);
         applyImportedList(values);
       } catch (err) {
@@ -510,6 +733,10 @@ function InventaireMMTE() {
     reader.readAsArrayBuffer(file);
   };
   const handleLoadPaste = () => applyImportedList(pasteText.split(/\r?\n/));
+
+  useEffect(() => {
+    setExistingClosedInv(null);
+  }, [parcName, invDate]);
 
   const canStart = parcName.trim().length > 0 && invDate && mmteMap.size > 0;
 
@@ -534,7 +761,7 @@ function InventaireMMTE() {
       }
       const mmteSnap = await ref.collection("mmte").get();
       const map = new Map();
-      mmteSnap.forEach((d) => map.set(d.id, d.data().chassis));
+      mmteSnap.forEach((d) => map.set(d.id, d.data()));
       setMmteMap(map);
       setInvMeta(meta);
       setParcName(meta.parcName);
@@ -554,6 +781,16 @@ function InventaireMMTE() {
   };
 
   // Créer un nouvel inventaire (première personne à démarrer ce parc/date)
+  // Supprime en plusieurs lots les documents d'une sous-collection déjà
+  // récupérés (limite Firestore : 500 opérations par lot).
+  const deleteDocsInBatches = async (docs) => {
+    for (let i = 0; i < docs.length; i += 450) {
+      const batch = db.batch();
+      docs.slice(i, i + 450).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  };
+
   const startInventory = async () => {
     if (!parcName.trim() || !invDate) return;
     if (mmteMap.size === 0) {
@@ -568,8 +805,17 @@ function InventaireMMTE() {
       const snap = await ref.get();
 
       if (snap.exists) {
+        const existingMeta = snap.data();
+        if (existingMeta.status === "completed") {
+          // Inventaire clôturé : on ne bloque pas — on laisse l'agent choisir
+          // de le rouvrir tel quel, ou de le remplacer par la liste qu'il
+          // vient de charger (cas d'un mauvais fichier associé au départ).
+          setExistingClosedInv({ id, meta: existingMeta });
+          setStarting(false);
+          return;
+        }
         setImportError(
-          "Un inventaire pour ce parc et cette date existe déjà. Utilisez « Rejoindre un inventaire en cours » ci-dessus."
+          "Un inventaire pour ce parc et cette date existe déjà et est en cours. Utilisez « Rejoindre un inventaire en cours » ci-dessus."
         );
         setStarting(false);
         return;
@@ -595,8 +841,8 @@ function InventaireMMTE() {
       const entries = Array.from(mmteMap.entries());
       for (let i = 0; i < entries.length; i += 450) {
         const batch = db.batch();
-        entries.slice(i, i + 450).forEach(([norm, chassis]) => {
-          batch.set(ref.collection("mmte").doc(norm), { norm, chassis });
+        entries.slice(i, i + 450).forEach(([norm, info]) => {
+          batch.set(ref.collection("mmte").doc(norm), { norm, ...info });
         });
         await batch.commit();
       }
@@ -625,6 +871,95 @@ function InventaireMMTE() {
     }
   };
 
+  // Rouvrir un inventaire clôturé tel quel (garde l'ancienne liste MMTE et
+  // les pointages déjà faits) — utile si la clôture était simplement
+  // prématurée.
+  const reopenClosedInventory = async () => {
+    if (!existingClosedInv) return;
+    setStarting(true);
+    setImportError("");
+    try {
+      const ref = db.collection("inventories").doc(existingClosedInv.id);
+      await ref.update({
+        status: "in_progress",
+        reopenedAt: FieldValue.serverTimestamp(),
+        reopenedByUid: authUser.uid,
+        reopenedByName: currentAgent.name,
+      });
+      const mmteSnap = await ref.collection("mmte").get();
+      const map = new Map();
+      mmteSnap.forEach((d) => map.set(d.id, d.data()));
+      setMmteMap(map);
+      setInvMeta({ ...existingClosedInv.meta, status: "in_progress" });
+      setInvId(existingClosedInv.id);
+      setStartedAt(Date.now());
+      setRestoredBanner(true);
+      setFeedback(null);
+      setPendingNotFound(null);
+      setExistingClosedInv(null);
+      setPhase("inventory");
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
+    } catch (err) {
+      setImportError("Erreur de connexion au serveur. Réessayez.");
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // Remplacer entièrement un inventaire clôturé par la liste que l'agent
+  // vient de charger sur cet écran (cas du mauvais fichier associé au
+  // départ) — l'ancienne liste MMTE et les anciens pointages sont effacés.
+  const replaceClosedInventory = async () => {
+    if (!existingClosedInv || mmteMap.size === 0) return;
+    setStarting(true);
+    setImportError("");
+    try {
+      const ref = db.collection("inventories").doc(existingClosedInv.id);
+
+      const oldMmte = await ref.collection("mmte").get();
+      await deleteDocsInBatches(oldMmte.docs);
+      const oldScans = await ref.collection("scans").get();
+      await deleteDocsInBatches(oldScans.docs);
+
+      const meta = {
+        parcName: parcName.trim(),
+        invDate,
+        status: "creating",
+        mmteCount: mmteMap.size,
+        createdByUid: authUser.uid,
+        createdByName: currentAgent.name,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        replacedPreviousClosureAt: existingClosedInv.meta.completedAt || null,
+      };
+      await ref.set(meta);
+
+      const entries = Array.from(mmteMap.entries());
+      for (let i = 0; i < entries.length; i += 450) {
+        const batch = db.batch();
+        entries.slice(i, i + 450).forEach(([norm, info]) => {
+          batch.set(ref.collection("mmte").doc(norm), { norm, ...info });
+        });
+        await batch.commit();
+      }
+      await ref.update({ status: "in_progress" });
+      meta.status = "in_progress";
+
+      setInvMeta(meta);
+      setInvId(existingClosedInv.id);
+      setStartedAt(Date.now());
+      setFeedback(null);
+      setPendingNotFound(null);
+      setExistingClosedInv(null);
+      setPhase("inventory");
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
+    } catch (err) {
+      setImportError("Erreur de connexion au serveur. Réessayez.");
+    } finally {
+      setStarting(false);
+    }
+  };
+
   const triggerStamp = (kind) => {
     setStampAnim(kind);
     if (stampTimeout.current) clearTimeout(stampTimeout.current);
@@ -642,8 +977,9 @@ function InventaireMMTE() {
         setFeedback({ type: "duplicate", chassis: raw, message: "Déjà pointé comme trouvé sur MMTE." });
         if (soundOn) playFeedbackSound("duplicate");
       } else {
-        const original = mmteMap.get(norm);
-        setFeedback({ type: "found", chassis: original, message: "Trouvé sur MMTE." });
+        const info = mmteMap.get(norm);
+        const original = info.chassis;
+        setFeedback({ type: "found", chassis: original, message: "Trouvé sur MMTE.", description: info.description });
         triggerStamp("found");
         if (soundOn) playFeedbackSound("found");
         try {
@@ -655,6 +991,16 @@ function InventaireMMTE() {
             agentName: currentAgent.name,
             scannedAt: FieldValue.serverTimestamp(),
             deleted: false,
+            description: info.description || "",
+            registredAt: info.registredAt || "",
+            depotDate: info.depotDate || "",
+            entryDate: info.entryDate || "",
+            atp: info.atp || "",
+            shipName: info.shipName || "",
+            weight: info.weight || "",
+            companyNumber: info.companyNumber || "",
+            bl: info.bl || "",
+            extra: info.extra || {},
           });
         } catch (e) {
           setFeedback({ type: "notfound", chassis: raw, message: "Erreur d'enregistrement, réessayez." });
@@ -788,10 +1134,41 @@ function InventaireMMTE() {
   };
 
   // --- Exports ---
+  // Colonnes communes à tous les exports, avec les libellés exacts fournis.
+  // "Jours restants" est recalculé ici à partir de la date d'entrée en
+  // dépôt, au moment de l'export (jamais lu depuis le fichier d'origine).
+  const EXPORT_INFO_HEADERS = [
+    "Châssis",
+    "Véhicule",
+    FIELD_LABELS.registredAt,
+    FIELD_LABELS.depotDate,
+    "Jours restants",
+    FIELD_LABELS.entryDate,
+    FIELD_LABELS.atp,
+    FIELD_LABELS.shipName,
+    FIELD_LABELS.weight,
+    FIELD_LABELS.companyNumber,
+    FIELD_LABELS.bl,
+  ];
+  const infoCells = (chassis, i) => [
+    chassis,
+    i.description || "",
+    i.registredAt || "",
+    i.depotDate || "",
+    formatJoursRestantText(i.depotDate),
+    i.entryDate || "",
+    i.atp || "",
+    i.shipName || "",
+    i.weight || "",
+    i.companyNumber || "",
+    i.bl || "",
+  ];
+
   const exportCSVList = (kind) => {
     let rows = [];
     let name = "";
-    const withMeta = (arr) => arr.map((x) => [x.chassis, x.agentName || "", formatTimestamp(x.scannedAt)]);
+    const headers = [...EXPORT_INFO_HEADERS, "Agent", "Horodatage"];
+    const withMeta = (arr) => arr.map((x) => [...infoCells(x.chassis, x), x.agentName || "", formatTimestamp(x.scannedAt)]);
     if (kind === "found") {
       rows = withMeta(foundList);
       name = "trouves_MMTE";
@@ -802,10 +1179,10 @@ function InventaireMMTE() {
       rows = withMeta(totalList);
       name = "total_parc";
     } else if (kind === "missing") {
-      rows = missingList.map((m) => [m.chassis, "", ""]);
+      rows = missingList.map((m) => [...infoCells(m.chassis, m.info || {}), "", ""]);
       name = "manquants_MMTE";
     }
-    downloadBlob(`${name}_${parcName || "parc"}_${invDate}.csv`, toCSV(["Châssis", "Agent", "Horodatage"], rows), "text/csv;charset=utf-8");
+    downloadBlob(`${name}_${parcName || "parc"}_${invDate}.csv`, toCSV(headers, rows), "text/csv;charset=utf-8");
   };
 
   const exportExcel = () => {
@@ -816,6 +1193,7 @@ function InventaireMMTE() {
       ["Parc", parcName],
       ["Date de l'inventaire", invDate],
       ["Agent connecté", currentAgent ? currentAgent.name : ""],
+      ["Agents ayant participé", contributors.join(", ")],
       ["Châssis attendus (MMTE)", mmteMap.size],
       ["Trouvés sur MMTE", foundList.length],
       ["Enregistrés (présents sur le parc, absents MMTE)", registeredList.length],
@@ -824,17 +1202,31 @@ function InventaireMMTE() {
     ];
     wb.SheetNames.push("Résumé");
     wb.Sheets["Résumé"] = XLSX.utils.aoa_to_sheet(summary);
+    const invSerial = dmyToExcelSerial(String(invDate).split("-").reverse().join("/"));
+    if (invSerial !== null) wb.Sheets["Résumé"]["B4"] = { t: "n", v: invSerial, z: "dd/mm/yyyy" };
+    const cols = [...EXPORT_INFO_HEADERS, "Agent", "Horodatage"];
     const addSheet = (name, rows) => {
-      const aoa = [["Châssis", "Agent", "Horodatage"], ...rows.map((r) => [r.chassis, r.agentName || "", formatTimestamp(r.scannedAt)])];
+      const aoa = [cols, ...rows.map((r) => [...infoCells(r.chassis, r), r.agentName || "", formatTimestamp(r.scannedAt)])];
       wb.SheetNames.push(name);
       wb.Sheets[name] = XLSX.utils.aoa_to_sheet(aoa);
+      applyDateCells(wb.Sheets[name], [2, 3, 5]);
+      // Horodatage : vraie date + heure Excel
+      const ws = wb.Sheets[name];
+      rows.forEach((r, idx) => {
+        const serial = timestampToExcelSerial(r.scannedAt);
+        if (serial !== null) ws[XLSX.utils.encode_cell({ r: idx + 1, c: cols.length - 1 })] = { t: "n", v: serial, z: "dd/mm/yyyy hh:mm" };
+      });
     };
     addSheet("Trouvés MMTE", foundList);
     addSheet("Enregistrés Parc", registeredList);
     addSheet("Total Parc", totalList);
-    const aoaMissing = [["Châssis"], ...missingList.map((m) => [m.chassis])];
+    const aoaMissing = [
+      EXPORT_INFO_HEADERS,
+      ...missingList.map((m) => infoCells(m.chassis, m.info || {})),
+    ];
     wb.SheetNames.push("Manquants MMTE");
     wb.Sheets["Manquants MMTE"] = XLSX.utils.aoa_to_sheet(aoaMissing);
+    applyDateCells(wb.Sheets["Manquants MMTE"], [2, 3, 5]);
     XLSX.writeFile(wb, `Inventaire_${parcName || "parc"}_${invDate}.xlsx`);
   };
 
@@ -933,6 +1325,10 @@ function InventaireMMTE() {
           activeInventories={activeInventories}
           joinInventoryById={joinInventoryById}
           isGuest={isGuest}
+          existingClosedInv={existingClosedInv}
+          reopenClosedInventory={reopenClosedInventory}
+          replaceClosedInventory={replaceClosedInventory}
+          onCancelClosedInvChoice={() => setExistingClosedInv(null)}
         />
       )}
 
@@ -983,6 +1379,7 @@ function InventaireMMTE() {
           registeredList={registeredList}
           totalList={totalList}
           missingList={missingList}
+          contributors={contributors}
           exportCSVList={exportCSVList}
           exportExcel={exportExcel}
           backToInventory={() => setPhase("inventory")}
@@ -1623,8 +2020,9 @@ function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect,
     const contains = [];
     for (const m of missingList) {
       const n = normalize(m.chassis);
-      if (n.startsWith(q)) starts.push(m.chassis);
-      else if (n.includes(q)) contains.push(m.chassis);
+      const item = { chassis: m.chassis, description: m.info && m.info.description };
+      if (n.startsWith(q)) starts.push(item);
+      else if (n.includes(q)) contains.push(item);
       if (starts.length + contains.length >= 30) break;
     }
     return [...starts, ...contains].slice(0, 6);
@@ -1643,9 +2041,9 @@ function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect,
     };
   }, []);
 
-  const select = (chassis) => {
+  const select = (item) => {
     setOpen(false);
-    onSelect(chassis);
+    onSelect(item.chassis);
   };
 
   return (
@@ -1694,16 +2092,17 @@ function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect,
       />
       {open && suggestions.length > 0 && (
         <div className="absolute z-20 mt-1 w-full bg-white border-2 border-[#1B4F8C]/20 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-          {suggestions.map((c, i) => (
+          {suggestions.map((s, i) => (
             <button
               type="button"
-              key={c}
+              key={s.chassis}
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => select(c)}
-              className="w-full text-left px-3 py-2.5 text-sm font-plex-mono"
-              style={i === highlight ? { background: "#EAF1FA", color: BLUE_DEEP } : { color: "#334155" }}
+              onClick={() => select(s)}
+              className="w-full text-left px-3 py-2.5"
+              style={i === highlight ? { background: "#EAF1FA" } : {}}
             >
-              {c}
+              <div className="text-sm font-plex-mono" style={{ color: i === highlight ? BLUE_DEEP : "#334155" }}>{s.chassis}</div>
+              {s.description && <div className="text-xs text-slate-400">{s.description}</div>}
             </button>
           ))}
         </div>
@@ -1734,6 +2133,7 @@ function SetupScreen({
   pasteText, setPasteText, handleFileChange, handleLoadPaste, importError,
   importedFileName, mmteSize, canStart, starting, startInventory, parcsList,
   activeInventories, joinInventoryById, isGuest,
+  existingClosedInv, reopenClosedInventory, replaceClosedInventory, onCancelClosedInvChoice,
 }) {
   return (
     <div className="max-w-2xl mx-auto px-5 py-8">
@@ -1852,14 +2252,50 @@ function SetupScreen({
             )}
           </div>
 
-          <button
-            disabled={!canStart || starting}
-            onClick={startInventory}
-            className={`w-full py-4 rounded-xl font-extrabold text-base flex items-center justify-center gap-2 transition ${canStart && !starting ? "text-white shadow-md" : "bg-slate-200 text-slate-400"}`}
-            style={canStart && !starting ? { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } : undefined}
-          >
-            <ScanLine size={20} /> {starting ? "Connexion..." : "Démarrer ce nouvel inventaire"}
-          </button>
+          {existingClosedInv ? (
+            <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 space-y-3">
+              <div className="font-bold text-amber-900">
+                Un inventaire clôturé existe déjà pour ce parc à cette date
+              </div>
+              <p className="text-sm text-amber-800">
+                Clôturé {existingClosedInv.meta.completedAt ? "le " + formatTimestamp(existingClosedInv.meta.completedAt) : ""}
+                {existingClosedInv.meta.completedByName ? " par " + existingClosedInv.meta.completedByName : ""}.
+                Que voulez-vous faire ?
+              </p>
+              <button
+                onClick={reopenClosedInventory}
+                disabled={starting}
+                className="w-full py-3 rounded-lg text-white font-bold text-sm disabled:opacity-60"
+                style={{ background: BLUE_DEEP }}
+              >
+                Rouvrir cet inventaire (garder son ancienne liste MMTE et ses pointages)
+              </button>
+              <button
+                onClick={replaceClosedInventory}
+                disabled={starting || mmteSize === 0}
+                className="w-full py-3 rounded-lg border-2 border-rose-300 text-rose-700 font-bold text-sm disabled:opacity-40"
+              >
+                Remplacer par la liste que je viens de charger ci-dessus (efface l'ancienne liste et les anciens pointages)
+              </button>
+              {mmteSize === 0 && (
+                <p className="text-xs text-amber-700">
+                  Chargez d'abord un fichier ou collez une liste ci-dessus pour pouvoir remplacer.
+                </p>
+              )}
+              <button onClick={onCancelClosedInvChoice} className="w-full py-2 text-sm font-semibold text-slate-500">
+                Annuler
+              </button>
+            </div>
+          ) : (
+            <button
+              disabled={!canStart || starting}
+              onClick={startInventory}
+              className={`w-full py-4 rounded-xl font-extrabold text-base flex items-center justify-center gap-2 transition ${canStart && !starting ? "text-white shadow-md" : "bg-slate-200 text-slate-400"}`}
+              style={canStart && !starting ? { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } : undefined}
+            >
+              <ScanLine size={20} /> {starting ? "Connexion..." : "Démarrer ce nouvel inventaire"}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -2042,7 +2478,7 @@ function InventoryScreen(props) {
             ) : (
               <>
                 {totalList.filter((t) => filterFn(t.chassis)).slice(0, LIST_RENDER_CAP).map((t) => (
-                  <ListRow key={t.norm} chassis={t.chassis} agent={t.agentName} scannedAt={t.scannedAt} badge={t.source === "mmte" ? "MMTE" : "Parc"} badgeTone={t.source === "mmte" ? "emerald" : "sky"} />
+                  <ListRow key={t.norm} chassis={t.chassis} agent={t.agentName} scannedAt={t.scannedAt} detail={t} badge={t.source === "mmte" ? "MMTE" : "Parc"} badgeTone={t.source === "mmte" ? "emerald" : "sky"} />
                 ))}
                 <TruncationNote count={totalList.filter((t) => filterFn(t.chassis)).length} />
               </>
@@ -2054,7 +2490,7 @@ function InventoryScreen(props) {
             ) : (
               <>
                 {foundList.filter((f) => filterFn(f.chassis)).slice(0, LIST_RENDER_CAP).map((f) => (
-                  <ListRow key={f.norm} chassis={f.chassis} agent={f.agentName} scannedAt={f.scannedAt} onRemove={isGuest ? undefined : () => softDelete(f.norm)} />
+                  <ListRow key={f.norm} chassis={f.chassis} agent={f.agentName} scannedAt={f.scannedAt} detail={f} onRemove={isGuest ? undefined : () => softDelete(f.norm)} />
                 ))}
                 <TruncationNote count={foundList.filter((f) => filterFn(f.chassis)).length} />
               </>
@@ -2066,7 +2502,7 @@ function InventoryScreen(props) {
             ) : (
               <>
                 {registeredList.filter((r) => filterFn(r.chassis)).slice(0, LIST_RENDER_CAP).map((r) => (
-                  <ListRow key={r.norm} chassis={r.chassis} agent={r.agentName} scannedAt={r.scannedAt} onRemove={isGuest ? undefined : () => softDelete(r.norm)} />
+                  <ListRow key={r.norm} chassis={r.chassis} agent={r.agentName} scannedAt={r.scannedAt} detail={r} onRemove={isGuest ? undefined : () => softDelete(r.norm)} />
                 ))}
                 <TruncationNote count={registeredList.filter((r) => filterFn(r.chassis)).length} />
               </>
@@ -2078,7 +2514,7 @@ function InventoryScreen(props) {
             ) : (
               <>
                 {missingList.filter((m) => filterFn(m.chassis)).slice(0, LIST_RENDER_CAP).map((m) => (
-                  <ListRow key={m.norm} chassis={m.chassis} badge="Absent" badgeTone="rose" />
+                  <ListRow key={m.norm} chassis={m.chassis} detail={m.info} badge="Absent" badgeTone="rose" />
                 ))}
                 <TruncationNote count={missingList.filter((m) => filterFn(m.chassis)).length} />
               </>
@@ -2097,33 +2533,82 @@ function InventoryScreen(props) {
   );
 }
 
-function ListRow({ chassis, agent, scannedAt, onRemove, badge, badgeTone }) {
+function joursRestantBadge(depotDateStr) {
+  const n = computeJoursRestant(depotDateStr);
+  if (n === null) return null;
+  if (n < 0) return { text: `Dépassé de ${Math.abs(n)} j`, tone: "bg-rose-100 text-rose-700" };
+  if (n <= 15) return { text: `${n} j restants`, tone: "bg-amber-100 text-amber-800" };
+  return { text: `${n} j restants`, tone: "bg-emerald-100 text-emerald-700" };
+}
+
+function ListRow({ chassis, agent, scannedAt, onRemove, badge, badgeTone, detail }) {
   const tones = { emerald: "bg-emerald-100 text-emerald-700", sky: "bg-blue-100 text-[#1B4F8C]", rose: "bg-rose-100 text-rose-700" };
+  const [expanded, setExpanded] = useState(false);
   const handleRemoveClick = () => {
     if (window.confirm(`Supprimer le pointage du châssis ${chassis} ?\n\nCette action reste tracée (auteur + heure) mais retire l'entrée des listes de l'inventaire.`)) {
       onRemove();
     }
   };
+
+  const hasDetail =
+    detail &&
+    (detail.description || detail.registredAt || detail.depotDate ||
+      detail.atp || detail.shipName || detail.weight || detail.companyNumber || detail.bl || detail.entryDate ||
+      (detail.extra && Object.keys(detail.extra).length > 0));
+  const jr = detail && joursRestantBadge(detail.depotDate);
+
   return (
-    <div className="flex items-center justify-between bg-white border-2 border-slate-100 rounded-lg px-3 py-2">
-      <div>
-        <div className="font-plex-mono text-sm font-medium text-slate-800">{chassis}</div>
-        {(agent || scannedAt) && (
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            {agent && <>Par {agent}</>}
-            {agent && scannedAt && " · "}
-            {scannedAt && formatTimestamp(scannedAt)}
-          </div>
-        )}
+    <div className="bg-white border-2 border-slate-100 rounded-lg overflow-hidden">
+      <div
+        className={`flex items-center justify-between px-3 py-2 ${hasDetail ? "cursor-pointer" : ""}`}
+        onClick={hasDetail ? () => setExpanded((e) => !e) : undefined}
+      >
+        <div className="min-w-0">
+          <div className="font-plex-mono text-sm font-medium text-slate-800">{chassis}</div>
+          {detail && detail.description && (
+            <div className="text-xs text-slate-600 font-semibold truncate">{detail.description}</div>
+          )}
+          {(agent || scannedAt) && (
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              {agent && <>Par {agent}</>}
+              {agent && scannedAt && " · "}
+              {scannedAt && formatTimestamp(scannedAt)}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {jr && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${jr.tone}`}>{jr.text}</span>}
+          {badge && <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${tones[badgeTone]}`}>{badge}</span>}
+          {onRemove && (
+            <button onClick={(e) => { e.stopPropagation(); handleRemoveClick(); }} className="text-slate-400 hover:text-rose-600 p-1">
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        {badge && <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${tones[badgeTone]}`}>{badge}</span>}
-        {onRemove && (
-          <button onClick={handleRemoveClick} className="text-slate-400 hover:text-rose-600 p-1">
-            <Trash2 size={16} />
-          </button>
-        )}
-      </div>
+      {expanded && hasDetail && (
+        <div className="border-t-2 border-slate-100 bg-slate-50 px-3 py-2.5 text-xs space-y-1">
+          {detail.registredAt && <DetailLine label={FIELD_LABELS.registredAt} value={detail.registredAt} />}
+          {detail.depotDate && <DetailLine label={FIELD_LABELS.depotDate} value={detail.depotDate} />}
+          {detail.entryDate && <DetailLine label={FIELD_LABELS.entryDate} value={detail.entryDate} />}
+          {detail.atp && <DetailLine label={FIELD_LABELS.atp} value={detail.atp} />}
+          {detail.shipName && <DetailLine label={FIELD_LABELS.shipName} value={detail.shipName} />}
+          {detail.weight && <DetailLine label={FIELD_LABELS.weight} value={detail.weight} />}
+          {detail.companyNumber && <DetailLine label={FIELD_LABELS.companyNumber} value={detail.companyNumber} />}
+          {detail.bl && <DetailLine label={FIELD_LABELS.bl} value={detail.bl} />}
+          {detail.extra &&
+            Object.entries(detail.extra).map(([k, v]) => <DetailLine key={k} label={k} value={v} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetailLine({ label, value }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-slate-500">{label}</span>
+      <span className="text-slate-700 font-medium text-right">{value}</span>
     </div>
   );
 }
@@ -2144,19 +2629,37 @@ function TruncationNote({ count }) {
 // ============================================================================
 // RÉCAPITULATIF
 // ============================================================================
-function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList, totalList, missingList, exportCSVList, exportExcel, backToInventory, resetAll, closeInventory, isGuest }) {
+function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList, totalList, missingList, contributors, exportCSVList, exportExcel, backToInventory, resetAll, closeInventory, isGuest }) {
   const [confirmClose, setConfirmClose] = useState(false);
+  const [printTarget, setPrintTarget] = useState("report"); // report | closure
+  const triggerPrint = (target) => {
+    setPrintTarget(target);
+    setTimeout(() => window.print(), 60);
+  };
+  // Quand on imprime la fiche de clôture, le récapitulatif affiché à
+  // l'écran (titre, parc, date, cartes de chiffres) ne doit pas
+  // s'imprimer : ces informations figurent déjà dans le tableau de la fiche.
+  const hideOnClosurePrint = printTarget === "closure" ? "no-print" : "";
   return (
-    <div className="max-w-2xl mx-auto px-5 py-8">
+    <div className="max-w-2xl mx-auto px-5 py-8 print:py-0 print:px-0">
       <button onClick={backToInventory} className="no-print flex items-center gap-1 text-sm font-bold text-slate-500 mb-4">
         <ArrowLeft size={16} /> Retour au pointage
       </button>
 
-      <div className="text-xs uppercase tracking-[0.2em] font-bold mb-1" style={{ color: BLUE_LIGHT }}>Récapitulatif d'inventaire</div>
-      <h1 className="text-2xl font-extrabold mb-1" style={{ color: BLUE_DEEP }}>{parcName}</h1>
-      <p className="text-slate-500 mb-6 font-medium">{invDate}</p>
+      <div className={hideOnClosurePrint}>
+        <div className="text-xs uppercase tracking-[0.2em] font-bold mb-1" style={{ color: BLUE_LIGHT }}>Récapitulatif d'inventaire</div>
+        <h1 className="text-2xl font-extrabold mb-1" style={{ color: BLUE_DEEP }}>{parcName}</h1>
+        <p className="text-slate-500 mb-4 font-medium">{invDate}</p>
+      </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      {contributors.length > 0 && (
+        <div className="no-print mb-6 rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3">
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1">Agents ayant participé</div>
+          <div className="text-sm text-slate-700">{contributors.join(", ")}</div>
+        </div>
+      )}
+
+      <div className={`grid grid-cols-2 gap-3 mb-6 ${hideOnClosurePrint}`}>
         <SummaryCard label="Attendus sur MMTE" value={mmteSize} tone="navy" />
         <SummaryCard label="Trouvés sur MMTE" value={foundList.length} tone="emerald" />
         <SummaryCard label="Enregistrés (hors MMTE)" value={registeredList.length} tone="sky" />
@@ -2174,8 +2677,11 @@ function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList,
           <button onClick={exportExcel} className="w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2" style={{ background: BLUE_DEEP }}>
             <Download size={16} /> Télécharger le classeur Excel complet (4 feuilles + résumé)
           </button>
-          <button onClick={() => window.print()} className="w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
+          <button onClick={() => triggerPrint("report")} className="w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
             <Printer size={16} /> Imprimer / générer un PDF du rapport
+          </button>
+          <button onClick={() => triggerPrint("closure")} className="w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
+            <FileSpreadsheet size={16} /> Télécharger la fiche de clôture (à signer)
           </button>
           <div className="grid grid-cols-2 gap-2 pt-2">
             <button onClick={() => exportCSVList("total")} className="py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700">CSV — Total parc</button>
@@ -2220,14 +2726,120 @@ function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList,
         </>
       )}
 
-      <div className="print-only mt-8">
-        <div className="border-t-2 border-slate-300 pt-4 mb-4">
-          <p className="text-xs text-slate-500">Rapport généré le {new Date().toLocaleString("fr-FR")}</p>
+      {printTarget === "report" && (
+        <div className="print-only mt-8">
+          <div className="border-t-2 border-slate-300 pt-4 mb-4">
+            <p className="text-xs text-slate-500">Rapport généré le {new Date().toLocaleString("fr-FR")}</p>
+          </div>
+          <ReportTable title="Trouvés sur MMTE" rows={foundList} />
+          <ReportTable title="Enregistrés sur le parc (hors MMTE)" rows={registeredList} />
+          <ReportTable title="Manquants (attendus sur MMTE, absents du parc)" rows={missingList} />
         </div>
-        <ReportTable title="Trouvés sur MMTE" rows={foundList} />
-        <ReportTable title="Enregistrés sur le parc (hors MMTE)" rows={registeredList} />
-        <ReportTable title="Manquants (attendus sur MMTE, absents du parc)" rows={missingList} />
+      )}
+
+      {printTarget === "closure" && (
+        <ClosureCertificate
+          parcName={parcName}
+          invDate={invDate}
+          contributors={contributors}
+          mmteSize={mmteSize}
+          foundCount={foundList.length}
+          registeredCount={registeredList.length}
+          totalCount={totalList.length}
+          missingCount={missingList.length}
+        />
+      )}
+    </div>
+  );
+}
+
+function ClosureCertificate({ parcName, invDate, contributors, mmteSize, foundCount, registeredCount, totalCount, missingCount }) {
+  const cell = { border: "1px solid #94A3B8", padding: "8px 12px" };
+  const labelCell = { ...cell, fontWeight: 700, width: "30%", background: "#F4F8FC" };
+  const headCell = { ...cell, fontWeight: 700, background: "#123A66", color: "#fff", textAlign: "center" };
+  const numCell = { ...cell, textAlign: "center", fontWeight: 700, fontSize: 15 };
+  const signHead = { ...cell, fontWeight: 700, textAlign: "center", background: "#F4F8FC", fontSize: 13, padding: "10px 12px" };
+
+  return (
+    <div className="print-only" style={{ marginTop: 0 }}>
+      {/* En-tête : logo Bénin Control | titre | logo Douane
+          justify-content: space-between répartit l'espace libre en deux
+          écarts strictement égaux (logo gauche ↔ titre, titre ↔ logo droit) */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        <img src={LOGO_BC} alt="Bénin Control" style={{ height: 60, width: "auto", flex: "0 0 auto" }} />
+        <div style={{ textAlign: "center", flex: "0 0 auto", padding: "0 8px" }}>
+          <div style={{ fontWeight: 800, fontSize: 18, color: "#123A66", whiteSpace: "nowrap" }}>FICHE DE CLÔTURE D'INVENTAIRE</div>
+          <div style={{ fontSize: 11, color: "#2E7DC1", fontWeight: 700, letterSpacing: 1, marginTop: 2 }}>BÉNIN CONTROL / MAD-MAE</div>
+        </div>
+        <img src={LOGO_DOUANES} alt="Douanes Béninoises" style={{ height: 60, width: "auto", flex: "0 0 auto" }} />
       </div>
+
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 20, fontSize: 13 }}>
+        <tbody>
+          <tr>
+            <td style={labelCell}>Parc inventorié</td>
+            <td style={cell}>{parcName}</td>
+          </tr>
+          <tr>
+            <td style={labelCell}>Date de l'inventaire</td>
+            <td style={cell}>{invDate}</td>
+          </tr>
+          <tr>
+            <td style={labelCell}>Date d'édition de la fiche</td>
+            <td style={cell}>{new Date().toLocaleDateString("fr-FR")}</td>
+          </tr>
+          <tr>
+            <td style={labelCell}>Agents ayant participé</td>
+            <td style={cell}>{contributors.length > 0 ? contributors.join(", ") : "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 32, fontSize: 13 }}>
+        <thead>
+          <tr>
+            <td style={headCell}>Attendus MMTE</td>
+            <td style={headCell}>Trouvés MMTE</td>
+            <td style={headCell}>Enregistrés hors MMTE</td>
+            <td style={headCell}>Total présent</td>
+            <td style={headCell}>Manquants</td>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style={numCell}>{mmteSize}</td>
+            <td style={numCell}>{foundCount}</td>
+            <td style={numCell}>{registeredCount}</td>
+            <td style={numCell}>{totalCount}</td>
+            <td style={numCell}>{missingCount}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: "#123A66" }}>Signatures</div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" }}>
+        <thead>
+          <tr>
+            <td style={signHead}>Bénin Control</td>
+            <td style={signHead}>Douane</td>
+            <td style={signHead}>Parc inventorié</td>
+          </tr>
+        </thead>
+        <tbody>
+          {/* Grand espace pour la signature, sous le nom de la société */}
+          <tr>
+            <td style={{ ...cell, height: 190, verticalAlign: "top", padding: "14px 12px" }}>Signature :</td>
+            <td style={{ ...cell, height: 190, verticalAlign: "top", padding: "14px 12px" }}>Signature :</td>
+            <td style={{ ...cell, height: 190, verticalAlign: "top", padding: "14px 12px" }}>Signature :</td>
+          </tr>
+          {/* Nom du représentant, écrit sous la signature */}
+          <tr>
+            <td style={{ ...cell, height: 100, verticalAlign: "top", padding: "14px 12px" }}>Nom : ______________________</td>
+            <td style={{ ...cell, height: 100, verticalAlign: "top", padding: "14px 12px" }}>Nom : ______________________</td>
+            <td style={{ ...cell, height: 100, verticalAlign: "top", padding: "14px 12px" }}>Nom : ______________________</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -2239,7 +2851,10 @@ function ReportTable({ title, rows }) {
       <h3 className="font-bold text-sm mb-2" style={{ color: BLUE_DEEP }}>{title} ({rows.length})</h3>
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs font-plex-mono">
         {rows.map((r, i) => (
-          <div key={i} className="border-b border-slate-100 py-0.5">{r.chassis}</div>
+          <div key={i} className="border-b border-slate-100 py-0.5">
+            {r.chassis}
+            {r.description ? ` — ${r.description}` : ""}
+          </div>
         ))}
       </div>
     </div>
