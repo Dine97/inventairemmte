@@ -1,4 +1,4 @@
-const CACHE_NAME = "inventaire-mmte-v1";
+const CACHE_NAME = "inventaire-mmte-v16";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -11,7 +11,6 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -25,8 +24,10 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Stratégie : on sert depuis le cache si disponible (rapide, fonctionne hors-ligne),
-// et on met à jour le cache en arrière-plan avec ce qui vient du réseau (CDN, polices...).
+self.addEventListener("message", (event) => {
+  if (event.data === "SKIP_WAITING") self.skipWaiting();
+});
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   event.respondWith(

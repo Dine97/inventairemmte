@@ -63,7 +63,7 @@
     const Users = (p) => <Icon {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Icon>;
     const ShieldCheck = (p) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></Icon>;
 
-const APP_VERSION = "3.2.2";
+const APP_VERSION = "4.0.0";
 
 // ============================================================================
 // Configuration Firebase — Firebase Console → Paramètres du projet.
@@ -155,6 +155,7 @@ const AUTH_ERROR_MESSAGES = {
   "auth/weak-password": "Le mot de passe doit contenir au moins 6 caractères.",
   "auth/too-many-requests": "Trop de tentatives. Réessayez dans quelques minutes.",
   "auth/network-request-failed": "Connexion internet indisponible.",
+  "guest/bad-code": "Code d'accès incorrect ou expiré.",
   "auth/unauthorized-domain": "Ce site n'est pas autorisé à utiliser cette connexion (contactez l'administrateur).",
 };
 function friendlyAuthError(err) {
@@ -399,6 +400,211 @@ function compressImageToDataUrl(file, maxSide = 900, quality = 0.6) {
 }
 const VEHICLE_AGE_LABELS = { under1: "Moins d'un an", over1: "Plus d'un an" };
 
+
+// ============================================================================
+// FIABILITÉ — outils communs
+// ============================================================================
+const GUEST_SESSION_MS = 24 * 3600 * 1000; // une session invité dure 24 h
+const MMTE_CHUNK_SIZE = 300; // châssis MMTE par document Firestore
+const PhotoCtx = React.createContext(null);
+
+// Écran de secours : si un composant plante, on affiche un message lisible
+// (avec la version) au lieu d'une page blanche.
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    try { console.error("INVENTAIRE MMTE — erreur d'affichage", error, info); } catch (e) { /* ignore */ }
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="max-w-md mx-auto px-5 py-16 text-center">
+          <h2 className="text-lg font-extrabold" style={{ color: BLUE_DEEP }}>Un problème est survenu</h2>
+          <p className="text-sm text-slate-600 mt-2">
+            L'application a rencontré une erreur. Vos pointages déjà envoyés sont conservés. Rechargez la page ; si le problème
+            continue, signalez-le à l'administrateur en indiquant le message ci-dessous.
+          </p>
+          <button onClick={() => window.location.reload()} className="mt-4 px-5 py-3 rounded-xl text-white font-bold" style={{ background: BLUE_DEEP }}>
+            Recharger l'application
+          </button>
+          <div className="mt-4 text-[11px] text-slate-400 break-words">
+            Version {APP_VERSION} — {String((this.state.error && this.state.error.message) || this.state.error).slice(0, 220)}
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// Message d'erreur selon le motif du refus d'une écriture Firestore
+function writeErrorMessage(err) {
+  if (err && err.code === "permission-denied") {
+    return "Refusé : ce châssis vient d'être pointé par un autre agent, ou vos droits ont expiré.";
+  }
+  return "Erreur d'enregistrement, réessayez.";
+}
+
+// --- Liste MMTE stockée par blocs de MMTE_CHUNK_SIZE châssis -----------------
+// Un seul accès à la base par bloc au lieu d'un accès par châssis : à 5 000
+// châssis, 17 lectures au lieu de 5 000 chaque fois qu'un agent rejoint.
+async function writeMmteChunks(ref, entries) {
+  for (let i = 0, idx = 0; i < entries.length; i += MMTE_CHUNK_SIZE, idx++) {
+    const items = entries.slice(i, i + MMTE_CHUNK_SIZE).map(([norm, info]) => ({ norm, ...info }));
+    await ref.collection("mmteChunks").doc(String(idx).padStart(5, "0")).set({ idx, items });
+  }
+}
+// Lit la liste MMTE d'un inventaire : nouveau format par blocs, sinon ancien
+// format (un document par châssis) pour les inventaires déjà existants.
+async function loadMmteMap(ref) {
+  const map = new Map();
+  const chunks = await ref.collection("mmteChunks").get();
+  if (!chunks.empty) {
+    chunks.forEach((d) => ((d.data().items) || []).forEach((it) => map.set(it.norm, it)));
+    return map;
+  }
+  const legacy = await ref.collection("mmte").get();
+  legacy.forEach((d) => map.set(d.id, d.data()));
+  return map;
+}
+async function deleteSubcollection(ref, name) {
+  const snap = await ref.collection(name).get();
+  for (let i = 0; i < snap.docs.length; i += 450) {
+    const batch = db.batch();
+    snap.docs.slice(i, i + 450).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+async function purgeInventoryData(ref, includeAudit) {
+  for (const n of ["mmte", "mmteChunks", "scans", "photos"]) await deleteSubcollection(ref, n);
+  if (includeAudit) await deleteSubcollection(ref, "audit");
+}
+
+// --- Suggestions « vouliez-vous dire ? » quand un châssis est introuvable ----
+function foldChassis(v) {
+  return String(v)
+    .replace(/[OQ]/g, "0")
+    .replace(/[IL]/g, "1")
+    .replace(/S/g, "5")
+    .replace(/B/g, "8")
+    .replace(/Z/g, "2");
+}
+function withinOneEdit(a, b) {
+  if (a === b) return false;
+  const la = a.length, lb = b.length;
+  if (Math.abs(la - lb) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < la && j < lb) {
+    if (a[i] === b[j]) { i++; j++; continue; }
+    edits++;
+    if (edits > 1) return false;
+    if (la === lb) { i++; j++; }
+    else if (la > lb) i++;
+    else j++;
+  }
+  edits += (la - i) + (lb - j);
+  return edits <= 1;
+}
+function suggestChassis(norm, mmteMap, foundSet, limit = 3) {
+  if (!norm || norm.length < 4 || !mmteMap) return [];
+  const f = foldChassis(norm);
+  const out = [];
+  const seen = new Set();
+  const push = (k, info) => {
+    if (out.length >= limit || seen.has(k) || (foundSet && foundSet.has(k))) return;
+    seen.add(k);
+    out.push({ norm: k, chassis: (info && info.chassis) || k, description: (info && info.description) || "" });
+  };
+  mmteMap.forEach((info, k) => { if (k.length === norm.length && foldChassis(k) === f) push(k, info); });
+  if (out.length < limit) mmteMap.forEach((info, k) => { if (withinOneEdit(k, norm)) push(k, info); });
+  if (out.length < limit && norm.length >= 6) mmteMap.forEach((info, k) => { if (k.endsWith(norm)) push(k, info); });
+  return out;
+}
+
+// --- Indicateur de synchronisation ------------------------------------------
+function SyncBadge({ online, pending }) {
+  let tone, text;
+  if (!online) {
+    tone = "bg-amber-50 border-amber-300 text-amber-800";
+    text = pending
+      ? `Hors connexion — ${pending} pointage(s) gardé(s) sur la tablette, envoi dès le retour du réseau.`
+      : "Hors connexion — vos pointages sont gardés sur la tablette et seront envoyés au retour du réseau.";
+  } else if (pending > 0) {
+    tone = "bg-sky-50 border-sky-200 text-sky-800";
+    text = `Synchronisation en cours (${pending} en attente)...`;
+  } else {
+    tone = "bg-emerald-50 border-emerald-200 text-emerald-700";
+    text = "Synchronisé avec le serveur.";
+  }
+  return <div className={`no-print mb-3 rounded-lg border px-3 py-1.5 text-xs font-semibold ${tone}`}>{text}</div>;
+}
+
+// --- Lecture de code-barres par la caméra (API BarcodeDetector) -------------
+function CameraScanner({ onDetect, onClose }) {
+  const videoRef = useRef(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    let stream = null;
+    let timer = null;
+    let stopped = false;
+    (async () => {
+      try {
+        if (!window.BarcodeDetector) {
+          setErr("Ce navigateur ne sait pas lire les codes-barres. Utilisez Chrome sur Android, ou un lecteur Bluetooth, ou tapez le numéro.");
+          return;
+        }
+        let supported;
+        try { supported = await window.BarcodeDetector.getSupportedFormats(); } catch (e) { supported = null; }
+        const wanted = ["code_128", "code_39", "code_93", "codabar", "itf", "data_matrix", "qr_code", "ean_13", "ean_8", "upc_a", "pdf417"];
+        const formats = supported ? wanted.filter((f) => supported.includes(f)) : wanted;
+        const detector = new window.BarcodeDetector({ formats });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+        if (stopped) { stream.getTracks().forEach((t) => t.stop()); return; }
+        const v = videoRef.current;
+        if (!v) return;
+        v.srcObject = stream;
+        await v.play();
+        timer = setInterval(async () => {
+          try {
+            const codes = await detector.detect(v);
+            if (codes && codes.length && codes[0].rawValue) {
+              clearInterval(timer);
+              onDetect(String(codes[0].rawValue).trim());
+            }
+          } catch (e) { /* image suivante */ }
+        }, 300);
+      } catch (e) {
+        setErr("Impossible d'utiliser la caméra. Autorisez son accès dans le navigateur, puis réessayez.");
+      }
+    })();
+    return () => {
+      stopped = true;
+      if (timer) clearInterval(timer);
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div className="no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
+      <div className="text-white font-bold mb-3">Visez le code-barres du châssis</div>
+      {err ? (
+        <div className="max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center">{err}</div>
+      ) : (
+        <video ref={videoRef} playsInline muted className="w-full max-w-md rounded-xl bg-black" />
+      )}
+      <button onClick={onClose} className="mt-4 px-6 py-3 rounded-xl bg-white font-bold" style={{ color: BLUE_DEEP }}>
+        Fermer
+      </button>
+    </div>
+  );
+}
+
 function todayISO() {
   const d = new Date();
   const off = d.getTimezoneOffset();
@@ -480,14 +686,25 @@ function playFeedbackSound(type) {
 // ============================================================================
 // COMPOSANT PRINCIPAL
 // ============================================================================
-function InventaireMMTE() {
+function InventaireMMTEApp() {
   // --- Authentification ---
   const [authUser, setAuthUser] = useState(undefined); // undefined=inconnu, null=déconnecté, User=connecté
   useEffect(() => auth.onAuthStateChanged((u) => setAuthUser(u)), []);
 
-  // --- Config à distance (parcs, code invité, admins) ---
+  // --- Config à distance (parcs, admins) ---
+  // Les écoutes ne démarrent qu'une fois la personne connectée (et, pour un
+  // invité, une fois sa session validée par le serveur) : avant, la lecture
+  // était refusée et l'écoute restait définitivement coupée.
   const [remoteConfig, setRemoteConfig] = useState(null); // null tant que non chargé
+  const [remoteAdmins, setRemoteAdmins] = useState([]);
+  const [guestOk, setGuestOk] = useState(undefined); // undefined = vérification en cours
+  const [guestFailure, setGuestFailure] = useState("");
+  const guestPendingRef = useRef(false);
+  const isGuest = isGuestUser(authUser);
+  const memberReady = !!authUser && (!isGuest || guestOk === true);
+
   useEffect(() => {
+    if (!memberReady) return undefined;
     const unsub = db
       .collection("config")
       .doc("app")
@@ -496,18 +713,51 @@ function InventaireMMTE() {
         () => setRemoteConfig({})
       );
     return unsub;
-  }, []);
+  }, [authUser && authUser.uid, memberReady]);
+
+  // Liste des administrateurs : lisible par les seuls administrateurs (la
+  // lecture refusée = pas administrateur).
+  useEffect(() => {
+    if (!authUser || isGuest) { setRemoteAdmins([]); return undefined; }
+    const unsub = db
+      .collection("config")
+      .doc("admins")
+      .onSnapshot(
+        (snap) => setRemoteAdmins(snap.exists && Array.isArray(snap.data().emails) ? snap.data().emails : []),
+        () => setRemoteAdmins([])
+      );
+    return unsub;
+  }, [authUser && authUser.uid, isGuest]);
+
+  // Session invité : le code d'accès est contrôlé par le serveur (règles
+  // Firestore) au moment de la création de la session — jamais par le code
+  // de la page. Au rechargement, on vérifie que la session existe encore.
+  useEffect(() => {
+    if (!authUser || !isGuest) { setGuestOk(undefined); return undefined; }
+    if (guestPendingRef.current) return undefined;
+    let cancelled = false;
+    db.collection("guestSessions").doc(authUser.uid).get()
+      .then((snap) => {
+        if (cancelled) return;
+        const d = snap.exists ? snap.data() : null;
+        const t = d && d.createdAt && d.createdAt.toMillis ? d.createdAt.toMillis() : 0;
+        if (d && Date.now() - t < GUEST_SESSION_MS) setGuestOk(true);
+        else { setGuestOk(false); auth.signOut(); }
+      })
+      .catch(() => { if (!cancelled) { setGuestOk(false); auth.signOut(); } });
+    return () => { cancelled = true; };
+  }, [authUser && authUser.uid, isGuest]);
+
   const PARCS_LIST =
     remoteConfig && Array.isArray(remoteConfig.parcsList) && remoteConfig.parcsList.length
       ? remoteConfig.parcsList
       : DEFAULT_PARCS_LIST;
-  const GUEST_ACCESS_CODE = (remoteConfig && remoteConfig.guestAccessCode) || DEFAULT_GUEST_ACCESS_CODE;
-  const ADMIN_EMAILS =
-    remoteConfig && Array.isArray(remoteConfig.adminEmails) && remoteConfig.adminEmails.length
-      ? remoteConfig.adminEmails
-      : FALLBACK_ADMIN_EMAILS;
+  const ADMIN_EMAILS = Array.from(new Set([
+    ...FALLBACK_ADMIN_EMAILS,
+    ...remoteAdmins,
+    ...((remoteConfig && Array.isArray(remoteConfig.adminEmails)) ? remoteConfig.adminEmails : []),
+  ].map((x) => String(x).toLowerCase())));
 
-  const isGuest = isGuestUser(authUser);
   const isAdmin = !isGuest && isAdminEmail(authUser && authUser.email, ADMIN_EMAILS);
   // Nom affiché localement, mis à jour immédiatement après connexion invité
   // ou inscription — on évite de reconstruire l'objet Firebase (source du
@@ -551,7 +801,7 @@ function InventaireMMTE() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser && authUser.uid]);
 
-  const isApproved = isGuest || isAdmin || (userDoc && userDoc.status === "approved");
+  const isApproved = (isGuest && guestOk === true) || isAdmin || (userDoc && userDoc.status === "approved");
 
   // --- Mise à jour disponible (service worker) ---
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -593,7 +843,7 @@ function InventaireMMTE() {
   // --- Liste en direct des inventaires en cours (pour "Rejoindre") ---
   const [activeInventories, setActiveInventories] = useState([]);
   useEffect(() => {
-    if (!authUser) return;
+    if (!authUser || !isApproved) return undefined;
     const unsub = db
       .collection("inventories")
       .where("status", "==", "in_progress")
@@ -611,7 +861,18 @@ function InventaireMMTE() {
       );
     return unsub;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser && authUser.uid]);
+  }, [authUser && authUser.uid, isApproved]);
+
+  // --- Connexion réseau et pointages en attente d'envoi ---
+  const [isOnline, setIsOnline] = useState(typeof navigator === "undefined" || navigator.onLine !== false);
+  const [pendingCount, setPendingCount] = useState(0);
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, []);
 
   // --- Inventaire courant (Firestore) ---
   const [invId, setInvId] = useState(null);
@@ -639,15 +900,17 @@ function InventaireMMTE() {
   useEffect(() => {
     if (!invId) {
       setScans([]);
+      setPendingCount(0);
       return;
     }
     const unsub = db
       .collection("inventories")
       .doc(invId)
       .collection("scans")
-      .onSnapshot((snap) => {
+      .onSnapshot({ includeMetadataChanges: true }, (snap) => {
         setScans(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-      });
+        setPendingCount(snap.docs.filter((d) => d.metadata && d.metadata.hasPendingWrites).length);
+      }, () => {});
     return unsub;
   }, [invId]);
 
@@ -793,9 +1056,7 @@ function InventaireMMTE() {
         setStarting(false);
         return;
       }
-      const mmteSnap = await ref.collection("mmte").get();
-      const map = new Map();
-      mmteSnap.forEach((d) => map.set(d.id, d.data()));
+      const map = await loadMmteMap(ref);
       setMmteMap(map);
       setInvMeta(meta);
       setParcName(meta.parcName);
@@ -848,11 +1109,19 @@ function InventaireMMTE() {
           setStarting(false);
           return;
         }
-        setImportError(
-          "Un inventaire pour ce parc et cette date existe déjà et est en cours. Utilisez « Rejoindre un inventaire en cours » ci-dessus."
-        );
-        setStarting(false);
-        return;
+        if (existingMeta.status === "trashed") {
+          setImportError("Cet inventaire est dans la corbeille des archives. Demandez à l'administrateur de le restaurer ou de le supprimer définitivement.");
+          setStarting(false);
+          return;
+        }
+        if (existingMeta.status !== "creating" || existingMeta.createdByUid !== authUser.uid) {
+          setImportError(
+            "Un inventaire pour ce parc et cette date existe déjà et est en cours. Utilisez « Rejoindre un inventaire en cours » ci-dessus."
+          );
+          setStarting(false);
+          return;
+        }
+        // Création interrompue précédemment par cette même personne : on reprend.
       }
 
       // Étape 1 : statut intermédiaire "creating" — invisible dans la liste
@@ -872,14 +1141,7 @@ function InventaireMMTE() {
       await ref.set(meta);
 
       // Étape 2 : écriture par lots de la liste MMTE (limite Firestore : 500/lot)
-      const entries = Array.from(mmteMap.entries());
-      for (let i = 0; i < entries.length; i += 450) {
-        const batch = db.batch();
-        entries.slice(i, i + 450).forEach(([norm, info]) => {
-          batch.set(ref.collection("mmte").doc(norm), { norm, ...info });
-        });
-        await batch.commit();
-      }
+      await writeMmteChunks(ref, Array.from(mmteMap.entries()));
 
       // Étape 3 : seulement maintenant, on rend l'inventaire visible/rejoignable
       await ref.update({ status: "in_progress" });
@@ -920,9 +1182,8 @@ function InventaireMMTE() {
         reopenedByUid: authUser.uid,
         reopenedByName: currentAgent.name,
       });
-      const mmteSnap = await ref.collection("mmte").get();
-      const map = new Map();
-      mmteSnap.forEach((d) => map.set(d.id, d.data()));
+      logAuditFor(existingClosedInv.id, "reopen", {});
+      const map = await loadMmteMap(ref);
       setMmteMap(map);
       setInvMeta({ ...existingClosedInv.meta, status: "in_progress" });
       setInvId(existingClosedInv.id);
@@ -950,10 +1211,8 @@ function InventaireMMTE() {
     try {
       const ref = db.collection("inventories").doc(existingClosedInv.id);
 
-      const oldMmte = await ref.collection("mmte").get();
-      await deleteDocsInBatches(oldMmte.docs);
-      const oldScans = await ref.collection("scans").get();
-      await deleteDocsInBatches(oldScans.docs);
+      await purgeInventoryData(ref, false);
+      logAuditFor(existingClosedInv.id, "replace", {});
 
       const meta = {
         parcName: parcName.trim(),
@@ -968,14 +1227,7 @@ function InventaireMMTE() {
       };
       await ref.set(meta);
 
-      const entries = Array.from(mmteMap.entries());
-      for (let i = 0; i < entries.length; i += 450) {
-        const batch = db.batch();
-        entries.slice(i, i + 450).forEach(([norm, info]) => {
-          batch.set(ref.collection("mmte").doc(norm), { norm, ...info });
-        });
-        await batch.commit();
-      }
+      await writeMmteChunks(ref, Array.from(mmteMap.entries()));
       await ref.update({ status: "in_progress" });
       meta.status = "in_progress";
 
@@ -993,6 +1245,30 @@ function InventaireMMTE() {
       setStarting(false);
     }
   };
+
+  // Journal d'audit : trace immuable des actions sensibles (suppression,
+  // restauration, clôture, réouverture, remplacement).
+  const logAuditFor = (id, action, extra) => {
+    if (!id || !authUser) return;
+    db.collection("inventories").doc(id).collection("audit").add({
+      action,
+      byUid: authUser.uid,
+      byName: currentAgent ? currentAgent.name : "",
+      at: FieldValue.serverTimestamp(),
+      ...(extra || {}),
+    }).catch(() => {});
+  };
+
+  // Photos : chargées à la demande (une par ligne ouverte), jamais en bloc.
+  const loadPhoto = React.useCallback(async (norm) => {
+    if (!invId || !norm) return null;
+    try {
+      const d = await db.collection("inventories").doc(invId).collection("photos").doc(norm).get();
+      return d.exists ? d.data().data : null;
+    } catch (e) {
+      return null;
+    }
+  }, [invId]);
 
   const triggerStamp = (kind) => {
     setStampAnim(kind);
@@ -1016,29 +1292,28 @@ function InventaireMMTE() {
         setFeedback({ type: "found", chassis: original, message: "Trouvé sur MMTE.", description: info.description });
         triggerStamp("found");
         if (soundOn) playFeedbackSound("found");
-        try {
-          await ref.set({
-            norm,
-            chassis: original,
-            source: "mmte",
-            agentUid: authUser.uid,
-            agentName: currentAgent.name,
-            scannedAt: FieldValue.serverTimestamp(),
-            deleted: false,
-            description: info.description || "",
-            registredAt: info.registredAt || "",
-            depotDate: info.depotDate || "",
-            entryDate: info.entryDate || "",
-            atp: info.atp || "",
-            shipName: info.shipName || "",
-            weight: info.weight || "",
-            companyNumber: info.companyNumber || "",
-            bl: info.bl || "",
-            extra: info.extra || {},
-          });
-        } catch (e) {
-          setFeedback({ type: "notfound", chassis: raw, message: "Erreur d'enregistrement, réessayez." });
-        }
+        const prevDeleted = scans.find((x) => x.norm === norm && x.deleted);
+        ref.set({
+          norm,
+          chassis: original,
+          source: "mmte",
+          agentUid: authUser.uid,
+          agentName: currentAgent.name,
+          scannedAt: FieldValue.serverTimestamp(),
+          deleted: false,
+          description: info.description || "",
+          registredAt: info.registredAt || "",
+          depotDate: info.depotDate || "",
+          entryDate: info.entryDate || "",
+          atp: info.atp || "",
+          shipName: info.shipName || "",
+          weight: info.weight || "",
+          companyNumber: info.companyNumber || "",
+          bl: info.bl || "",
+          extra: info.extra || {},
+          ...(prevDeleted ? { restoredFrom: { by: prevDeleted.deletedBy || "", at: prevDeleted.deletedAt || null } } : {}),
+        }).catch((e) => setFeedback({ type: "notfound", chassis: raw, message: writeErrorMessage(e) }));
+        if (prevDeleted) logAuditFor(invId, "restore", { norm, chassis: original });
       }
       setPendingNotFound(null);
     } else if (registeredSet.has(norm)) {
@@ -1047,7 +1322,7 @@ function InventaireMMTE() {
       setPendingNotFound(null);
     } else {
       setRegForm({ age: "", name: "", model: "", photo: "", busy: false, error: "" });
-      setPendingNotFound({ norm, chassis: raw });
+      setPendingNotFound({ norm, chassis: raw, suggestions: suggestChassis(norm, mmteMap, foundSet) });
       setFeedback({ type: "notfound", chassis: raw, message: "Introuvable sur la liste MMTE." });
       if (soundOn) playFeedbackSound("notfound");
     }
@@ -1055,31 +1330,43 @@ function InventaireMMTE() {
     inputRef.current && inputRef.current.focus();
   };
 
-  const confirmRegister = async () => {
+  const confirmRegister = () => {
     if (!pendingNotFound || !invId) return;
-    const ref = db.collection("inventories").doc(invId).collection("scans").doc(pendingNotFound.norm);
-    setFeedback({ type: "registered", chassis: pendingNotFound.chassis, message: "Enregistré comme présent sur le parc." });
+    const p = pendingNotFound;
+    const invRef = db.collection("inventories").doc(invId);
+    const ref = invRef.collection("scans").doc(p.norm);
+    const prevDeleted = scans.find((x) => x.norm === p.norm && x.deleted);
+    const hasPhoto = !!regForm.photo;
+    setFeedback({ type: "registered", chassis: p.chassis, message: "Enregistré comme présent sur le parc." });
     triggerStamp("registered");
     if (soundOn) playFeedbackSound("registered");
-    try {
-      await ref.set({
-        norm: pendingNotFound.norm,
-        chassis: pendingNotFound.chassis,
-        source: "parc",
+    const batch = db.batch();
+    batch.set(ref, {
+      norm: p.norm,
+      chassis: p.chassis,
+      source: "parc",
+      agentUid: authUser.uid,
+      agentName: currentAgent.name,
+      scannedAt: FieldValue.serverTimestamp(),
+      deleted: false,
+      // Champs facultatifs saisis par l'agent (seul le châssis est obligatoire)
+      vehicleAge: regForm.age || "",
+      vehicleName: regForm.name.trim(),
+      vehicleModel: regForm.model.trim(),
+      description: [regForm.name.trim(), regForm.model.trim()].filter(Boolean).join(" "),
+      hasPhoto,
+      ...(prevDeleted ? { restoredFrom: { by: prevDeleted.deletedBy || "", at: prevDeleted.deletedAt || null } } : {}),
+    });
+    // La photo est dans un document séparé : elle n'alourdit pas les listes.
+    if (hasPhoto) {
+      batch.set(invRef.collection("photos").doc(p.norm), {
+        data: regForm.photo,
         agentUid: authUser.uid,
-        agentName: currentAgent.name,
-        scannedAt: FieldValue.serverTimestamp(),
-        deleted: false,
-        // Champs facultatifs saisis par l'agent (seul le châssis est obligatoire)
-        vehicleAge: regForm.age || "",
-        vehicleName: regForm.name.trim(),
-        vehicleModel: regForm.model.trim(),
-        description: [regForm.name.trim(), regForm.model.trim()].filter(Boolean).join(" "),
-        photo: regForm.photo || "",
+        createdAt: FieldValue.serverTimestamp(),
       });
-    } catch (e) {
-      // silencieux
     }
+    batch.commit().catch((e) => setFeedback({ type: "notfound", chassis: p.chassis, message: writeErrorMessage(e) }));
+    if (prevDeleted) logAuditFor(invId, "restore", { norm: p.norm, chassis: p.chassis });
     setPendingNotFound(null);
     inputRef.current && inputRef.current.focus();
   };
@@ -1093,6 +1380,7 @@ function InventaireMMTE() {
   // Suppression tracée (pas de suppression réelle : on marque + on garde l'auteur)
   const softDelete = async (norm) => {
     if (!invId) return;
+    const target = scans.find((x) => x.norm === norm);
     try {
       await db.collection("inventories").doc(invId).collection("scans").doc(norm).update({
         deleted: true,
@@ -1100,8 +1388,9 @@ function InventaireMMTE() {
         deletedByUid: authUser ? authUser.uid : "",
         deletedAt: FieldValue.serverTimestamp(),
       });
+      logAuditFor(invId, "delete", { norm, chassis: target ? target.chassis : norm });
     } catch (e) {
-      // silencieux
+      setFeedback({ type: "notfound", chassis: target ? target.chassis : norm, message: "Suppression impossible (droits insuffisants ou connexion). Réessayez." });
     }
   };
 
@@ -1118,26 +1407,50 @@ function InventaireMMTE() {
     } catch (e) {}
     return cred;
   };
-  const handleGuestAccess = async (name) => {
-    // signInAnonymously suffit à donner l'accès immédiatement (aucune
-    // validation admin pour les invités). Le nom est affiché tout de
-    // suite via un état local — on ne touche jamais à l'objet Firebase
-    // authUser lui-même (source d'un bug qui faisait passer les invités
-    // pour des agents en attente de validation).
-    const cred = await auth.signInAnonymously();
+  const handleGuestAccess = async (name, code) => {
+    // La session invité est créée côté serveur : les règles Firestore
+    // comparent le code saisi au code enregistré par l'administrateur
+    // (config/guest, illisible pour les invités). Un mauvais code est refusé
+    // par le serveur, pas par le code de la page.
+    guestPendingRef.current = true;
+    let cred;
+    try {
+      cred = await auth.signInAnonymously();
+      await db.collection("guestSessions").doc(cred.user.uid).set({
+        code: String(code || "").trim().toUpperCase(),
+        name: String(name || "").trim().slice(0, 80),
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      const e2 = new Error("guest");
+      e2.code = err && err.code === "permission-denied" ? "guest/bad-code" : (err && err.code) || "";
+      // L'écran de connexion est démonté pendant la vérification : on garde
+      // le message (avant la déconnexion) pour le réafficher au retour.
+      setGuestFailure(friendlyAuthError(e2));
+      try { await auth.signOut(); } catch (e) { /* ignore */ }
+      guestPendingRef.current = false;
+      throw e2;
+    }
     if (name && name.trim()) {
       setLocalDisplayName(name.trim());
       cred.user.updateProfile({ displayName: name.trim() }).catch(() => {});
     }
+    guestPendingRef.current = false;
+    setGuestFailure("");
+    setGuestOk(true);
     return cred;
   };
   const handlePasswordReset = (email) => auth.sendPasswordResetEmail(email);
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setLocalDisplayName("");
+    if (authUser && isGuest) {
+      try { await db.collection("guestSessions").doc(authUser.uid).delete(); } catch (e) { /* ignore */ }
+    }
     return auth.signOut();
   };
 
   const resetAll = () => {
+    setReadOnly(false);
     setPhase("setup");
     setParcName("");
     setInvDate(todayISO());
@@ -1167,11 +1480,252 @@ function InventaireMMTE() {
         completedAt: FieldValue.serverTimestamp(),
         completedByName: currentAgent ? currentAgent.name : "",
         completedByUid: authUser ? authUser.uid : "",
+        stats: {
+          expected: mmteMap.size,
+          found: foundList.length,
+          registered: registeredList.length,
+          total: totalList.length,
+          missing: missingList.length,
+        },
       });
+      logAuditFor(invId, "close", { found: foundList.length, registered: registeredList.length, missing: missingList.length });
     } catch (e) {
-      // silencieux : au pire l'inventaire reste visible dans la liste, sans perte de données
+      // La clôture n'a pas été enregistrée : on reste sur l'écran pour réessayer.
+      window.alert("La clôture n'a pas pu être enregistrée (connexion ou droits). L'inventaire reste ouvert : réessayez dans un instant.");
+      return;
     }
     resetAll();
+  };
+
+  // --- Archives : liste de tous les inventaires, consultation en lecture seule ---
+  const [readOnly, setReadOnly] = useState(false);
+  const [archiveList, setArchiveList] = useState([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
+
+  const loadArchive = async () => {
+    setArchiveLoading(true);
+    setArchiveError("");
+    try {
+      const snap = await db.collection("inventories").get();
+      const list = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((x) => x.status === "completed" || x.status === "in_progress" || (isAdmin && x.status === "trashed"));
+      list.sort((a, b) => String(b.invDate || "").localeCompare(String(a.invDate || "")));
+      setArchiveList(list);
+    } catch (e) {
+      setArchiveError("Impossible de charger les archives. Vérifiez votre connexion et réessayez.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  const openArchives = () => {
+    resetAll();
+    setShowAdmin(false);
+    setPhase("archives");
+    loadArchive();
+  };
+
+  // Ouvre un inventaire archivé en lecture seule : mêmes listes et mêmes
+  // exports que pendant l'inventaire, mais aucun pointage possible.
+  const openArchivedInventory = async (inv) => {
+    setArchiveLoading(true);
+    setArchiveError("");
+    try {
+      const map = await loadMmteMap(db.collection("inventories").doc(inv.id));
+      setMmteMap(map);
+      setInvMeta(inv);
+      setParcName(inv.parcName);
+      setInvDate(inv.invDate);
+      setInvId(inv.id);
+      setReadOnly(true);
+      setPhase("summary");
+    } catch (e) {
+      setArchiveError("Impossible d'ouvrir cet inventaire. Réessayez.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  const closeArchivedView = () => {
+    resetAll();
+    setPhase("archives");
+    loadArchive();
+  };
+
+  // Corbeille (administrateur) : l'inventaire disparaît des archives mais reste
+  // récupérable ; il ne peut être purgé définitivement qu'à partir de 30 jours
+  // (ou immédiatement sur confirmation explicite).
+  const trashArchived = async (inv) => {
+    try {
+      const patch = {
+        status: "trashed",
+        statusBeforeTrash: inv.status,
+        trashedAt: FieldValue.serverTimestamp(),
+        trashedByName: currentAgent ? currentAgent.name : "",
+        trashedByUid: authUser ? authUser.uid : "",
+      };
+      await db.collection("inventories").doc(inv.id).update(patch);
+      logAuditFor(inv.id, "trash", {});
+      setArchiveList((l) => l.map((x) => (x.id === inv.id ? { ...x, ...patch, trashedAt: { toMillis: () => Date.now() } } : x)));
+      return true;
+    } catch (e) {
+      setArchiveError("Impossible de déplacer cet inventaire dans la corbeille (droits ou connexion).");
+      return false;
+    }
+  };
+  const restoreArchived = async (inv) => {
+    try {
+      const back = inv.statusBeforeTrash === "in_progress" ? "in_progress" : "completed";
+      await db.collection("inventories").doc(inv.id).update({ status: back });
+      logAuditFor(inv.id, "restore-archive", {});
+      setArchiveList((l) => l.map((x) => (x.id === inv.id ? { ...x, status: back } : x)));
+      return true;
+    } catch (e) {
+      setArchiveError("Impossible de restaurer cet inventaire.");
+      return false;
+    }
+  };
+  const purgeArchived = async (inv) => {
+    try {
+      const ref = db.collection("inventories").doc(inv.id);
+      await purgeInventoryData(ref, true);
+      await ref.delete();
+      setArchiveList((l) => l.filter((x) => x.id !== inv.id));
+      return true;
+    } catch (e) {
+      setArchiveError("La suppression définitive a échoué (droits ou connexion). Rouvrez la corbeille pour vérifier l'état.");
+      return false;
+    }
+  };
+  const purgeExpiredArchives = async () => {
+    const limit = Date.now() - 30 * 24 * 3600 * 1000;
+    const expired = archiveList.filter((x) => x.status === "trashed" && x.trashedAt && x.trashedAt.toMillis && x.trashedAt.toMillis() < limit);
+    for (const inv of expired) await purgeArchived(inv);
+    return expired.length;
+  };
+
+  // --- Rouvrir une archive pour continuer le pointage (administrateur) ---
+  const reopenArchived = async (inv) => {
+    if (!window.confirm(`Rouvrir l'inventaire « ${inv.parcName} » du ${String(inv.invDate || "").split("-").reverse().join("/")} ?\n\nIl redeviendra « en cours » et les agents pourront de nouveau pointer.`)) return;
+    setArchiveLoading(true);
+    setArchiveError("");
+    try {
+      const ref = db.collection("inventories").doc(inv.id);
+      if (inv.status === "completed") {
+        await ref.update({
+          status: "in_progress",
+          reopenedAt: FieldValue.serverTimestamp(),
+          reopenedByUid: authUser.uid,
+          reopenedByName: currentAgent ? currentAgent.name : "",
+        });
+        logAuditFor(inv.id, "reopen", {});
+      }
+      const map = await loadMmteMap(ref);
+      setMmteMap(map);
+      setInvMeta({ ...inv, status: "in_progress" });
+      setParcName(inv.parcName);
+      setInvDate(inv.invDate);
+      setInvId(inv.id);
+      setStartedAt(Date.now());
+      setRestoredBanner(true);
+      setFeedback(null);
+      setPendingNotFound(null);
+      setReadOnly(false);
+      setPhase("inventory");
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
+    } catch (e) {
+      setArchiveError("Impossible de rouvrir cet inventaire. Réessayez.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+
+  // --- Comparaison de deux inventaires d'un même parc ---
+  const [compareData, setCompareData] = useState(null);
+  const compareInventories = async (x, y) => {
+    setArchiveLoading(true);
+    setArchiveError("");
+    try {
+      const [older, newer] = String(x.invDate) <= String(y.invDate) ? [x, y] : [y, x];
+      const load = async (inv) => {
+        const snap = await db.collection("inventories").doc(inv.id).collection("scans").get();
+        const m = new Map();
+        snap.forEach((d) => {
+          const s = d.data();
+          if (!s.deleted) m.set(d.id, { norm: d.id, chassis: s.chassis || d.id, description: s.description || "", source: s.source });
+        });
+        return m;
+      };
+      const [ma, mb] = await Promise.all([load(older), load(newer)]);
+      const onlyOld = [], onlyNew = [], both = [];
+      ma.forEach((v, k) => (mb.has(k) ? both.push(v) : onlyOld.push(v)));
+      mb.forEach((v, k) => { if (!ma.has(k)) onlyNew.push(v); });
+      setCompareData({ older, newer, onlyOld, onlyNew, both, countOld: ma.size, countNew: mb.size });
+      setPhase("compare");
+    } catch (e) {
+      setArchiveError("Impossible de comparer ces inventaires. Réessayez.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+  const exportComparison = () => {
+    if (!compareData) return;
+    const d = compareData;
+    const wb = XLSX.utils.book_new();
+    const add = (name, rows) => {
+      const aoa = [["Châssis", "Véhicule", "Origine"], ...rows.map((r) => [r.chassis, r.description, r.source === "mmte" ? "MMTE" : "Hors MMTE"])];
+      wb.SheetNames.push(name);
+      wb.Sheets[name] = XLSX.utils.aoa_to_sheet(aoa);
+    };
+    const fd = (i) => String(i.invDate || "").split("-").reverse().join("/");
+    const sum = [
+      ["INVENTAIRE MMTE — Comparaison de deux inventaires"],
+      [],
+      ["Parc", d.newer.parcName],
+      ["Inventaire ancien", fd(d.older)],
+      ["Inventaire récent", fd(d.newer)],
+      ["Présents à l'ancien inventaire", d.countOld],
+      ["Présents au récent inventaire", d.countNew],
+      ["Nouveaux (absents avant, présents maintenant)", d.onlyNew.length],
+      ["Sortis (présents avant, absents maintenant)", d.onlyOld.length],
+      ["Présents aux deux dates", d.both.length],
+    ];
+    wb.SheetNames.push("Résumé");
+    wb.Sheets["Résumé"] = XLSX.utils.aoa_to_sheet(sum);
+    add("Nouveaux", d.onlyNew);
+    add("Sortis", d.onlyOld);
+    add("Présents aux deux dates", d.both);
+    XLSX.writeFile(wb, `Comparaison_${d.newer.parcName || "parc"}_${d.older.invDate}_${d.newer.invDate}.xlsx`);
+  };
+
+  const exportArchiveSummary = (list) => {
+    const head = ["Parc", "Date de l'inventaire", "Statut", "Attendus MMTE", "Trouvés MMTE", "Enregistrés hors MMTE", "Total présent", "Manquants", "Taux de retrouvés (%)", "Créé par", "Clôturé par", "Date de clôture"];
+    const rows = list.map((x) => {
+      const st = x.stats || {};
+      const rate = st.expected ? Math.round((st.found / st.expected) * 100) : "";
+      return [
+        x.parcName || "",
+        String(x.invDate || "").split("-").reverse().join("/"),
+        x.status === "completed" ? "Clôturé" : "En cours",
+        st.expected != null ? st.expected : (x.mmteCount != null ? x.mmteCount : ""),
+        st.found != null ? st.found : "",
+        st.registered != null ? st.registered : "",
+        st.total != null ? st.total : "",
+        st.missing != null ? st.missing : "",
+        rate,
+        x.createdByName || "",
+        x.completedByName || "",
+        x.completedAt ? formatTimestamp(x.completedAt) : "",
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
+    applyDateCells(ws, [1]);
+    const wb = XLSX.utils.book_new();
+    wb.SheetNames.push("Archives");
+    wb.Sheets["Archives"] = ws;
+    XLSX.writeFile(wb, `Archives_inventaires_${todayISO()}.xlsx`);
   };
 
   // --- Exports ---
@@ -1206,7 +1760,7 @@ function InventaireMMTE() {
     i.companyNumber || "",
     i.bl || "",
     VEHICLE_AGE_LABELS[i.vehicleAge] || "",
-    i.photo ? "Oui" : "",
+    i.photo || i.hasPhoto ? "Oui" : "",
   ];
 
   const exportCSVList = (kind) => {
@@ -1283,6 +1837,7 @@ function InventaireMMTE() {
   };
 
   return (
+    <PhotoCtx.Provider value={loadPhoto}>
     <div className="min-h-screen w-full bg-white" style={{ fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
@@ -1314,6 +1869,7 @@ function InventaireMMTE() {
         isGuest={isGuest}
         showAdmin={showAdmin}
         setShowAdmin={setShowAdmin}
+        onOpenArchives={authUser && isApproved && !isGuest ? openArchives : null}
       />
 
       {authUser === undefined && (
@@ -1325,8 +1881,8 @@ function InventaireMMTE() {
           onLogin={handleEmailLogin}
           onSignup={handleSignup}
           onGuest={handleGuestAccess}
+          guestFailure={guestFailure}
           onReset={handlePasswordReset}
-          guestAccessCode={GUEST_ACCESS_CODE}
         />
       )}
 
@@ -1334,7 +1890,11 @@ function InventaireMMTE() {
         <div className="max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm">Chargement du profil...</div>
       )}
 
-      {authUser && !isApproved && userDoc !== undefined && (
+      {authUser && isGuest && guestOk === undefined && (
+        <div className="max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm">Vérification de l'accès invité...</div>
+      )}
+
+      {authUser && !isGuest && !isApproved && userDoc !== undefined && (
         <PendingApprovalScreen onLogout={handleLogout} status={userDoc && userDoc.status} />
       )}
 
@@ -1342,7 +1902,6 @@ function InventaireMMTE() {
         <AdminPanel
           onClose={() => setShowAdmin(false)}
           parcsList={PARCS_LIST}
-          guestAccessCode={GUEST_ACCESS_CODE}
           adminEmails={ADMIN_EMAILS}
           currentUserEmail={authUser.email}
         />
@@ -1414,11 +1973,39 @@ function InventaireMMTE() {
           restoredBanner={restoredBanner}
           setRestoredBanner={setRestoredBanner}
           isGuest={isGuest}
+          syncInfo={{ online: isOnline, pending: pendingCount }}
         />
+      )}
+
+      {authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "archives" && (
+        <ArchiveScreen
+          list={archiveList}
+          loading={archiveLoading}
+          error={archiveError}
+          onOpen={openArchivedInventory}
+          onTrash={trashArchived}
+          onRestore={restoreArchived}
+          onPurge={purgeArchived}
+          onPurgeExpired={purgeExpiredArchives}
+          onRefresh={loadArchive}
+          onExport={exportArchiveSummary}
+          onBack={resetAll}
+          isAdmin={isAdmin}
+          parcsList={PARCS_LIST}
+          onReopen={reopenArchived}
+          onCompare={compareInventories}
+        />
+      )}
+
+      {authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "compare" && compareData && (
+        <CompareScreen data={compareData} onBack={() => { setPhase("archives"); }} onExport={exportComparison} />
       )}
 
       {authUser && isApproved && !(isAdmin && showAdmin) && phase === "summary" && (
         <SummaryScreen
+          readOnly={readOnly}
+          invMeta={invMeta}
+          onReopen={isAdmin && readOnly && invMeta && invMeta.status === "completed" ? () => reopenArchived({ ...invMeta, id: invId }) : null}
           parcName={parcName}
           invDate={invDate}
           mmteSize={mmteMap.size}
@@ -1429,7 +2016,7 @@ function InventaireMMTE() {
           contributors={contributors}
           exportCSVList={exportCSVList}
           exportExcel={exportExcel}
-          backToInventory={() => setPhase("inventory")}
+          backToInventory={readOnly ? closeArchivedView : () => setPhase("inventory")}
           resetAll={resetAll}
           closeInventory={closeInventory}
           isGuest={isGuest}
@@ -1438,13 +2025,23 @@ function InventaireMMTE() {
 
       <AppFooter />
     </div>
+    </PhotoCtx.Provider>
+  );
+}
+
+// Point d'entrée : l'application est enveloppée dans un écran de secours.
+function InventaireMMTE() {
+  return (
+    <ErrorBoundary>
+      <InventaireMMTEApp />
+    </ErrorBoundary>
   );
 }
 
 // ============================================================================
 // EN-TÊTE / PIED DE PAGE
 // ============================================================================
-function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin }) {
+function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin, onOpenArchives }) {
   return (
     <header className="no-print bg-white border-b-2 border-[#1B4F8C]/15">
       <div className="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between gap-3">
@@ -1473,6 +2070,14 @@ function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setSho
             <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
               Invité
             </span>
+          )}
+          {onOpenArchives && (
+            <>
+              <span className="text-slate-300">·</span>
+              <button onClick={onOpenArchives} className="font-semibold text-[#1B4F8C] hover:underline">
+                Mes données / Archives
+              </button>
+            </>
           )}
           {isAdmin && (
             <>
@@ -1529,12 +2134,13 @@ function PendingApprovalScreen({ onLogout, status }) {
 // ============================================================================
 // PANNEAU ADMIN
 // ============================================================================
-function AdminPanel({ onClose, parcsList, guestAccessCode, adminEmails, currentUserEmail }) {
+function AdminPanel({ onClose, parcsList, adminEmails, currentUserEmail }) {
   const projectId = firebaseConfig.projectId;
   const [pending, setPending] = useState([]);
   const [loadingPending, setLoadingPending] = useState(true);
   const [parcsText, setParcsText] = useState(parcsList.join("\n"));
-  const [codeText, setCodeText] = useState(guestAccessCode);
+  const [codeText, setCodeText] = useState("");
+  const [guestDocMissing, setGuestDocMissing] = useState(false);
   const [adminsText, setAdminsText] = useState(adminEmails.join("\n"));
   const [saveMsg, setSaveMsg] = useState("");
   const [saving, setSaving] = useState(false);
@@ -1551,6 +2157,17 @@ function AdminPanel({ onClose, parcsList, guestAccessCode, adminEmails, currentU
         () => setLoadingPending(false)
       );
     return unsub;
+  }, []);
+
+  // Le code invité vit dans config/guest, illisible pour les invités et les
+  // agents : seul le serveur le compare au code saisi à la connexion.
+  useEffect(() => {
+    db.collection("config").doc("guest").get()
+      .then((snap) => {
+        if (snap.exists) setCodeText(snap.data().code || "");
+        else { setCodeText(DEFAULT_GUEST_ACCESS_CODE); setGuestDocMissing(true); }
+      })
+      .catch(() => { setCodeText(DEFAULT_GUEST_ACCESS_CODE); setGuestDocMissing(true); });
   }, []);
 
   const approve = async (uid) => {
@@ -1578,11 +2195,22 @@ function AdminPanel({ onClose, parcsList, guestAccessCode, adminEmails, currentU
 
     setSaving(true);
     try {
+      const code = codeText.trim().toUpperCase();
+      if (!code) {
+        setSaveMsg("Le code d'accès invité ne peut pas être vide.");
+        setSaving(false);
+        return;
+      }
+      // Ordre voulu : d'abord les nouveaux documents protégés, ensuite le
+      // nettoyage de l'ancien emplacement lisible par tous.
+      await db.collection("config").doc("admins").set({ emails: admins });
+      await db.collection("config").doc("guest").set({ code });
       await db.collection("config").doc("app").set(
-        { parcsList: parcs, guestAccessCode: codeText.trim(), adminEmails: admins },
+        { parcsList: parcs, guestAccessCode: FieldValue.delete(), adminEmails: FieldValue.delete() },
         { merge: true }
       );
-      setSaveMsg("Configuration enregistrée. Elle s'applique immédiatement à tous les appareils connectés.");
+      setGuestDocMissing(false);
+      setSaveMsg("Configuration enregistrée. Le code invité et la liste des administrateurs sont désormais protégés (illisibles pour les agents et les invités).");
     } catch (e) {
       setSaveMsg("Erreur lors de l'enregistrement. Vérifiez que Firestore est bien activé.");
     } finally {
@@ -1706,8 +2334,8 @@ function AdminPanel({ onClose, parcsList, guestAccessCode, adminEmails, currentU
 // ============================================================================
 // CONNEXION
 // ============================================================================
-function LoginScreen({ onLogin, onSignup, onGuest, onReset, guestAccessCode }) {
-  const [mode, setMode] = useState("login");
+function LoginScreen({ onLogin, onSignup, onGuest, onReset, guestFailure }) {
+  const [mode, setMode] = useState(guestFailure ? "guest" : "login");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -1715,7 +2343,7 @@ function LoginScreen({ onLogin, onSignup, onGuest, onReset, guestAccessCode }) {
   const [guestCode, setGuestCode] = useState("");
   const [guestStep, setGuestStep] = useState("code");
   const [guestName, setGuestName] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(guestFailure || "");
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -1769,8 +2397,8 @@ function LoginScreen({ onLogin, onSignup, onGuest, onReset, guestAccessCode }) {
   const handleGuestCodeSubmit = (e) => {
     if (e) e.preventDefault();
     setError("");
-    if (guestCode.trim().toUpperCase() !== guestAccessCode.toUpperCase()) {
-      setError("Code d'accès incorrect.");
+    if (!guestCode.trim()) {
+      setError("Merci de saisir le code d'accès.");
       return;
     }
     setGuestStep("name");
@@ -1781,9 +2409,10 @@ function LoginScreen({ onLogin, onSignup, onGuest, onReset, guestAccessCode }) {
     if (!guestName.trim()) return setError("Merci de renseigner votre nom.");
     setBusy(true);
     try {
-      await onGuest(guestName.trim());
+      await onGuest(guestName.trim(), guestCode.trim());
     } catch (err) {
       setError(friendlyAuthError(err));
+      if (err && err.code === "guest/bad-code") setGuestStep("code");
     } finally {
       setBusy(false);
     }
@@ -2359,9 +2988,10 @@ function InventoryScreen(props) {
     pendingNotFound, confirmRegister, cancelPending, activeTab, setActiveTab,
     listFilter, setListFilter, softDelete, stampAnim, confirmNewParc, setConfirmNewParc,
     resetAll, goSummary, progressPct, elapsed, soundOn, setSoundOn, restoredBanner,
-    setRestoredBanner, isGuest, regForm, setRegForm,
+    setRestoredBanner, isGuest, regForm, setRegForm, syncInfo,
   } = props;
 
+  const [showCamera, setShowCamera] = useState(false);
   const tabs = [
     { key: "total", label: `Total (${totalList.length})` },
     { key: "found", label: `Trouvés MMTE (${foundList.length})` },
@@ -2372,6 +3002,13 @@ function InventoryScreen(props) {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-5 pb-24 relative">
+      {syncInfo && <SyncBadge online={syncInfo.online} pending={syncInfo.pending} />}
+      {showCamera && (
+        <CameraScanner
+          onClose={() => setShowCamera(false)}
+          onDetect={(v) => { setShowCamera(false); setInputVal(""); submitChassis(v); }}
+        />
+      )}
       {restoredBanner && (
         <div className="no-print mb-4 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-2.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-emerald-800 text-sm font-semibold">
@@ -2462,6 +3099,13 @@ function InventoryScreen(props) {
         >
           Valider
         </button>
+        <button
+          onClick={() => setShowCamera(true)}
+          className="w-full mt-2 py-3 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2"
+          style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}
+        >
+          <ScanLine size={16} /> Scanner avec la caméra
+        </button>
 
         {feedback && !pendingNotFound && (
           <div className={`mt-4 rounded-xl border-2 p-3 flex items-start gap-2 ${feedbackStyle[feedback.type].bg} ${feedbackStyle[feedback.type].border}`}>
@@ -2482,6 +3126,20 @@ function InventoryScreen(props) {
                 <div className="text-sm font-medium text-rose-700">Introuvable sur la liste MMTE.</div>
               </div>
             </div>
+            {pendingNotFound.suggestions && pendingNotFound.suggestions.length > 0 && (
+              <div className="mt-3 rounded-lg border-2 border-amber-200 bg-amber-50 p-3">
+                <div className="text-xs font-bold text-amber-900 mb-2">Vouliez-vous dire :</div>
+                <div className="space-y-2">
+                  {pendingNotFound.suggestions.map((sg) => (
+                    <button key={sg.norm} onClick={() => submitChassis(sg.chassis)}
+                      className="w-full text-left px-3 py-2 rounded-lg bg-white border-2 border-amber-200 hover:border-amber-400">
+                      <div className="font-plex-mono text-sm font-bold text-slate-800">{sg.chassis}</div>
+                      {sg.description && <div className="text-xs text-slate-500 truncate">{sg.description}</div>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="mt-3 space-y-3 bg-white rounded-lg border border-rose-200 p-3">
               <div className="text-xs font-bold text-slate-600">Informations facultatives sur le véhicule</div>
               <div>
@@ -2658,11 +3316,22 @@ function ListRow({ chassis, agent, scannedAt, onRemove, badge, badgeTone, detail
     }
   };
 
+  const loadPhoto = React.useContext(PhotoCtx);
+  const [photoData, setPhotoData] = useState(null);
+  const hasPhoto = !!(detail && (detail.photo || detail.hasPhoto));
+  useEffect(() => {
+    if (!expanded || !detail || !detail.hasPhoto || detail.photo || photoData || !loadPhoto) return;
+    let cancelled = false;
+    loadPhoto(detail.norm).then((d) => { if (!cancelled && d) setPhotoData(d); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded]);
+  const photoSrc = detail ? (detail.photo || photoData) : null;
   const hasDetail =
     detail &&
     (detail.description || detail.registredAt || detail.depotDate ||
       detail.atp || detail.shipName || detail.weight || detail.companyNumber || detail.bl || detail.entryDate ||
-      detail.vehicleAge || detail.vehicleModel || detail.photo ||
+      detail.vehicleAge || detail.vehicleModel || hasPhoto ||
       (detail.extra && Object.keys(detail.extra).length > 0));
   const jr = detail && joursRestantBadge(detail.depotDate);
   const [bigPhoto, setBigPhoto] = useState(false);
@@ -2688,7 +3357,7 @@ function ListRow({ chassis, agent, scannedAt, onRemove, badge, badgeTone, detail
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {detail && detail.vehicleAge && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">{VEHICLE_AGE_LABELS[detail.vehicleAge]}</span>}
-          {detail && detail.photo && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Photo</span>}
+          {hasPhoto && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Photo</span>}
           {jr && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${jr.tone}`}>{jr.text}</span>}
           {badge && <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${tones[badgeTone]}`}>{badge}</span>}
           {onRemove && (
@@ -2703,14 +3372,15 @@ function ListRow({ chassis, agent, scannedAt, onRemove, badge, badgeTone, detail
           {detail.vehicleAge && <DetailLine label="Âge du véhicule" value={VEHICLE_AGE_LABELS[detail.vehicleAge]} />}
           {detail.vehicleName && <DetailLine label="Marque" value={detail.vehicleName} />}
           {detail.vehicleModel && <DetailLine label="Modèle" value={detail.vehicleModel} />}
-          {detail.photo && (
+          {hasPhoto && (
             <div className="pt-1">
-              <img
-                src={detail.photo}
+              {!photoSrc && <div className="text-slate-400">Chargement de la photo...</div>}
+              {photoSrc && <img
+                src={photoSrc}
                 alt="Photo du châssis"
                 onClick={() => setBigPhoto((b) => !b)}
                 className={`rounded-lg border border-slate-200 cursor-pointer ${bigPhoto ? "w-full" : "h-24"}`}
-              />
+              />}
             </div>
           )}
           {detail.registredAt && <DetailLine label={FIELD_LABELS.registredAt} value={detail.registredAt} />}
@@ -2754,9 +3424,41 @@ function TruncationNote({ count }) {
 // ============================================================================
 // RÉCAPITULATIF
 // ============================================================================
-function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList, totalList, missingList, contributors, exportCSVList, exportExcel, backToInventory, resetAll, closeInventory, isGuest }) {
+function SummaryScreen({ readOnly, invMeta, onReopen, parcName, invDate, mmteSize, foundList, registeredList, totalList, missingList, contributors, exportCSVList, exportExcel, backToInventory, resetAll, closeInventory, isGuest }) {
   const [confirmClose, setConfirmClose] = useState(false);
-  const [printTarget, setPrintTarget] = useState("report"); // report | closure
+  const [printTarget, setPrintTarget] = useState("report"); // report | closure | photos
+  const loadPhoto = React.useContext(PhotoCtx);
+  const [photoMap, setPhotoMap] = useState({});
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const photoRows = registeredList.filter((r) => r.hasPhoto || r.photo);
+  const printPhotos = async () => {
+    setLoadingPhotos(true);
+    const map = {};
+    for (const r of photoRows) {
+      map[r.norm] = r.photo || (loadPhoto ? await loadPhoto(r.norm) : null);
+    }
+    setPhotoMap(map);
+    setLoadingPhotos(false);
+    setPrintTarget("photos");
+    setTimeout(() => window.print(), 250);
+  };
+  const mailSummary = () => {
+    const subject = `Inventaire MMTE — ${parcName} — ${String(invDate || "").split("-").reverse().join("/")}`;
+    const body = [
+      `Parc : ${parcName}`,
+      `Date de l'inventaire : ${String(invDate || "").split("-").reverse().join("/")}`,
+      contributors.length ? `Agents : ${contributors.join(", ")}` : "",
+      "",
+      `Attendus MMTE : ${mmteSize}`,
+      `Trouvés sur MMTE : ${foundList.length}`,
+      `Enregistrés hors MMTE : ${registeredList.length}`,
+      `Total présent sur le parc : ${totalList.length}`,
+      `Manquants : ${missingList.length}`,
+      "",
+      "(Joindre le classeur Excel téléchargé depuis l'application.)",
+    ].filter((l, i) => l !== "" || i > 0).join("\n");
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
   const triggerPrint = (target) => {
     setPrintTarget(target);
     setTimeout(() => window.print(), 60);
@@ -2764,11 +3466,11 @@ function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList,
   // Quand on imprime la fiche de clôture, le récapitulatif affiché à
   // l'écran (titre, parc, date, cartes de chiffres) ne doit pas
   // s'imprimer : ces informations figurent déjà dans le tableau de la fiche.
-  const hideOnClosurePrint = printTarget === "closure" ? "no-print" : "";
+  const hideOnClosurePrint = printTarget !== "report" ? "no-print" : "";
   return (
     <div className="max-w-2xl mx-auto px-5 py-8 print:py-0 print:px-0">
       <button onClick={backToInventory} className="no-print flex items-center gap-1 text-sm font-bold text-slate-500 mb-4">
-        <ArrowLeft size={16} /> Retour au pointage
+        <ArrowLeft size={16} /> {readOnly ? "Retour aux archives" : "Retour au pointage"}
       </button>
 
       <div className={hideOnClosurePrint}>
@@ -2776,6 +3478,20 @@ function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList,
         <h1 className="text-2xl font-extrabold mb-1" style={{ color: BLUE_DEEP }}>{parcName}</h1>
         <p className="text-slate-500 mb-4 font-medium">{invDate}</p>
       </div>
+
+      {readOnly && (
+        <div className="no-print mb-4 rounded-xl border-2 border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <b>Consultation seule.</b> Les pointages ne peuvent plus être modifiés depuis les archives.
+          {invMeta && invMeta.completedAt && (
+            <div className="text-xs mt-1">Clôturé le {formatTimestamp(invMeta.completedAt)}{invMeta.completedByName ? ` par ${invMeta.completedByName}` : ""}.</div>
+          )}
+          {onReopen && (
+            <button onClick={onReopen} className="mt-2 px-3 py-1.5 rounded-lg bg-white border-2 border-sky-300 text-sky-900 text-xs font-bold">
+              Rouvrir pour continuer le pointage (administrateur)
+            </button>
+          )}
+        </div>
+      )}
 
       {contributors.length > 0 && (
         <div className="no-print mb-6 rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3">
@@ -2808,19 +3524,30 @@ function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList,
           <button onClick={() => triggerPrint("closure")} className="w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
             <FileSpreadsheet size={16} /> Télécharger la fiche de clôture (à signer)
           </button>
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            <button onClick={() => exportCSVList("total")} className="py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700">CSV — Total parc</button>
-            <button onClick={() => exportCSVList("found")} className="py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700">CSV — Trouvés MMTE</button>
-            <button onClick={() => exportCSVList("registered")} className="py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700">CSV — Enregistrés</button>
-            <button onClick={() => exportCSVList("missing")} className="py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700">CSV — Manquants</button>
-          </div>
+          {photoRows.length > 0 && (
+            <button onClick={printPhotos} disabled={loadingPhotos} className="w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
+              <Printer size={16} /> {loadingPhotos ? "Chargement des photos..." : `Rapport photos des véhicules hors MMTE (${photoRows.length})`}
+            </button>
+          )}
+          <button onClick={mailSummary} className="w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
+            Envoyer le résumé par e-mail
+          </button>
+          <button onClick={() => exportCSVList("total")} className="w-full py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700">
+            Télécharger un fichier CSV (total présent sur le parc)
+          </button>
         </div>
       )}
 
-      {!isGuest && (
+      {readOnly && (
+        <div className="mt-6">
+          <ReadOnlyLists totalList={totalList} foundList={foundList} registeredList={registeredList} missingList={missingList} />
+        </div>
+      )}
+
+      {!isGuest && !readOnly && (
         <>
           <button onClick={resetAll} className="no-print w-full mt-6 py-3 rounded-xl text-white font-extrabold flex items-center justify-center gap-2 shadow-md" style={{ background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }}>
-            <RotateCcw size={18} /> Passer au parc suivant (laisser cet inventaire ouvert)
+            <RotateCcw size={18} /> Quitter sans clôturer (l'inventaire reste ouvert)
           </button>
 
           {!confirmClose ? (
@@ -2862,6 +3589,35 @@ function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList,
         </div>
       )}
 
+      {printTarget === "photos" && (
+        <div className="print-only">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <img src={LOGO_BC} alt="Bénin Control" style={{ height: 56, width: "auto" }} />
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 17, color: "#123A66" }}>RAPPORT PHOTOS — VÉHICULES HORS MMTE</div>
+              <div style={{ fontSize: 12, marginTop: 2 }}>{parcName} — {String(invDate || "").split("-").reverse().join("/")}</div>
+            </div>
+            <img src={LOGO_DOUANES} alt="Douanes Béninoises" style={{ height: 56, width: "auto" }} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            {photoRows.map((r) => (
+              <div key={r.norm} style={{ border: "1px solid #94A3B8", padding: 8, breakInside: "avoid" }}>
+                {photoMap[r.norm] ? (
+                  <img src={photoMap[r.norm]} alt="Châssis" style={{ width: "100%", maxHeight: 230, objectFit: "contain" }} />
+                ) : (
+                  <div style={{ height: 80, color: "#94A3B8", fontSize: 12 }}>Photo indisponible</div>
+                )}
+                <div style={{ fontWeight: 700, fontSize: 13, marginTop: 6 }}>{r.chassis}</div>
+                <div style={{ fontSize: 12 }}>{[r.vehicleName, r.vehicleModel].filter(Boolean).join(" ") || "—"}</div>
+                <div style={{ fontSize: 11, color: "#475569" }}>
+                  {VEHICLE_AGE_LABELS[r.vehicleAge] || "Âge non précisé"} · par {r.agentName || "—"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {printTarget === "closure" && (
         <ClosureCertificate
           parcName={parcName}
@@ -2874,6 +3630,535 @@ function SummaryScreen({ parcName, invDate, mmteSize, foundList, registeredList,
           missingCount={missingList.length}
         />
       )}
+    </div>
+  );
+}
+
+
+// ============================================================================
+// COMPARAISON de deux inventaires d'un même parc
+// ============================================================================
+function CompareScreen({ data, onBack, onExport }) {
+  const [tab, setTab] = useState("new");
+  const [filter, setFilter] = useState("");
+  const fd = (i) => String(i.invDate || "").split("-").reverse().join("/");
+  const nf = normalize(filter);
+  const rows = (tab === "new" ? data.onlyNew : tab === "old" ? data.onlyOld : data.both).filter((r) => !nf || normalize(r.chassis).includes(nf));
+  const tabs = [
+    ["new", `Nouveaux (${data.onlyNew.length})`],
+    ["old", `Sortis (${data.onlyOld.length})`],
+    ["both", `Communs (${data.both.length})`],
+  ];
+  return (
+    <div className="max-w-2xl mx-auto px-5 py-8">
+      <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-slate-500 mb-4">
+        <ArrowLeft size={16} /> Retour aux archives
+      </button>
+      <h2 className="text-2xl font-extrabold mb-1" style={{ color: BLUE_DEEP }}>Comparaison</h2>
+      <p className="text-slate-500 text-sm mb-4">
+        {data.newer.parcName} — inventaire du {fd(data.older)} comparé à celui du {fd(data.newer)}
+      </p>
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="rounded-xl p-4 text-white" style={{ background: BLUE_DEEP }}>
+          <div className="text-3xl font-extrabold font-plex-mono leading-none">{data.countOld}</div>
+          <div className="text-xs font-semibold mt-1 opacity-90">Présents le {fd(data.older)}</div>
+        </div>
+        <div className="rounded-xl p-4 text-white" style={{ background: BLUE_DEEP }}>
+          <div className="text-3xl font-extrabold font-plex-mono leading-none">{data.countNew}</div>
+          <div className="text-xs font-semibold mt-1 opacity-90">Présents le {fd(data.newer)}</div>
+        </div>
+        <div className="rounded-xl p-4 bg-emerald-600 text-white">
+          <div className="text-3xl font-extrabold font-plex-mono leading-none">{data.onlyNew.length}</div>
+          <div className="text-xs font-semibold mt-1 opacity-90">Nouveaux véhicules</div>
+        </div>
+        <div className="rounded-xl p-4 bg-rose-600 text-white">
+          <div className="text-3xl font-extrabold font-plex-mono leading-none">{data.onlyOld.length}</div>
+          <div className="text-xs font-semibold mt-1 opacity-90">Véhicules sortis</div>
+        </div>
+      </div>
+      <button onClick={onExport} className="w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2 mb-5" style={{ background: BLUE_DEEP }}>
+        <Download size={16} /> Télécharger la comparaison (Excel)
+      </button>
+      <div className="flex gap-1 overflow-x-auto border-b-2 border-slate-100 mb-3">
+        {tabs.map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} className="px-3 py-2 text-sm font-bold whitespace-nowrap border-b-2"
+            style={tab === k ? { borderColor: BLUE_DEEP, color: BLUE_DEEP } : { borderColor: "transparent", color: "#94a3b8" }}>
+            {l}
+          </button>
+        ))}
+      </div>
+      <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtrer par numéro de châssis..."
+        className="w-full px-3 py-2 mb-3 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none focus:border-[#1B4F8C]" />
+      <div className="space-y-2">
+        {rows.length === 0 && <div className="text-center text-sm text-slate-400 py-6">Aucune entrée.</div>}
+        {rows.slice(0, LIST_RENDER_CAP).map((r) => (
+          <ListRow key={r.norm} chassis={r.chassis} detail={r.description ? { description: r.description } : undefined} badge={r.source === "mmte" ? "MMTE" : "Parc"} badgeTone={r.source === "mmte" ? "emerald" : "sky"} />
+        ))}
+        <TruncationNote count={rows.length} />
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// ARCHIVES — liste de tous les inventaires réalisés
+// ============================================================================
+function ArchiveScreen({ list, loading, error, onOpen, onTrash, onRestore, onPurge, onPurgeExpired, onRefresh, onExport, onBack, isAdmin, parcsList, onReopen, onCompare }) {
+  const [view, setView] = useState("list"); // list | dashboard | trash
+  const [sel, setSel] = useState([]);
+  const [q, setQ] = useState("");
+  const [statusF, setStatusF] = useState("all");
+  const [yearF, setYearF] = useState("all");
+  const [delTarget, setDelTarget] = useState(null);
+  const [delText, setDelText] = useState("");
+  const [busyId, setBusyId] = useState(null);
+  const [purgeMsg, setPurgeMsg] = useState("");
+
+  const live = useMemo(() => list.filter((x) => x.status !== "trashed"), [list]);
+  const trashed = useMemo(() => list.filter((x) => x.status === "trashed"), [list]);
+
+  const years = useMemo(() => {
+    const s = new Set(live.map((x) => String(x.invDate || "").slice(0, 4)).filter(Boolean));
+    return Array.from(s).sort().reverse();
+  }, [live]);
+
+  const filtered = useMemo(() => {
+    const nq = slugify(q);
+    return live.filter((x) => {
+      if (statusF !== "all" && x.status !== statusF) return false;
+      if (yearF !== "all" && String(x.invDate || "").slice(0, 4) !== yearF) return false;
+      if (nq && !slugify(x.parcName).includes(nq)) return false;
+      return true;
+    });
+  }, [live, q, statusF, yearF]);
+
+  const totals = useMemo(() => {
+    let found = 0, registered = 0, missing = 0;
+    filtered.forEach((x) => {
+      const st = x.stats || {};
+      found += st.found || 0;
+      registered += st.registered || 0;
+      missing += st.missing || 0;
+    });
+    return { found, registered, missing };
+  }, [filtered]);
+
+  // --- Tableau de bord par parc ---
+  const dashRows = useMemo(() => {
+    const byParc = new Map();
+    live.forEach((x) => {
+      if (yearF !== "all" && String(x.invDate || "").slice(0, 4) !== yearF) return;
+      const key = slugify(x.parcName);
+      if (!byParc.has(key)) byParc.set(key, { name: x.parcName, invs: [] });
+      byParc.get(key).invs.push(x);
+    });
+    const rows = [];
+    byParc.forEach((g) => {
+      const sorted = g.invs.slice().sort((a, b) => String(b.invDate).localeCompare(String(a.invDate)));
+      const last = sorted[0];
+      const prev = sorted.find((i, idx) => idx > 0 && i.stats && i.stats.expected);
+      const rate = (i) => (i && i.stats && i.stats.expected ? Math.round((i.stats.found / i.stats.expected) * 100) : null);
+      const r = rate(last);
+      const pr = prev ? rate(prev) : null;
+      rows.push({ name: g.name, count: sorted.length, last, rate: r, trend: r !== null && pr !== null ? r - pr : null, inProgress: last.status === "in_progress" });
+    });
+    rows.sort((a, b) => (a.rate === null ? 101 : a.rate) - (b.rate === null ? 101 : b.rate));
+    return rows;
+  }, [live, yearF]);
+  const doneParcs = useMemo(() => new Set(dashRows.map((r) => slugify(r.name))), [dashRows]);
+  const notDone = useMemo(() => (parcsList || []).filter((p) => !doneParcs.has(slugify(p))), [parcsList, doneParcs]);
+
+  const fmtDate = (iso) => String(iso || "").split("-").reverse().join("/");
+  const selItems = sel.map((id) => live.find((x) => x.id === id)).filter(Boolean);
+  const canCompare = selItems.length === 2 && slugify(selItems[0].parcName) === slugify(selItems[1].parcName);
+  const toggleSel = (id) => setSel((s) => (s.includes(id) ? s.filter((v) => v !== id) : s.length >= 2 ? [s[1], id] : [...s, id]));
+  const daysLeft = (x) => {
+    const t = x.trashedAt && x.trashedAt.toMillis ? x.trashedAt.toMillis() : Date.now();
+    return Math.max(0, 30 - Math.floor((Date.now() - t) / 86400000));
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto px-5 py-8">
+      <div className="no-print">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-slate-500 mb-4">
+          <ArrowLeft size={16} /> Retour à l'accueil
+        </button>
+        <h2 className="text-2xl font-extrabold mb-1" style={{ color: BLUE_DEEP }}>Archives des inventaires</h2>
+        <p className="text-sm text-slate-500 mb-4">
+          Tous les inventaires réalisés. Ouvrez-en un pour revoir les listes et télécharger à nouveau les rapports — sans pouvoir modifier les pointages.
+        </p>
+
+        <div className={`grid gap-2 mb-4 ${isAdmin ? "grid-cols-3" : "grid-cols-2"}`}>
+          {[["list", "Liste"], ["dashboard", "Tableau de bord"], ...(isAdmin ? [["trash", `Corbeille (${trashed.length})`]] : [])].map(([k, l]) => (
+            <button key={k} onClick={() => setView(k)} className="py-2.5 rounded-lg border-2 text-sm font-bold"
+              style={view === k ? { background: BLUE_DEEP, color: "#fff", borderColor: BLUE_DEEP } : { borderColor: "#cbd5e1", color: "#475569" }}>
+              {l}
+            </button>
+          ))}
+        </div>
+
+        {view !== "trash" && (
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="rounded-xl p-3 text-white" style={{ background: BLUE_DEEP }}>
+              <div className="text-2xl font-extrabold font-plex-mono leading-none">{filtered.length}</div>
+              <div className="text-[11px] font-semibold mt-1 opacity-90">Inventaire(s)</div>
+            </div>
+            <div className="rounded-xl p-3 bg-emerald-600 text-white">
+              <div className="text-2xl font-extrabold font-plex-mono leading-none">{totals.found + totals.registered}</div>
+              <div className="text-[11px] font-semibold mt-1 opacity-90">Véhicules présents</div>
+            </div>
+            <div className="rounded-xl p-3 bg-rose-600 text-white">
+              <div className="text-2xl font-extrabold font-plex-mono leading-none">{totals.missing}</div>
+              <div className="text-[11px] font-semibold mt-1 opacity-90">Manquants cumulés</div>
+            </div>
+          </div>
+        )}
+
+        {view !== "trash" && (
+          <div className="space-y-2 mb-4">
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un parc..."
+                className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border-2 border-slate-200 focus:outline-none focus:border-[#1B4F8C]" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <select value={statusF} onChange={(e) => setStatusF(e.target.value)} className="py-2.5 px-3 text-sm rounded-lg border-2 border-slate-200 bg-white font-semibold text-slate-700">
+                <option value="all">Tous les statuts</option>
+                <option value="completed">Clôturés</option>
+                <option value="in_progress">En cours</option>
+              </select>
+              <select value={yearF} onChange={(e) => setYearF(e.target.value)} className="py-2.5 px-3 text-sm rounded-lg border-2 border-slate-200 bg-white font-semibold text-slate-700">
+                <option value="all">Toutes les années</option>
+                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={onRefresh} className="py-2.5 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
+                <RefreshCw size={15} /> Actualiser
+              </button>
+              <button onClick={() => onExport(filtered)} disabled={filtered.length === 0} className="py-2.5 rounded-lg text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: BLUE_DEEP }}>
+                <Download size={15} /> Exporter la liste (Excel)
+              </button>
+            </div>
+          </div>
+        )}
+
+        {view === "list" && selItems.length > 0 && (
+          <div className="mb-3 rounded-xl border-2 border-sky-200 bg-sky-50 p-3">
+            <div className="text-sm font-bold text-sky-900">Comparaison : {selItems.length}/2 inventaire(s) sélectionné(s)</div>
+            {selItems.length === 2 && !canCompare && (
+              <div className="text-xs text-rose-700 mt-1">Les deux inventaires doivent concerner le même parc.</div>
+            )}
+            <div className="flex gap-2 mt-2">
+              <button disabled={!canCompare} onClick={() => onCompare(selItems[0], selItems[1])} className="flex-1 py-2.5 rounded-lg text-white text-sm font-bold disabled:opacity-50" style={{ background: BLUE_DEEP }}>
+                Comparer ces deux inventaires
+              </button>
+              <button onClick={() => setSel([])} className="px-3 py-2.5 rounded-lg bg-white border-2 border-sky-300 text-sky-900 text-sm font-bold">Effacer</button>
+            </div>
+          </div>
+        )}
+
+        {error && <div className="mb-3 rounded-lg bg-rose-50 border-2 border-rose-200 text-rose-800 text-sm p-3">{error}</div>}
+        {loading && <div className="text-center text-sm text-slate-400 py-6">Chargement...</div>}
+
+        {/* ---------------- Tableau de bord ---------------- */}
+        {view === "dashboard" && !loading && (
+          <div className="mb-4">
+            <div className="rounded-xl border-2 border-slate-100 bg-white p-4 mb-4">
+              <div className="text-sm font-bold text-slate-700">
+                Parcs inventoriés{yearF !== "all" ? ` en ${yearF}` : ""} : {dashRows.length} / {(parcsList || []).length}
+              </div>
+              <div className="h-2 rounded-full bg-slate-100 overflow-hidden mt-2">
+                <div className="h-full rounded-full" style={{ width: `${(parcsList || []).length ? Math.min(100, Math.round((dashRows.length / parcsList.length) * 100)) : 0}%`, background: BLUE_LIGHT }} />
+              </div>
+              <button onClick={() => window.print()} className="mt-3 w-full py-2.5 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
+                <Printer size={15} /> Imprimer la synthèse de campagne (PDF)
+              </button>
+            </div>
+            <div className="font-bold text-slate-700 mb-2 text-sm">Situation par parc (du taux le plus faible au plus élevé)</div>
+            <div className="space-y-2">
+              {dashRows.length === 0 && <div className="text-center text-sm text-slate-400 py-6">Aucun inventaire.</div>}
+              {dashRows.map((r) => (
+                <div key={r.name} className="rounded-lg border-2 border-slate-100 bg-white px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-bold text-sm text-slate-800 truncate">{r.name}</div>
+                      <div className="text-[11px] text-slate-500">
+                        Dernier : {fmtDate(r.last.invDate)} · {r.count} inventaire(s){r.inProgress ? " · en cours" : ""}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-lg font-extrabold font-plex-mono" style={{ color: r.rate === null ? "#94a3b8" : r.rate >= 90 ? "#047857" : r.rate >= 70 ? "#B45309" : "#BE123C" }}>
+                        {r.rate === null ? "—" : `${r.rate}%`}
+                      </div>
+                      {r.trend !== null && (
+                        <div className={`text-[10px] font-bold ${r.trend >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                          {r.trend >= 0 ? "+" : ""}{r.trend} pt vs précédent
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {notDone.length > 0 && (
+              <div className="mt-5">
+                <div className="font-bold text-slate-700 mb-2 text-sm">Parcs sans inventaire{yearF !== "all" ? ` en ${yearF}` : ""} ({notDone.length})</div>
+                <div className="rounded-lg border-2 border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 leading-relaxed">{notDone.join(" · ")}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ---------------- Corbeille ---------------- */}
+        {view === "trash" && isAdmin && !loading && (
+          <div className="mb-4">
+            <p className="text-sm text-slate-500 mb-3">
+              Les inventaires supprimés restent récupérables pendant 30 jours. Passé ce délai, vous pouvez les purger définitivement.
+            </p>
+            <button
+              onClick={async () => { const n = await onPurgeExpired(); setPurgeMsg(n ? `${n} inventaire(s) purgé(s).` : "Aucun inventaire de plus de 30 jours."); }}
+              className="w-full mb-3 py-2.5 rounded-lg border-2 border-slate-300 text-sm font-bold text-slate-700"
+            >
+              Purger les éléments de plus de 30 jours
+            </button>
+            {purgeMsg && <div className="mb-3 text-xs text-slate-500">{purgeMsg}</div>}
+            {trashed.length === 0 && <div className="text-center text-sm text-slate-400 py-8">La corbeille est vide.</div>}
+            <div className="space-y-3">
+              {trashed.map((x) => (
+                <div key={x.id} className="rounded-xl border-2 border-slate-100 bg-white p-4">
+                  <div className="font-bold text-slate-800">{x.parcName}</div>
+                  <div className="text-xs text-slate-500 mt-0.5">
+                    Inventaire du {fmtDate(x.invDate)} · supprimé{x.trashedByName ? ` par ${x.trashedByName}` : ""} · purge possible dans {daysLeft(x)} j
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button disabled={busyId === x.id} onClick={async () => { setBusyId(x.id); await onRestore(x); setBusyId(null); }} className="flex-1 py-2.5 rounded-lg text-white text-sm font-bold disabled:opacity-60" style={{ background: BLUE }}>
+                      Restaurer
+                    </button>
+                    <button onClick={() => { setDelTarget(x.id); setDelText(""); }} className="px-3 py-2.5 rounded-lg border-2 border-rose-200 text-rose-700 text-sm font-bold">
+                      Supprimer définitivement
+                    </button>
+                  </div>
+                  {delTarget === x.id && (
+                    <div className="mt-3 rounded-lg border-2 border-rose-300 bg-rose-50 p-3">
+                      <p className="text-xs text-rose-700">
+                        La liste MMTE, les pointages, les photos et le journal seront effacés sans retour possible. Tapez <b>SUPPRIMER</b> pour confirmer.
+                      </p>
+                      <input value={delText} onChange={(e) => setDelText(e.target.value)} placeholder="SUPPRIMER"
+                        className="w-full mt-2 px-3 py-2 text-sm rounded-lg border-2 border-rose-200 bg-white focus:outline-none" />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          disabled={delText.trim().toUpperCase() !== "SUPPRIMER" || busyId === x.id}
+                          onClick={async () => { setBusyId(x.id); const ok = await onPurge(x); setBusyId(null); if (ok) setDelTarget(null); }}
+                          className="px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm disabled:opacity-50"
+                        >
+                          {busyId === x.id ? "Suppression..." : "Supprimer"}
+                        </button>
+                        <button onClick={() => setDelTarget(null)} className="px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm">Annuler</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ---------------- Liste ---------------- */}
+        {view === "list" && !loading && filtered.length === 0 && !error && (
+          <div className="text-center text-sm text-slate-400 py-10">Aucun inventaire ne correspond à votre recherche.</div>
+        )}
+        {view === "list" && (
+          <div className="space-y-3">
+            {filtered.map((x) => {
+              const st = x.stats || null;
+              const expected = st && st.expected != null ? st.expected : x.mmteCount;
+              const rate = st && st.expected ? Math.round((st.found / st.expected) * 100) : null;
+              const done = x.status === "completed";
+              return (
+                <div key={x.id} className="rounded-xl border-2 border-slate-100 bg-white p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-800">{x.parcName}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        Inventaire du {fmtDate(x.invDate)}{x.createdByName ? ` · créé par ${x.createdByName}` : ""}
+                      </div>
+                      {done && x.completedAt && (
+                        <div className="text-[11px] text-slate-400 mt-0.5">
+                          Clôturé le {formatTimestamp(x.completedAt)}{x.completedByName ? ` par ${x.completedByName}` : ""}
+                        </div>
+                      )}
+                    </div>
+                    <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${done ? "bg-slate-100 text-slate-600" : "bg-amber-100 text-amber-800"}`}>
+                      {done ? "Clôturé" : "En cours"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-1.5 mt-3 text-center">
+                    {[
+                      ["Attendus", expected, "text-slate-700"],
+                      ["Trouvés", st ? st.found : null, "text-emerald-700"],
+                      ["Hors MMTE", st ? st.registered : null, "text-[#1B4F8C]"],
+                      ["Manquants", st ? st.missing : null, "text-rose-700"],
+                    ].map(([l, v, c]) => (
+                      <div key={l} className="rounded-lg bg-slate-50 py-1.5">
+                        <div className={`text-base font-extrabold font-plex-mono ${c}`}>{v != null ? v : "—"}</div>
+                        <div className="text-[10px] font-semibold text-slate-500">{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {rate !== null && (
+                    <div className="mt-2">
+                      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${Math.min(100, rate)}%`, background: BLUE_LIGHT }} />
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-1">{rate}% des véhicules attendus retrouvés</div>
+                    </div>
+                  )}
+
+                  <label className="flex items-center gap-2 mt-3 text-xs font-semibold text-slate-600 cursor-pointer">
+                    <input type="checkbox" checked={sel.includes(x.id)} onChange={() => toggleSel(x.id)} />
+                    Sélectionner pour comparer
+                  </label>
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={() => onOpen(x)} className="flex-1 py-2.5 rounded-lg text-white text-sm font-bold" style={{ background: BLUE }}>
+                      Ouvrir (lecture seule)
+                    </button>
+                    {isAdmin && done && (
+                      <button onClick={() => onReopen(x)} className="px-3 py-2.5 rounded-lg border-2 text-sm font-bold" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
+                        Rouvrir
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button
+                        disabled={busyId === x.id}
+                        onClick={async () => {
+                          if (!window.confirm(`Déplacer « ${x.parcName} » (${fmtDate(x.invDate)}) dans la corbeille ?\n\nIl restera récupérable pendant 30 jours.`)) return;
+                          setBusyId(x.id);
+                          await onTrash(x);
+                          setBusyId(null);
+                        }}
+                        className="px-3 py-2.5 rounded-lg border-2 border-rose-200 text-rose-700 text-sm font-bold flex items-center gap-1 disabled:opacity-60"
+                      >
+                        <Trash2 size={15} /> Corbeille
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ---------------- Synthèse de campagne (impression) ---------------- */}
+      <div className="print-only">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <img src={LOGO_BC} alt="Bénin Control" style={{ height: 60, width: "auto" }} />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontWeight: 800, fontSize: 18, color: "#123A66" }}>SYNTHÈSE DE CAMPAGNE D'INVENTAIRE</div>
+            <div style={{ fontSize: 11, color: "#2E7DC1", fontWeight: 700 }}>
+              BÉNIN CONTROL / MAD-MAE{yearF !== "all" ? ` — ${yearF}` : ""}
+            </div>
+          </div>
+          <img src={LOGO_DOUANES} alt="Douanes Béninoises" style={{ height: 60, width: "auto" }} />
+        </div>
+        <div style={{ fontSize: 13, marginBottom: 12 }}>
+          Parcs inventoriés : <b>{dashRows.length}</b> / {(parcsList || []).length} — édité le {new Date().toLocaleDateString("fr-FR")}
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead>
+            <tr>
+              {["Parc", "Dernier inventaire", "Attendus", "Trouvés", "Hors MMTE", "Manquants", "Taux"].map((h) => (
+                <td key={h} style={{ border: "1px solid #94A3B8", padding: "6px 8px", background: "#123A66", color: "#fff", fontWeight: 700 }}>{h}</td>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {dashRows.map((r) => {
+              const st = (r.last && r.last.stats) || {};
+              return (
+                <tr key={r.name}>
+                  <td style={{ border: "1px solid #94A3B8", padding: "5px 8px" }}>{r.name}</td>
+                  <td style={{ border: "1px solid #94A3B8", padding: "5px 8px" }}>{fmtDate(r.last.invDate)}</td>
+                  <td style={{ border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" }}>{st.expected != null ? st.expected : "—"}</td>
+                  <td style={{ border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" }}>{st.found != null ? st.found : "—"}</td>
+                  <td style={{ border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" }}>{st.registered != null ? st.registered : "—"}</td>
+                  <td style={{ border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" }}>{st.missing != null ? st.missing : "—"}</td>
+                  <td style={{ border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center", fontWeight: 700 }}>{r.rate === null ? "—" : `${r.rate}%`}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {notDone.length > 0 && (
+          <div style={{ marginTop: 16, fontSize: 12 }}>
+            <b>Parcs sans inventaire ({notDone.length}) :</b> {notDone.join(" · ")}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Listes consultables (lecture seule) d'un inventaire archivé
+function ReadOnlyLists({ totalList, foundList, registeredList, missingList }) {
+  const [tab, setTab] = useState("total");
+  const [filter, setFilter] = useState("");
+  const nf = normalize(filter);
+  const match = (c) => !nf || normalize(c).includes(nf);
+  const tabs = [
+    ["total", `Total (${totalList.length})`],
+    ["found", `Trouvés (${foundList.length})`],
+    ["registered", `Hors MMTE (${registeredList.length})`],
+    ["missing", `Manquants (${missingList.length})`],
+  ];
+  const rows =
+    tab === "total" ? totalList : tab === "found" ? foundList : tab === "registered" ? registeredList : missingList;
+  const shown = rows.filter((r) => match(r.chassis));
+  return (
+    <div className="no-print mb-6">
+      <div className="font-bold text-slate-700 mb-2">Détails de l'inventaire</div>
+      <div className="flex gap-1 overflow-x-auto border-b-2 border-slate-100 mb-3">
+        {tabs.map(([k, l]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className="px-3 py-2 text-sm font-bold whitespace-nowrap border-b-2"
+            style={tab === k ? { borderColor: BLUE_DEEP, color: BLUE_DEEP } : { borderColor: "transparent", color: "#94a3b8" }}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+      <div className="relative mb-3">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Filtrer par numéro de châssis..."
+          className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none focus:border-[#1B4F8C]"
+        />
+      </div>
+      <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+        {shown.length === 0 && <div className="text-center text-sm text-slate-400 py-6">Aucune entrée.</div>}
+        {shown.slice(0, LIST_RENDER_CAP).map((r) =>
+          tab === "missing" ? (
+            <ListRow key={r.norm} chassis={r.chassis} detail={r.info} badge="Absent" badgeTone="rose" />
+          ) : (
+            <ListRow
+              key={r.norm}
+              chassis={r.chassis}
+              agent={r.agentName}
+              scannedAt={r.scannedAt}
+              detail={r}
+              badge={tab === "total" ? (r.source === "mmte" ? "MMTE" : "Parc") : undefined}
+              badgeTone={r.source === "mmte" ? "emerald" : "sky"}
+            />
+          )
+        )}
+        <TruncationNote count={shown.length} />
+      </div>
     </div>
   );
 }

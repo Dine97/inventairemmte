@@ -1,0 +1,208 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------
+    // IDENTITÉS
+    // ------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function tokenEmail() {
+      return isSignedIn() && ('email' in request.auth.token) ? request.auth.token.email.lower() : '';
+    }
+
+    // Administrateur = e-mail de secours codé en dur, OU présent dans la
+    // liste config/admins (nouvelle liste protégée), OU dans l'ancienne
+    // liste config/app.adminEmails (conservée le temps de la migration :
+    // enregistrer le panneau admin une fois la déplace automatiquement).
+    function isAdminToken() {
+      return isSignedIn() && (
+        tokenEmail() in ['nourouloka@gmail.com'] ||
+        (exists(/databases/$(database)/documents/config/admins) &&
+         tokenEmail() in get(/databases/$(database)/documents/config/admins).data.emails) ||
+        (exists(/databases/$(database)/documents/config/app) &&
+         'adminEmails' in get(/databases/$(database)/documents/config/app).data &&
+         tokenEmail() in get(/databases/$(database)/documents/config/app).data.adminEmails)
+      );
+    }
+
+    function isApprovedAgent() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved';
+    }
+
+    function isAnonymousUser() {
+      return isSignedIn() && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    // Invité = connexion anonyme + session créée avec le BON code d'accès
+    // (contrôlé ici, côté serveur) et datant de moins de 24 h.
+    function isGuestOk() {
+      return isAnonymousUser() &&
+        exists(/databases/$(database)/documents/guestSessions/$(request.auth.uid)) &&
+        request.time < get(/databases/$(database)/documents/guestSessions/$(request.auth.uid)).data.createdAt
+                       + duration.value(24, 'h');
+    }
+
+    // Personne autorisée à lire / pointer sur l'inventaire invId :
+    // agents et admins partout, invités uniquement sur un inventaire EN COURS.
+    function canWorkOn(invId) {
+      return isApprovedAgent() || isAdminToken() ||
+        (isGuestOk() &&
+         get(/databases/$(database)/documents/inventories/$(invId)).data.status == 'in_progress');
+    }
+
+    function isStaff() {
+      return isApprovedAgent() || isAdminToken();
+    }
+
+    // ------------------------------------------------------------------
+    // CONFIGURATION
+    // ------------------------------------------------------------------
+    // Parcs : lisibles par tout utilisateur connecté (aucun secret ici une
+    // fois la migration faite).
+    match /config/app {
+      allow read: if isSignedIn();
+      allow write: if isAdminToken();
+    }
+    // Code d'accès invité : réservé aux administrateurs. Les invités ne le
+    // lisent jamais ; seules ces règles le comparent.
+    match /config/guest {
+      allow read, write: if isAdminToken();
+    }
+    // Liste des administrateurs : réservée aux administrateurs.
+    match /config/admins {
+      allow read, write: if isAdminToken();
+    }
+
+    // Sessions invité : créées seulement avec le bon code.
+    match /guestSessions/{uid} {
+      allow create: if isAnonymousUser()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['code', 'name', 'createdAt'])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.code is string
+        && exists(/databases/$(database)/documents/config/guest)
+        && request.resource.data.code.upper() ==
+           get(/databases/$(database)/documents/config/guest).data.code.upper();
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdminToken());
+      allow delete: if isSignedIn() && (request.auth.uid == uid || isAdminToken());
+      allow update: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // COMPTES AGENTS
+    // ------------------------------------------------------------------
+    match /users/{uid} {
+      // Un utilisateur ne peut JAMAIS se créer lui-même en "approved" ou
+      // "admin" : seul un administrateur reconnu peut créer une fiche déjà
+      // approuvée ; tous les autres sont forcés en "pending" / "agent".
+      allow create: if isSignedIn() && request.auth.uid == uid && (
+        (isAdminToken()
+          && request.resource.data.status == 'approved'
+          && request.resource.data.role == 'admin')
+        ||
+        (!isAdminToken()
+          && request.resource.data.status == 'pending'
+          && request.resource.data.role == 'agent')
+      );
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdminToken());
+      allow update: if isAdminToken();
+      allow list: if isAdminToken();
+    }
+
+    // ------------------------------------------------------------------
+    // INVENTAIRES
+    // ------------------------------------------------------------------
+    function validScan() {
+      let d = request.resource.data;
+      return d.keys().hasOnly([
+          'norm', 'chassis', 'source', 'agentUid', 'agentName', 'scannedAt', 'deleted',
+          'description', 'registredAt', 'depotDate', 'entryDate', 'atp', 'shipName',
+          'weight', 'companyNumber', 'bl', 'extra',
+          'vehicleAge', 'vehicleName', 'vehicleModel', 'hasPhoto', 'restoredFrom'
+        ])
+        && d.agentUid == request.auth.uid
+        && d.scannedAt == request.time
+        && d.deleted == false
+        && d.source in ['mmte', 'parc']
+        && d.chassis is string && d.chassis.size() > 0 && d.chassis.size() <= 60
+        && d.norm is string && d.norm.size() > 0 && d.norm.size() <= 60
+        && d.agentName is string && d.agentName.size() <= 100
+        && (!('description' in d) || (d.description is string && d.description.size() <= 300))
+        && (!('vehicleName' in d) || (d.vehicleName is string && d.vehicleName.size() <= 100))
+        && (!('vehicleModel' in d) || (d.vehicleModel is string && d.vehicleModel.size() <= 100))
+        && (!('vehicleAge' in d) || d.vehicleAge in ['', 'under1', 'over1'])
+        && (!('extra' in d) || (d.extra is map && d.extra.size() <= 40));
+    }
+
+    match /inventories/{invId} {
+      // Agents et admins : tout. Invités : uniquement les inventaires en cours.
+      allow read: if isStaff() ||
+        (isGuestOk() && resource.data.status == 'in_progress');
+      allow create: if isStaff();
+      // Les agents ne touchent pas à la corbeille ; seul l'administrateur
+      // met un inventaire à la corbeille, le restaure ou le supprime.
+      allow update: if isAdminToken() ||
+        (isApprovedAgent()
+          && resource.data.status != 'trashed'
+          && request.resource.data.status != 'trashed');
+      allow delete: if isAdminToken();
+
+      // Liste MMTE (nouveau format : blocs de 300 châssis)
+      match /mmteChunks/{chunkId} {
+        allow read: if canWorkOn(invId);
+        allow write: if isStaff();
+      }
+      // Liste MMTE (ancien format : un document par châssis)
+      match /mmte/{chassisId} {
+        allow read: if canWorkOn(invId);
+        allow write: if isStaff();
+      }
+
+      match /scans/{chassisId} {
+        allow read: if canWorkOn(invId);
+        // Création : seulement en son propre nom, champs et tailles contrôlés,
+        // horodatage fixé par le serveur.
+        allow create: if canWorkOn(invId) && validScan();
+        allow update:
+          // 1) marquer comme supprimé : uniquement ces quatre champs
+          if (isStaff()
+              && resource.data.deleted == false
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['deleted', 'deletedBy', 'deletedByUid', 'deletedAt']))
+          // 2) re-pointer un châssis supprimé (le premier pointage reste
+          //    prioritaire : un doublon sur un châssis actif est refusé)
+          || (canWorkOn(invId) && resource.data.deleted == true && validScan())
+          // 3) l'administrateur peut tout corriger
+          || isAdminToken();
+        allow delete: if isStaff();
+      }
+
+      // Photos : document séparé, chargé à la demande
+      match /photos/{chassisId} {
+        allow read: if canWorkOn(invId);
+        allow create, update: if canWorkOn(invId)
+          && request.resource.data.keys().hasOnly(['data', 'agentUid', 'createdAt'])
+          && request.resource.data.agentUid == request.auth.uid
+          && request.resource.data.data is string
+          && request.resource.data.data.size() <= 300000;
+        allow delete: if isStaff();
+      }
+
+      // Journal d'audit : on ajoute, on ne modifie jamais ; seul
+      // l'administrateur peut le purger avec l'inventaire.
+      match /audit/{entryId} {
+        allow read: if isStaff();
+        allow create: if canWorkOn(invId)
+          && request.resource.data.byUid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['action', 'byUid', 'byName', 'at', 'norm', 'chassis', 'found', 'registered', 'missing']);
+        allow update: if false;
+        allow delete: if isAdminToken();
+      }
+    }
+  }
+}
