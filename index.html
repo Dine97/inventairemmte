@@ -63,7 +63,7 @@
     const Users = (p) => <Icon {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Icon>;
     const ShieldCheck = (p) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></Icon>;
 
-const APP_VERSION = "4.0.0";
+const APP_VERSION = "4.3.0";
 
 // ============================================================================
 // Configuration Firebase — Firebase Console → Paramètres du projet.
@@ -486,6 +486,51 @@ async function purgeInventoryData(ref, includeAudit) {
   if (includeAudit) await deleteSubcollection(ref, "audit");
 }
 
+// --- Recherche multi-critères (châssis, marque, modèle, navire, etc.) --------
+// Les mots saisis se combinent : TOUS doivent se retrouver dans la fiche
+// (ex. « toyota corolla 2012 »). Sans accent, sans tenir compte des majuscules.
+function stripAccents(s) {
+  return String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+}
+function searchTerms(q) {
+  return stripAccents(q).split(/[\s,;+]+/).filter(Boolean);
+}
+function itemSearchText(it) {
+  const s = it && it.info ? { ...it.info, chassis: it.chassis } : it || {};
+  const ex = s.extra && typeof s.extra === "object" ? Object.values(s.extra).join(" ") : "";
+  const age = s.vehicleAge === "under1" ? "moins d'un an" : s.vehicleAge === "over1" ? "plus d'un an" : "";
+  return stripAccents(
+    [s.chassis, s.description, s.vehicleName, s.vehicleModel, age, s.shipName, s.atp, s.bl, s.companyNumber, s.entryDate, s.registredAt, s.agentName, ex]
+      .filter(Boolean).join(" ")
+  );
+}
+function matchesAllTerms(q, it) {
+  const terms = searchTerms(q);
+  if (!terms.length) return true;
+  const h = itemSearchText(it);
+  return terms.every((t) => h.includes(t));
+}
+
+// --- Parc deviné d'après le nom du fichier importé --------------------------
+// Propose (sans jamais remplir seul) les parcs de la liste dont le nom figure
+// dans le nom du fichier : « Stock_ZF_20-10-2026.xlsx » → ZF.
+function guessParcsFromFileName(fileName, parcsList) {
+  const clean = (v) =>
+    " " + stripAccents(v).replace(/\.[a-z0-9]{2,4}$/i, "").replace(/[^A-Z0-9]+/g, " ").trim() + " ";
+  const fn = clean(fileName || "");
+  if (fn.trim().length < 2) return [];
+  const words = [];
+  const loose = [];
+  (parcsList || []).forEach((p) => {
+    const pn = clean(p);
+    if (pn.trim().length < 2) return;
+    if (fn.includes(pn)) words.push(p);
+    else if (pn.trim().length >= 5 && fn.replace(/ /g, "").includes(pn.replace(/ /g, ""))) loose.push(p);
+  });
+  const byLen = (a, b) => b.length - a.length;
+  return (words.length ? words.sort(byLen) : loose.sort(byLen)).slice(0, 3);
+}
+
 // --- Suggestions « vouliez-vous dire ? » quand un châssis est introuvable ----
 function foldChassis(v) {
   return String(v)
@@ -545,58 +590,134 @@ function SyncBadge({ online, pending }) {
   return <div className={`no-print mb-3 rounded-lg border px-3 py-1.5 text-xs font-semibold ${tone}`}>{text}</div>;
 }
 
-// --- Lecture de code-barres par la caméra (API BarcodeDetector) -------------
-function CameraScanner({ onDetect, onClose }) {
+// --- Contenu d'un code-barres ou d'un QR code → numéro de châssis -----------
+// Un code-barres contient en général le châssis seul. Un QR code peut contenir
+// une adresse web, du texte ou du JSON : on y cherche d'abord un châssis connu
+// de la liste MMTE, puis un champ « vin= / chassis= », puis un VIN de 17 signes.
+function extractChassisFromScan(raw, knownMap) {
+  const text = String(raw == null ? "" : raw).trim();
+  if (!text) return "";
+  if (/^[A-Za-z0-9\-]+$/.test(text)) return text; // châssis seul (cas du code-barres)
+  const up = text.toUpperCase();
+  if (knownMap && knownMap.size) {
+    const compact = up.replace(/[^A-Z0-9]/g, "");
+    if (knownMap.has(compact)) return compact;
+    const tokens = up.split(/[^A-Z0-9]+/).filter((t) => t.length >= 5);
+    for (const t of tokens) if (knownMap.has(t)) return t;
+  }
+  const kv = text.match(/(?:vin|ch[aâ]ssis|chassi|chassis_?(?:no|num|number)|num[eé]ro)\s*["']?\s*[:=]\s*["']?([A-Za-z0-9\-]{5,30})/i);
+  if (kv) return kv[1];
+  const vin = up.match(/[A-HJ-NPR-Z0-9]{17}/);
+  if (vin) return vin[0];
+  return text;
+}
+// Lecteur de secours (ZXing) pour les navigateurs sans BarcodeDetector
+// (iPhone/Safari, Firefox) : chargé seulement à l'ouverture de la caméra.
+const ZXING_URL = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
+function loadZXing() {
+  if (window.ZXing) return Promise.resolve(window.ZXing);
+  if (window.__zxingPromise) return window.__zxingPromise;
+  window.__zxingPromise = new Promise((resolve, reject) => {
+    const sc = document.createElement("script");
+    sc.src = ZXING_URL;
+    sc.onload = () => (window.ZXing ? resolve(window.ZXing) : reject(new Error("zxing")));
+    sc.onerror = () => { window.__zxingPromise = null; reject(new Error("zxing")); };
+    document.head.appendChild(sc);
+  });
+  return window.__zxingPromise;
+}
+
+// --- Lecture de code-barres et QR codes par la caméra -----------------------
+function CameraScanner({ onDetect, onClose, knownMap }) {
   const videoRef = useRef(null);
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let stream = null;
     let timer = null;
+    let reader = null;
     let stopped = false;
+    const finish = (raw) => {
+      if (stopped) return;
+      stopped = true;
+      const chassis = extractChassisFromScan(raw, knownMap);
+      if (chassis) onDetect(chassis);
+    };
+    const constraints = { video: { facingMode: { ideal: "environment" } }, audio: false };
     (async () => {
       try {
-        if (!window.BarcodeDetector) {
-          setErr("Ce navigateur ne sait pas lire les codes-barres. Utilisez Chrome sur Android, ou un lecteur Bluetooth, ou tapez le numéro.");
-          return;
+        if (window.BarcodeDetector) {
+          // Lecteur intégré au navigateur (rapide) : codes-barres ET QR codes.
+          let supported;
+          try { supported = await window.BarcodeDetector.getSupportedFormats(); } catch (e) { supported = null; }
+          const wanted = ["code_128", "code_39", "code_93", "codabar", "itf", "data_matrix", "qr_code", "ean_13", "ean_8", "upc_a", "pdf417"];
+          const formats = supported ? wanted.filter((f) => supported.includes(f)) : wanted;
+          const detector = new window.BarcodeDetector({ formats });
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stopped) { stream.getTracks().forEach((t) => t.stop()); return; }
+          const v = videoRef.current;
+          if (!v) return;
+          v.srcObject = stream;
+          await v.play();
+          setLoading(false);
+          timer = setInterval(async () => {
+            try {
+              const codes = await detector.detect(v);
+              if (codes && codes.length && codes[0].rawValue) {
+                clearInterval(timer);
+                finish(codes[0].rawValue);
+              }
+            } catch (e) { /* image suivante */ }
+          }, 300);
+        } else {
+          // Lecteur de secours (iPhone, Firefox...) : codes-barres ET QR codes.
+          const Z = await loadZXing();
+          if (stopped) return;
+          const hints = new Map();
+          hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [
+            Z.BarcodeFormat.CODE_128, Z.BarcodeFormat.CODE_39, Z.BarcodeFormat.CODE_93,
+            Z.BarcodeFormat.ITF, Z.BarcodeFormat.CODABAR, Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8,
+            Z.BarcodeFormat.QR_CODE, Z.BarcodeFormat.DATA_MATRIX, Z.BarcodeFormat.PDF_417,
+          ]);
+          reader = new Z.BrowserMultiFormatReader(hints, 300);
+          const v = videoRef.current;
+          if (!v) return;
+          await reader.decodeFromConstraints(constraints, v, (result) => {
+            if (result && result.getText) finish(result.getText());
+          });
+          setLoading(false);
         }
-        let supported;
-        try { supported = await window.BarcodeDetector.getSupportedFormats(); } catch (e) { supported = null; }
-        const wanted = ["code_128", "code_39", "code_93", "codabar", "itf", "data_matrix", "qr_code", "ean_13", "ean_8", "upc_a", "pdf417"];
-        const formats = supported ? wanted.filter((f) => supported.includes(f)) : wanted;
-        const detector = new window.BarcodeDetector({ formats });
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
-        if (stopped) { stream.getTracks().forEach((t) => t.stop()); return; }
-        const v = videoRef.current;
-        if (!v) return;
-        v.srcObject = stream;
-        await v.play();
-        timer = setInterval(async () => {
-          try {
-            const codes = await detector.detect(v);
-            if (codes && codes.length && codes[0].rawValue) {
-              clearInterval(timer);
-              onDetect(String(codes[0].rawValue).trim());
-            }
-          } catch (e) { /* image suivante */ }
-        }, 300);
       } catch (e) {
-        setErr("Impossible d'utiliser la caméra. Autorisez son accès dans le navigateur, puis réessayez.");
+        console.warn("Lecteur de codes :", e && (e.message || e));
+        setLoading(false);
+        setErr(
+          window.BarcodeDetector
+            ? "Impossible d'utiliser la caméra. Autorisez son accès dans le navigateur, puis réessayez."
+            : "Impossible de lancer la lecture (réseau nécessaire la première fois, ou accès à la caméra refusé). Réessayez, ou tapez le numéro."
+        );
       }
     })();
     return () => {
       stopped = true;
       if (timer) clearInterval(timer);
+      if (reader) { try { reader.reset(); } catch (e) { /* ignore */ } }
       if (stream) stream.getTracks().forEach((t) => t.stop());
+      const v = videoRef.current;
+      if (v && v.srcObject) { try { v.srcObject.getTracks().forEach((t) => t.stop()); } catch (e) { /* ignore */ } }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return (
     <div className="no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4">
-      <div className="text-white font-bold mb-3">Visez le code-barres du châssis</div>
+      <div className="text-white font-bold mb-1">Visez le code-barres ou le QR code du châssis</div>
+      <div className="text-white/70 text-xs mb-3">Les deux types de codes sont lus automatiquement.</div>
       {err ? (
         <div className="max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center">{err}</div>
       ) : (
-        <video ref={videoRef} playsInline muted className="w-full max-w-md rounded-xl bg-black" />
+        <>
+          <video ref={videoRef} playsInline muted className="w-full max-w-md rounded-xl bg-black" />
+          {loading && <div className="text-white/80 text-sm mt-2">Démarrage de la caméra...</div>}
+        </>
       )}
       <button onClick={onClose} className="mt-4 px-6 py-3 rounded-xl bg-white font-bold" style={{ color: BLUE_DEEP }}>
         Fermer
@@ -2689,22 +2810,32 @@ function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect,
   const [highlight, setHighlight] = useState(0);
   const wrapRef = useRef(null);
 
-  const suggestions = useMemo(() => {
+  const navigatedRef = useRef(false);
+  const { suggestions, chassisHits, textHits, totalHits } = useMemo(() => {
+    const none = { suggestions: [], chassisHits: 0, textHits: 0, totalHits: 0 };
     const q = normalize(value);
-    if (q.length < 2) return [];
+    const terms = searchTerms(value);
+    if (terms.join("").length < 2) return none;
     const starts = [];
     const contains = [];
+    const texts = [];
     for (const m of missingList) {
       const n = normalize(m.chassis);
-      const item = { chassis: m.chassis, description: m.info && m.info.description };
-      if (n.startsWith(q)) starts.push(item);
-      else if (n.includes(q)) contains.push(item);
-      if (starts.length + contains.length >= 30) break;
+      const desc = (m.info && m.info.description) || "";
+      if (q.length >= 2 && n.startsWith(q)) starts.push({ chassis: m.chassis, description: desc, byChassis: true });
+      else if (q.length >= 2 && n.includes(q)) contains.push({ chassis: m.chassis, description: desc, byChassis: true });
+      else if (matchesAllTerms(value, m)) texts.push({ chassis: m.chassis, description: desc, byChassis: false });
     }
-    return [...starts, ...contains].slice(0, 6);
+    const all = [...starts, ...contains, ...texts];
+    return {
+      suggestions: all.slice(0, 8),
+      chassisHits: starts.length + contains.length,
+      textHits: texts.length,
+      totalHits: all.length,
+    };
   }, [value, missingList]);
 
-  useEffect(() => setHighlight(0), [value]);
+  useEffect(() => { setHighlight(0); navigatedRef.current = false; }, [value]);
   useEffect(() => {
     const handleOutside = (e) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
@@ -2736,18 +2867,29 @@ function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect,
           if (open && suggestions.length > 0) {
             if (e.key === "ArrowDown") {
               e.preventDefault();
+              navigatedRef.current = true;
               setHighlight((h) => Math.min(h + 1, suggestions.length - 1));
               return;
             }
             if (e.key === "ArrowUp") {
               e.preventDefault();
+              navigatedRef.current = true;
               setHighlight((h) => Math.max(h - 1, 0));
               return;
             }
             if (e.key === "Enter" && highlight >= 0) {
-              e.preventDefault();
-              select(suggestions[highlight]);
-              return;
+              const sel = suggestions[highlight];
+              // Un résultat trouvé seulement par marque/modèle n'est jamais
+              // choisi automatiquement : on évite de pointer le mauvais véhicule.
+              if (sel && (sel.byChassis || navigatedRef.current)) {
+                e.preventDefault();
+                select(sel);
+                return;
+              }
+              if (chassisHits === 0 && textHits > 0 && (/\s/.test(String(value).trim()) || !/\d/.test(value))) {
+                e.preventDefault(); // recherche par texte : choisir dans la liste
+                return;
+              }
             }
             if (e.key === "Escape") {
               setOpen(false);
@@ -2763,7 +2905,7 @@ function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect,
         autoCorrect="off"
         autoComplete="off"
         spellCheck={false}
-        placeholder="Saisir ou scanner le châssis"
+        placeholder="Châssis, ou marque / modèle (ex : TOYOTA COROLLA)"
         className="w-full rounded-xl border-2 border-slate-300 px-4 py-4 text-2xl font-plex-mono tracking-wide focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
       />
       {open && suggestions.length > 0 && (
@@ -2778,9 +2920,19 @@ function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect,
               style={i === highlight ? { background: "#EAF1FA" } : {}}
             >
               <div className="text-sm font-plex-mono" style={{ color: i === highlight ? BLUE_DEEP : "#334155" }}>{s.chassis}</div>
-              {s.description && <div className="text-xs text-slate-400">{s.description}</div>}
+              {s.description && <div className="text-xs text-slate-500">{s.description}</div>}
             </button>
           ))}
+          {totalHits > suggestions.length && (
+            <div className="px-3 py-2 text-xs text-slate-500 bg-slate-50">
+              {totalHits} résultats : ajoutez un mot (marque, modèle, année…) pour affiner.
+            </div>
+          )}
+          {chassisHits === 0 && textHits > 0 && (
+            <div className="px-3 py-2 text-xs text-slate-500 bg-slate-50">
+              Touchez un véhicule pour le pointer.
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -2811,6 +2963,15 @@ function SetupScreen({
   activeInventories, joinInventoryById, isGuest,
   existingClosedInv, reopenClosedInventory, replaceClosedInventory, onCancelClosedInvChoice,
 }) {
+  const parcGuesses = useMemo(
+    () =>
+      importMode === "file" && importedFileName
+        ? guessParcsFromFileName(importedFileName, parcsList).filter(
+            (g) => stripAccents(g).trim() !== stripAccents(parcName).trim()
+          )
+        : [],
+    [importMode, importedFileName, parcsList, parcName]
+  );
   return (
     <div className="max-w-2xl mx-auto px-5 py-8">
       {/* --- Rejoindre un inventaire en cours --- */}
@@ -2862,6 +3023,26 @@ function SetupScreen({
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Nom du parc</label>
               <ParcAutocomplete value={parcName} onChange={setParcName} parcsList={parcsList} />
+              {parcGuesses.length > 0 && (
+                <div className="mt-2 rounded-lg border-2 border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <div className="text-xs font-semibold text-emerald-800">
+                    D'après le fichier « {importedFileName} », le parc serait :
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-1.5">
+                    {parcGuesses.map((g) => (
+                      <button
+                        key={g}
+                        type="button"
+                        onClick={() => setParcName(g)}
+                        className="px-3 py-1.5 rounded-lg bg-white border-2 border-emerald-300 text-sm font-bold text-emerald-800"
+                      >
+                        Utiliser « {g} »
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-[11px] text-emerald-700 mt-1">Ou continuez en saisissant le nom vous-même.</div>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Date de l'inventaire</label>
@@ -2998,13 +3179,20 @@ function InventoryScreen(props) {
     { key: "registered", label: `Enregistrés (${registeredList.length})` },
     { key: "missing", label: `Manquants (${missingList.length})` },
   ];
-  const filterFn = (chassis) => !listFilter || chassis.toUpperCase().includes(listFilter.trim().toUpperCase());
+  const filterFn = (item) => !listFilter || matchesAllTerms(listFilter, item);
+  const knownMap = useMemo(() => {
+    const m = new Map();
+    missingList.forEach((x) => m.set(x.norm, 1));
+    foundList.forEach((x) => m.set(x.norm, 1));
+    return m;
+  }, [missingList, foundList]);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-5 pb-24 relative">
       {syncInfo && <SyncBadge online={syncInfo.online} pending={syncInfo.pending} />}
       {showCamera && (
         <CameraScanner
+          knownMap={knownMap}
           onClose={() => setShowCamera(false)}
           onDetect={(v) => { setShowCamera(false); setInputVal(""); submitChassis(v); }}
         />
@@ -3232,57 +3420,57 @@ function InventoryScreen(props) {
           <input
             value={listFilter}
             onChange={(e) => setListFilter(e.target.value)}
-            placeholder="Filtrer par numéro de châssis..."
+            placeholder="Filtrer : châssis, marque, modèle… (combinables)"
             className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none focus:border-[#1B4F8C]"
           />
         </div>
 
         <div className="space-y-2 max-h-[36vh] overflow-y-auto">
           {activeTab === "total" &&
-            (totalList.filter((t) => filterFn(t.chassis)).length === 0 ? (
+            (totalList.filter((t) => filterFn(t)).length === 0 ? (
               <EmptyRow text="Aucun véhicule pointé pour l'instant." />
             ) : (
               <>
-                {totalList.filter((t) => filterFn(t.chassis)).slice(0, LIST_RENDER_CAP).map((t) => (
+                {totalList.filter((t) => filterFn(t)).slice(0, LIST_RENDER_CAP).map((t) => (
                   <ListRow key={t.norm} chassis={t.chassis} agent={t.agentName} scannedAt={t.scannedAt} detail={t} badge={t.source === "mmte" ? "MMTE" : "Parc"} badgeTone={t.source === "mmte" ? "emerald" : "sky"} />
                 ))}
-                <TruncationNote count={totalList.filter((t) => filterFn(t.chassis)).length} />
+                <TruncationNote count={totalList.filter((t) => filterFn(t)).length} />
               </>
             ))}
 
           {activeTab === "found" &&
-            (foundList.filter((f) => filterFn(f.chassis)).length === 0 ? (
+            (foundList.filter((f) => filterFn(f)).length === 0 ? (
               <EmptyRow text="Aucun châssis trouvé sur MMTE pour l'instant." />
             ) : (
               <>
-                {foundList.filter((f) => filterFn(f.chassis)).slice(0, LIST_RENDER_CAP).map((f) => (
+                {foundList.filter((f) => filterFn(f)).slice(0, LIST_RENDER_CAP).map((f) => (
                   <ListRow key={f.norm} chassis={f.chassis} agent={f.agentName} scannedAt={f.scannedAt} detail={f} onRemove={isGuest ? undefined : () => softDelete(f.norm)} />
                 ))}
-                <TruncationNote count={foundList.filter((f) => filterFn(f.chassis)).length} />
+                <TruncationNote count={foundList.filter((f) => filterFn(f)).length} />
               </>
             ))}
 
           {activeTab === "registered" &&
-            (registeredList.filter((r) => filterFn(r.chassis)).length === 0 ? (
+            (registeredList.filter((r) => filterFn(r)).length === 0 ? (
               <EmptyRow text="Aucun châssis enregistré hors MMTE pour l'instant." />
             ) : (
               <>
-                {registeredList.filter((r) => filterFn(r.chassis)).slice(0, LIST_RENDER_CAP).map((r) => (
+                {registeredList.filter((r) => filterFn(r)).slice(0, LIST_RENDER_CAP).map((r) => (
                   <ListRow key={r.norm} chassis={r.chassis} agent={r.agentName} scannedAt={r.scannedAt} detail={r} onRemove={isGuest ? undefined : () => softDelete(r.norm)} />
                 ))}
-                <TruncationNote count={registeredList.filter((r) => filterFn(r.chassis)).length} />
+                <TruncationNote count={registeredList.filter((r) => filterFn(r)).length} />
               </>
             ))}
 
           {activeTab === "missing" &&
-            (missingList.filter((m) => filterFn(m.chassis)).length === 0 ? (
+            (missingList.filter((m) => filterFn(m)).length === 0 ? (
               <EmptyRow text="Tous les châssis MMTE ont été retrouvés sur le parc." />
             ) : (
               <>
-                {missingList.filter((m) => filterFn(m.chassis)).slice(0, LIST_RENDER_CAP).map((m) => (
+                {missingList.filter((m) => filterFn(m)).slice(0, LIST_RENDER_CAP).map((m) => (
                   <ListRow key={m.norm} chassis={m.chassis} detail={m.info} badge="Absent" badgeTone="rose" />
                 ))}
-                <TruncationNote count={missingList.filter((m) => filterFn(m.chassis)).length} />
+                <TruncationNote count={missingList.filter((m) => filterFn(m)).length} />
               </>
             ))}
         </div>
@@ -3687,7 +3875,7 @@ function CompareScreen({ data, onBack, onExport }) {
           </button>
         ))}
       </div>
-      <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtrer par numéro de châssis..."
+      <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtrer : châssis, marque, modèle… (combinables)"
         className="w-full px-3 py-2 mb-3 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none focus:border-[#1B4F8C]" />
       <div className="space-y-2">
         {rows.length === 0 && <div className="text-center text-sm text-slate-400 py-6">Aucune entrée.</div>}
@@ -4106,7 +4294,7 @@ function ReadOnlyLists({ totalList, foundList, registeredList, missingList }) {
   const [tab, setTab] = useState("total");
   const [filter, setFilter] = useState("");
   const nf = normalize(filter);
-  const match = (c) => !nf || normalize(c).includes(nf);
+  const match = (r) => !filter.trim() || matchesAllTerms(filter, r);
   const tabs = [
     ["total", `Total (${totalList.length})`],
     ["found", `Trouvés (${foundList.length})`],
@@ -4115,7 +4303,7 @@ function ReadOnlyLists({ totalList, foundList, registeredList, missingList }) {
   ];
   const rows =
     tab === "total" ? totalList : tab === "found" ? foundList : tab === "registered" ? registeredList : missingList;
-  const shown = rows.filter((r) => match(r.chassis));
+  const shown = rows.filter((r) => match(r));
   return (
     <div className="no-print mb-6">
       <div className="font-bold text-slate-700 mb-2">Détails de l'inventaire</div>
@@ -4136,7 +4324,7 @@ function ReadOnlyLists({ totalList, foundList, registeredList, missingList }) {
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filtrer par numéro de châssis..."
+          placeholder="Filtrer : châssis, marque, modèle… (combinables)"
           className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none focus:border-[#1B4F8C]"
         />
       </div>
