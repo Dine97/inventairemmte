@@ -40,8 +40,16 @@ service cloud.firestore {
 
     // Invité = connexion anonyme + session créée avec le BON code d'accès
     // (contrôlé ici, côté serveur) et datant de moins de 24 h.
+    // L'accès invité peut être coupé (enabled == false) ou limité dans le temps
+    // (expiresAtMs) par un administrateur : cela révoque aussi les sessions déjà ouvertes.
+    function guestEnabled() {
+      return exists(/databases/$(database)/documents/config/guest) &&
+        get(/databases/$(database)/documents/config/guest).data.get('enabled', true) != false &&
+        request.time.toMillis() <= get(/databases/$(database)/documents/config/guest).data.get('expiresAtMs', 9999999999999);
+    }
+
     function isGuestOk() {
-      return isAnonymousUser() &&
+      return isAnonymousUser() && guestEnabled() &&
         exists(/databases/$(database)/documents/guestSessions/$(request.auth.uid)) &&
         request.time < get(/databases/$(database)/documents/guestSessions/$(request.auth.uid)).data.createdAt
                        + duration.value(24, 'h');
@@ -85,7 +93,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['code', 'name', 'createdAt'])
         && request.resource.data.createdAt == request.time
         && request.resource.data.code is string
-        && exists(/databases/$(database)/documents/config/guest)
+        && guestEnabled()
         && request.resource.data.code.upper() ==
            get(/databases/$(database)/documents/config/guest).data.code.upper();
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdminToken());
@@ -110,8 +118,23 @@ service cloud.firestore {
           && request.resource.data.role == 'agent')
       );
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdminToken());
-      allow update: if isAdminToken();
+      // Seule exception hors administrateur : la date de dernière connexion.
+      allow update: if isAdminToken() || (
+        request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLoginAt'])
+      );
+      allow delete: if isAdminToken();
       allow list: if isAdminToken();
+    }
+
+    // Journal des actions d'administration : écrit et lu par les admins,
+    // jamais modifiable ni supprimable.
+    match /adminLog/{id} {
+      allow create: if isAdminToken()
+        && request.resource.data.keys().hasOnly(['action', 'target', 'byEmail', 'at'])
+        && request.resource.data.at == request.time;
+      allow read: if isAdminToken();
+      allow update, delete: if false;
     }
 
     // ------------------------------------------------------------------

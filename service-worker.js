@@ -1,4 +1,4 @@
-const CACHE_NAME = "inventaire-mmte-v19";
+const CACHE_NAME = "inventaire-mmte-v30";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const APP_SHELL = [
 ];
 
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
   );

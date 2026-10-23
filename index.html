@@ -62,8 +62,14 @@
     const RefreshCw = (p) => <Icon {...p}><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M8 16H3v5"/></Icon>;
     const Users = (p) => <Icon {...p}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Icon>;
     const ShieldCheck = (p) => <Icon {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></Icon>;
+    const Archive = (p) => <Icon {...p}><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></Icon>;
+    const Columns = (p) => <Icon {...p}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18"/></Icon>;
+    const Home = (p) => <Icon {...p}><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></Icon>;
+    const LogOut = (p) => <Icon {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></Icon>;
+    const Eye = (p) => <Icon {...p}><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></Icon>;
+    const EyeOff = (p) => <Icon {...p}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></Icon>;
 
-const APP_VERSION = "4.3.0";
+const APP_VERSION = "5.1.2";
 
 // ============================================================================
 // Configuration Firebase — Firebase Console → Paramètres du projet.
@@ -155,7 +161,9 @@ const AUTH_ERROR_MESSAGES = {
   "auth/weak-password": "Le mot de passe doit contenir au moins 6 caractères.",
   "auth/too-many-requests": "Trop de tentatives. Réessayez dans quelques minutes.",
   "auth/network-request-failed": "Connexion internet indisponible.",
-  "guest/bad-code": "Code d'accès incorrect ou expiré.",
+  "guest/bad-code": "Code d'accès incorrect, ou accès temporaire pas encore configuré : un administrateur doit ouvrir l'application une fois avec son compte.",
+  "guest/not-enabled": "L'accès temporaire n'est pas activé sur le serveur : l'administrateur doit activer la méthode « Anonyme » dans Firebase > Authentication > Méthode de connexion.",
+  "guest/rules": "Les règles de sécurité du serveur n'autorisent pas encore l'accès temporaire : l'administrateur doit publier le fichier firestore.rules dans Firebase.",
   "auth/unauthorized-domain": "Ce site n'est pas autorisé à utiliser cette connexion (contactez l'administrateur).",
 };
 function friendlyAuthError(err) {
@@ -869,6 +877,19 @@ function InventaireMMTEApp() {
     return () => { cancelled = true; };
   }, [authUser && authUser.uid, isGuest]);
 
+  // Révocation : si un administrateur supprime la session invité (ou coupe
+  // l'accès invité), la personne est déconnectée aussitôt.
+  useEffect(() => {
+    if (!authUser || !isGuest || guestOk !== true) return undefined;
+    return db.collection("guestSessions").doc(authUser.uid).onSnapshot(
+      (snap) => {
+        const cached = snap.metadata && snap.metadata.fromCache;
+        if (!snap.exists && !cached) { setGuestOk(false); auth.signOut(); }
+      },
+      () => { /* règles : lecture refusée = accès coupé */ setGuestOk(false); auth.signOut(); }
+    );
+  }, [authUser && authUser.uid, isGuest, guestOk]);
+
   const PARCS_LIST =
     remoteConfig && Array.isArray(remoteConfig.parcsList) && remoteConfig.parcsList.length
       ? remoteConfig.parcsList
@@ -884,10 +905,28 @@ function InventaireMMTEApp() {
   // ou inscription — on évite de reconstruire l'objet Firebase (source du
   // bug qui faisait passer les invités pour des agents en attente).
   const [localDisplayName, setLocalDisplayName] = useState("");
-  const currentAgent = authUser ? { name: localDisplayName || agentDisplayName(authUser) } : null;
+
+  // Un administrateur connecté crée automatiquement le code d'accès invité
+  // s'il n'existe pas encore côté serveur (ancien code conservé, sinon code
+  // par défaut) : sans lui, aucun invité ne peut entrer, même avec le bon code.
+  useEffect(() => {
+    if (!authUser || isGuest || !isAdmin || remoteConfig === null) return;
+    let cancelled = false;
+    db.collection("config").doc("guest").get().then((snap) => {
+      if (cancelled || snap.exists) return;
+      const legacy = remoteConfig && typeof remoteConfig.guestAccessCode === "string" ? remoteConfig.guestAccessCode : "";
+      const code = String(legacy || DEFAULT_GUEST_ACCESS_CODE).trim().toUpperCase();
+      return db.collection("config").doc("guest").set({ code });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser && authUser.uid, isAdmin, remoteConfig === null]);
 
   // --- Fiche utilisateur (validation des comptes agents) ---
   const [userDoc, setUserDoc] = useState(undefined); // undefined=chargement, null=pas de fiche, objet=fiche
+  // Le nom fixé par un administrateur (fiche users) prime sur celui du compte de connexion.
+  const adminSetName = userDoc && userDoc.displayName && authUser && !authUser.isAnonymous ? userDoc.displayName : "";
+  const currentAgent = authUser ? { name: localDisplayName || adminSetName || agentDisplayName(authUser) } : null;
   useEffect(() => {
     if (!authUser || isGuest) {
       setUserDoc(null);
@@ -924,6 +963,15 @@ function InventaireMMTEApp() {
 
   const isApproved = (isGuest && guestOk === true) || isAdmin || (userDoc && userDoc.status === "approved");
 
+  // Dernière connexion (une écriture par session, champ seul autorisé par les règles).
+  const lastLoginDone = useRef("");
+  useEffect(() => {
+    if (!authUser || isGuest || !isApproved || !userDoc || lastLoginDone.current === authUser.uid) return;
+    lastLoginDone.current = authUser.uid;
+    db.collection("users").doc(authUser.uid).update({ lastLoginAt: FieldValue.serverTimestamp() }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser && authUser.uid, isApproved, !!userDoc]);
+
   // --- Mise à jour disponible (service worker) ---
   const [updateAvailable, setUpdateAvailable] = useState(false);
   useEffect(() => {
@@ -955,6 +1003,7 @@ function InventaireMMTEApp() {
   const [pasteText, setPasteText] = useState("");
   const [importError, setImportError] = useState("");
   const [importedFileName, setImportedFileName] = useState("");
+  const [importDup, setImportDup] = useState(null);
   const [starting, setStarting] = useState(false);
   // Renseigné quand on tente de créer un inventaire pour un parc/date dont
   // la version existante est déjà clôturée — laisse le choix de la rouvrir
@@ -1088,11 +1137,17 @@ function InventaireMMTEApp() {
     }
     setMmteMap(buildMap(cleaned));
     setImportError("");
+    const d = findDuplicates(cleaned.map((v) => ({ chassis: v, sig: normalize(v) })));
+    setImportDup(d.length ? { items: d, name: "liste_collee" } : null);
   };
   const handleFileChange = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     setImportedFileName(file.name);
+    setImportDup(null);
+    parseStockFile(file)
+      .then((r) => setImportDup(r.dupItems && r.dupItems.length ? { items: r.dupItems, name: file.name } : null))
+      .catch(() => {});
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
@@ -1535,8 +1590,10 @@ function InventaireMMTEApp() {
     // par le serveur, pas par le code de la page.
     guestPendingRef.current = true;
     let cred;
+    let stage = "auth";
     try {
       cred = await auth.signInAnonymously();
+      stage = "session";
       await db.collection("guestSessions").doc(cred.user.uid).set({
         code: String(code || "").trim().toUpperCase(),
         name: String(name || "").trim().slice(0, 80),
@@ -1544,7 +1601,10 @@ function InventaireMMTEApp() {
       });
     } catch (err) {
       const e2 = new Error("guest");
-      e2.code = err && err.code === "permission-denied" ? "guest/bad-code" : (err && err.code) || "";
+      const c = (err && err.code) || "";
+      if (stage === "auth" && (c === "auth/operation-not-allowed" || c === "auth/admin-restricted-operation")) e2.code = "guest/not-enabled";
+      else if (c === "permission-denied") e2.code = "guest/bad-code";
+      else e2.code = c;
       // L'écran de connexion est démonté pendant la vérification : on garde
       // le message (avant la déconnexion) pour le réafficher au retour.
       setGuestFailure(friendlyAuthError(e2));
@@ -1580,6 +1640,7 @@ function InventaireMMTEApp() {
     setInvMeta(null);
     setPasteText("");
     setImportedFileName("");
+    setImportDup(null);
     setFeedback(null);
     setPendingNotFound(null);
     setConfirmNewParc(false);
@@ -1641,8 +1702,17 @@ function InventaireMMTEApp() {
     }
   };
 
+  // Depuis l'écran de préparation, on garde ce qui a été saisi/importé :
+  // au retour, rien n'est perdu.
+  const leaveSetupSafely = () => { if (phase !== "setup") resetAll(); };
+  const openStockCompare = () => {
+    leaveSetupSafely();
+    setShowAdmin(false);
+    setPhase("stockcompare");
+  };
+
   const openArchives = () => {
-    resetAll();
+    leaveSetupSafely();
     setShowAdmin(false);
     setPhase("archives");
     loadArchive();
@@ -1959,9 +2029,9 @@ function InventaireMMTEApp() {
 
   return (
     <PhotoCtx.Provider value={loadPhoto}>
-    <div className="min-h-screen w-full bg-white" style={{ fontFamily: "'IBM Plex Sans', system-ui, sans-serif" }}>
+    <div className={"mmte-app min-h-screen w-full" + (authUser && isApproved && currentAgent ? " mmte-has-side" : "")} style={{ fontFamily: "'Manrope', 'IBM Plex Sans', system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
         .font-plex-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
         @keyframes stampIn {
           0% { opacity: 0; transform: scale(1.6) rotate(-16deg); }
@@ -1972,16 +2042,7 @@ function InventaireMMTEApp() {
         @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
         .print-only { display: none; }
       `}</style>
-
-      {updateAvailable && (
-        <div className="no-print bg-amber-500 text-white text-sm font-semibold px-4 py-2 flex items-center justify-center gap-3">
-          <RefreshCw size={15} />
-          Nouvelle version disponible.
-          <button onClick={() => window.location.reload()} className="underline font-bold">
-            Recharger maintenant
-          </button>
-        </div>
-      )}
+      <style>{THEME_CSS}</style>
 
       <AppHeader
         currentAgent={currentAgent}
@@ -1991,6 +2052,10 @@ function InventaireMMTEApp() {
         showAdmin={showAdmin}
         setShowAdmin={setShowAdmin}
         onOpenArchives={authUser && isApproved && !isGuest ? openArchives : null}
+        onOpenStockCompare={authUser && isApproved && !isGuest ? openStockCompare : null}
+        onHome={() => { setShowAdmin(false); if (phase === "stockcompare" || phase === "archives" || phase === "compare") setPhase("setup"); }}
+        phase={phase}
+        withNav={!!(authUser && isApproved && currentAgent)}
       />
 
       {authUser === undefined && (
@@ -2023,9 +2088,14 @@ function InventaireMMTEApp() {
         <AdminPanel
           onClose={() => setShowAdmin(false)}
           parcsList={PARCS_LIST}
-          adminEmails={ADMIN_EMAILS}
           currentUserEmail={authUser.email}
+          currentUid={authUser.uid}
+          activeInvCount={activeInventories.length}
         />
+      )}
+
+      {authUser && isApproved && currentAgent && !(isAdmin && showAdmin) && phase === "setup" && (
+        <WelcomeBar uid={authUser.uid} name={firstNameOf(localDisplayName || adminSetName || authUser.displayName || authUser.email)} />
       )}
 
       {authUser && isApproved && !(isAdmin && showAdmin) && phase === "setup" && (
@@ -2054,6 +2124,8 @@ function InventaireMMTEApp() {
           reopenClosedInventory={reopenClosedInventory}
           replaceClosedInventory={replaceClosedInventory}
           onCancelClosedInvChoice={() => setExistingClosedInv(null)}
+          onOpenStockCompare={openStockCompare}
+          importDup={importDup}
         />
       )}
 
@@ -2110,12 +2182,16 @@ function InventaireMMTEApp() {
           onPurgeExpired={purgeExpiredArchives}
           onRefresh={loadArchive}
           onExport={exportArchiveSummary}
-          onBack={resetAll}
+          onBack={() => setPhase("setup")}
           isAdmin={isAdmin}
           parcsList={PARCS_LIST}
           onReopen={reopenArchived}
           onCompare={compareInventories}
         />
+      )}
+
+      {authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "stockcompare" && (
+        <StockCompareScreen onBack={() => setPhase("setup")} />
       )}
 
       {authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "compare" && compareData && (
@@ -2159,70 +2235,247 @@ function InventaireMMTE() {
   );
 }
 
+// Thème visuel (menu latéral, cartes, boutons). Purement graphique.
+const THEME_CSS = String.raw`
+/* ===== Thème « Nuit & Lumière » ===== */
+.mmte-app{background:#EEF4FB;color:#0F2A47;-webkit-font-smoothing:antialiased}
+.mmte-app h1,.mmte-app h2,.mmte-app h3{font-family:'Sora','Manrope',system-ui,sans-serif;letter-spacing:-.01em}
+.mmte-app .rounded-2xl{border-radius:20px}
+.mmte-app .rounded-xl{border-radius:16px}
+.mmte-app .rounded-lg{border-radius:13px}
+.mmte-app .shadow-sm,.mmte-app .shadow{box-shadow:0 1px 2px rgba(11,31,56,.05),0 16px 32px -24px rgba(18,58,102,.32)}
+.mmte-app .border-slate-200{border-color:#DFE9F5}
+.mmte-app input:not([type=checkbox]):not([type=radio]):not([type=file]),.mmte-app textarea,.mmte-app select{border-radius:13px;background-color:#F7FAFE;border-color:#D5E2F0}
+.mmte-app input:focus,.mmte-app textarea:focus,.mmte-app select:focus{background-color:#fff;border-color:#1B4F8C;outline:none;box-shadow:0 0 0 4px rgba(46,125,193,.16)}
+.mmte-app button{transition:transform .08s ease,box-shadow .15s ease,background-color .15s ease}
+.mmte-app button:active:not(:disabled){transform:scale(.985)}
+.mmte-app button.bg-\[\#1B4F8C\]{background-image:linear-gradient(180deg,#2E7DC1,#1B4F8C);box-shadow:0 12px 22px -14px rgba(27,79,140,.9),inset 0 1px 0 rgba(255,255,255,.2)}
+.mmte-app button.bg-\[\#123A66\]{background-image:linear-gradient(160deg,#0B1F38,#123A66);box-shadow:0 12px 22px -14px rgba(11,31,56,.9)}
+.mmte-app .bg-\[\#EAF1FA\]{background-color:#EAF1FA}
+.mmte-app .max-w-2xl{max-width:42rem}
+@media(min-width:768px){.mmte-app .max-w-2xl{max-width:52rem}.mmte-app .max-w-sm{max-width:26rem}}
+@media(min-width:1280px){.mmte-app .max-w-2xl{max-width:56rem}}
+
+/* --- En-tête : barre du haut (téléphone/tablette) ou menu latéral (ordinateur) --- */
+.mmte-head{background:linear-gradient(160deg,#0B1F38 0%,#123A66 70%,#1B4F8C 150%);color:#fff;padding:14px 18px;border-radius:0 0 24px 24px;position:relative;overflow:hidden;box-shadow:0 18px 30px -26px rgba(11,31,56,.9);display:grid;grid-template-columns:1fr auto;grid-template-areas:"brand logos" "nav nav" "user user";align-items:center;gap:12px 12px}
+.mmte-head::after{content:"";position:absolute;right:-70px;top:-70px;width:220px;height:220px;border-radius:50%;border:1px solid rgba(127,194,255,.18);pointer-events:none}
+.mmte-brand{grid-area:brand;position:relative}
+.mmte-title{font-family:'Sora',system-ui,sans-serif;font-weight:600;font-size:20px;letter-spacing:-.01em;line-height:1.15}
+.mmte-title span{color:#7FC2FF}
+.mmte-gold{width:30px;height:2px;background:#C9A96A;margin:7px 0 6px}
+.mmte-sub{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#9DC4EA;font-weight:700}
+.mmte-logos{grid-area:logos;display:flex;align-items:center;gap:10px;position:relative}
+.mmte-logos img{box-sizing:content-box;height:44px;width:auto;max-width:none;object-fit:contain;background:#fff;border-radius:12px;padding:6px 10px}
+.mmte-navs{grid-area:nav;display:flex;flex-wrap:wrap;gap:5px;position:relative}
+.mmte-nav-label{display:none}
+.mmte-nav{flex:none;display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(127,194,255,.22);background:rgba(255,255,255,.07);color:#D6E6F6;font-weight:700;font-size:12px;padding:7px 10px;border-radius:12px;white-space:nowrap}
+.mmte-nav svg{width:16px;height:16px}
+.mmte-nav.is-active{background:rgba(127,194,255,.2);color:#fff;border-color:rgba(127,194,255,.45)}
+.mmte-nav-out{margin-left:auto}
+.mmte-user{grid-area:user;display:flex;align-items:center;gap:9px;position:relative;font-size:12px;color:#A9C9EA}
+.mmte-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(145deg,#2E7DC1,#1B4F8C);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none}
+.mmte-user-txt{display:flex;align-items:baseline;gap:8px;min-width:0;flex-wrap:wrap}
+.mmte-user-name{color:#fff;font-weight:800;font-size:13px}
+.mmte-user-role{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(127,194,255,.2);border:1px solid rgba(127,194,255,.35);color:#fff;border-radius:99px;padding:2px 9px}
+.mmte-user-role.is-guest{background:rgba(240,180,50,.2);border-color:rgba(240,180,50,.5);color:#FFE3A1}
+@media(min-width:768px){.mmte-head{padding:16px 28px}.mmte-logos img{height:48px}.mmte-title{font-size:24px}}
+@media(min-width:1024px){
+  .mmte-has-side{padding-left:272px}
+  .mmte-head.is-auth{position:fixed;left:0;top:0;bottom:0;width:272px;z-index:20;border-radius:0;display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:26px 18px 20px;overflow-y:auto;box-shadow:none}
+  .mmte-head.is-auth::after{right:auto;top:auto;left:-120px;bottom:-120px;width:340px;height:340px}
+  .mmte-head.is-auth .mmte-logos{order:1;flex-direction:column;align-items:stretch;gap:10px}
+  .mmte-head.is-auth .mmte-logos img{height:58px;width:calc(100% - 28px);padding:10px 14px;border-radius:14px}
+  .mmte-head.is-auth .mmte-logos img:nth-child(2){height:84px;width:auto;align-self:stretch;object-fit:contain;padding:8px 14px}
+  .mmte-head.is-auth .mmte-brand{order:2;padding:20px 10px 12px}
+  .mmte-head.is-auth .mmte-title{font-size:23px}
+  .mmte-head.is-auth .mmte-navs{order:3;flex-direction:column;flex-wrap:nowrap;gap:6px;flex:1}
+  .mmte-head.is-auth .mmte-nav-label{display:block;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#6F8FB3;padding:4px 14px;font-weight:800}
+  .mmte-head.is-auth .mmte-nav{width:100%;border-color:transparent;background:transparent;color:#A9C0DB;padding:12px 14px;font-size:14px}
+  .mmte-head.is-auth .mmte-nav svg{width:18px;height:18px}
+  .mmte-head.is-auth .mmte-nav:hover{background:rgba(255,255,255,.07);color:#fff}
+  .mmte-head.is-auth .mmte-nav.is-active{background:rgba(127,194,255,.14);border-color:rgba(127,194,255,.24);color:#fff}
+  .mmte-head.is-auth .mmte-nav.is-active svg{color:#7FC2FF}
+  .mmte-head.is-auth .mmte-nav-out{margin-left:0;margin-top:auto;color:#8FB0D6}
+  .mmte-head.is-auth .mmte-user{order:4;padding:13px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);gap:11px}
+  .mmte-head.is-auth .mmte-avatar{width:38px;height:38px;font-size:15px}
+  .mmte-head.is-auth .mmte-user-txt{flex-direction:column;align-items:flex-start;gap:2px}
+  .mmte-head.is-auth .mmte-user-role{background:none;border:0;padding:0;color:#7FC2FF;font-size:11.5px;letter-spacing:0;text-transform:none}
+  .mmte-head.is-auth .mmte-user-role.is-guest{color:#FFE3A1}
+}
+@media(min-width:1024px){.mmte-has-side .mmte-bottombar{left:272px}}
+.mmte-bottombar{background:rgba(255,255,255,.92);backdrop-filter:blur(8px);box-shadow:0 -12px 28px -22px rgba(11,31,56,.5)}
+
+/* --- En-tête centré (connexion) : logo à gauche, titre au milieu, logo à droite --- */
+.mmte-head:not(.is-auth){grid-template-columns:auto 1fr auto;grid-template-areas:"lg brand rg";align-items:center;gap:14px;padding:18px 18px 20px;text-align:center}
+.mmte-head:not(.is-auth) .mmte-logos{display:contents}
+.mmte-head:not(.is-auth) .mmte-logos img:first-child{grid-area:lg}
+.mmte-head:not(.is-auth) .mmte-logos img:last-child{grid-area:rg}
+.mmte-head:not(.is-auth) .mmte-logos img{height:46px;position:relative;box-shadow:0 10px 22px -12px rgba(0,0,0,.5)}
+.mmte-head:not(.is-auth) .mmte-brand{text-align:center}
+.mmte-head:not(.is-auth) .mmte-title{font-size:clamp(17px,5vw,38px);font-weight:700;letter-spacing:.14em;text-transform:uppercase;line-height:1.15}
+.mmte-head:not(.is-auth) .mmte-gold{margin:9px auto 8px;width:56px;height:2px}
+.mmte-head:not(.is-auth) .mmte-sub{font-size:clamp(9px,2.4vw,12px);letter-spacing:.22em}
+@media(min-width:768px){.mmte-head:not(.is-auth){padding:22px 40px 24px}.mmte-head:not(.is-auth) .mmte-logos img{height:72px;padding:8px 14px}}
+/* --- Interrupteur (panneau admin) --- */
+.mmte-switch{flex:none;width:54px;height:30px;border-radius:99px;background:#B7C6D8;position:relative;transition:background .15s}
+.mmte-switch span{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(11,31,56,.35);transition:transform .15s}
+.mmte-switch.is-on{background:#1E9E5A}
+.mmte-switch.is-on span{transform:translateX(24px)}
+/* --- Salutation et date --- */
+.mmte-date{margin-top:9px;font-size:12px;font-weight:700;color:#C9DCF0;letter-spacing:.01em}
+.mmte-welcome{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #DFE9F5;border-radius:20px;padding:18px 22px;box-shadow:0 1px 2px rgba(11,31,56,.05),0 16px 32px -26px rgba(18,58,102,.35);border-left:4px solid #C9A96A}
+.mmte-welcome-hi{font-family:'Sora',system-ui,sans-serif;font-size:22px;font-weight:600;color:#0B1F38;letter-spacing:-.01em}
+.mmte-welcome-date{font-size:13px;font-weight:600;color:#5B6F86;margin-top:3px}
+.mmte-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:60;background:#0B1F38;color:#fff;font-weight:700;font-size:14px;padding:12px 22px;border-radius:99px;box-shadow:0 18px 36px -16px rgba(11,31,56,.7);border:1px solid rgba(127,194,255,.35);animation:mmteToast 6s ease forwards;max-width:90vw}
+@keyframes mmteToast{0%{opacity:0;transform:translate(-50%,10px)}8%{opacity:1;transform:translate(-50%,0)}88%{opacity:1}100%{opacity:0}}
+/* --- Champ mot de passe (œil) --- */
+.mmte-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;color:#5B6F86;background:transparent}
+.mmte-eye:hover{color:#1B4F8C;background:#EAF1FA}
+/* --- Liste de propositions (pointage) : lisible et défilable au doigt --- */
+.mmte-dd{position:absolute;z-index:30;left:0;right:0;margin-top:8px;background:#fff;border:2px solid #1B4F8C;border-radius:16px;box-shadow:0 28px 50px -18px rgba(11,31,56,.5);max-height:min(46vh,22rem);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.mmte-dd-head{position:sticky;top:0;z-index:1;background:#EAF1FA;color:#123A66;font-size:12px;font-weight:800;letter-spacing:.04em;padding:9px 16px;border-bottom:1px solid #D5E2F0}
+.mmte-dd-row{display:block;width:100%;text-align:left;padding:13px 16px;min-height:56px;border-bottom:1px solid #E6EEF7;background:#fff}
+.mmte-dd-row:last-of-type{border-bottom:0}
+.mmte-dd-row.is-hl{background:#EAF1FA;box-shadow:inset 4px 0 0 #1B4F8C}
+.mmte-dd-chassis{font-size:16px;font-weight:700;color:#0B1F38;letter-spacing:.02em;word-break:break-all}
+.mmte-dd-desc{font-size:14px;color:#334E68;margin-top:3px;font-weight:600}
+/* --- Page de connexion --- */
+.mmte-login{max-width:26rem;margin:0 auto;padding:28px 20px 36px}
+.mmte-login-hero{display:none}
+.mmte-login-form{position:relative}
+.mmte-login-form form{border-radius:22px;padding:26px 24px;border-color:#DFE9F5;box-shadow:0 1px 2px rgba(11,31,56,.05),0 30px 56px -34px rgba(18,58,102,.45)}
+@media(min-width:1024px){
+  .mmte-login{max-width:70rem;display:grid;grid-template-columns:1.15fr 1fr;gap:64px;align-items:center;padding:48px 36px;min-height:calc(100vh - 130px)}
+  .mmte-login-hero{display:block;position:relative;overflow:hidden;border-radius:28px;padding:56px 52px;color:#fff;min-height:480px;background:linear-gradient(160deg,#0B1F38 0%,#123A66 62%,#1B4F8C 150%);box-shadow:0 40px 70px -40px rgba(11,31,56,.75)}
+  .mmte-login-hero::before,.mmte-login-hero::after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(127,194,255,.16);pointer-events:none}
+  .mmte-login-hero::before{right:-170px;bottom:-170px;width:520px;height:520px}
+  .mmte-login-hero::after{right:-80px;bottom:-80px;width:340px;height:340px}
+  .mmte-login-kicker{font-size:12.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#7FC2FF}
+  .mmte-login-title{font-family:'Sora',system-ui,sans-serif;font-size:56px;line-height:1.04;font-weight:600;letter-spacing:-.025em}
+  .mmte-login-text{margin-top:22px;font-size:17px;line-height:1.65;color:#C9DCF0;max-width:30rem}
+  .mmte-login-stats{display:flex;gap:36px;margin-top:44px;font-size:13px;color:#A9C9EA;position:relative}
+  .mmte-login-stats b{display:block;font-family:'IBM Plex Mono',monospace;font-size:19px;color:#fff;font-weight:600;margin-bottom:2px}
+  .mmte-login-form{max-width:26rem;width:100%}
+}
+@media print{.mmte-has-side{padding-left:0!important}.mmte-head{display:none!important}.mmte-app{background:#fff!important}}
+`;
+
+// ----------------------------------------------------------------------------
+// Salutation et date du jour (heure de l'appareil)
+// ----------------------------------------------------------------------------
+function greetingWord(d) {
+  return d.getHours() < 12 ? "Bonjour" : "Bonsoir"; // minuit → 11 h 59 : bonjour ; dès 12 h : bonsoir
+}
+function formatDateFr(d) {
+  const t = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+// Prénom d'affichage : les mots qui ne sont pas entièrement en majuscules
+// (« Jean KOSSOU » → « Jean »). Sinon le nom complet.
+function firstNameOf(raw) {
+  let n = String(raw || "").replace(/\s*\(Invité\)\s*$/i, "").trim();
+  if (n.includes("@")) n = n.split("@")[0].replace(/[._-]+/g, " ").trim();
+  if (!n) return "";
+  const words = n.split(/\s+/);
+  const given = words.filter((w) => !(w.length > 1 && w === w.toUpperCase() && w !== w.toLowerCase()));
+  const out = (given.length ? given : words).join(" ");
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+// Date courante, rafraîchie chaque minute (le jour change à minuit sans recharger).
+function useNow() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+const welcomedUids = new Set();
+function WelcomeBar({ uid, name }) {
+  const now = useNow();
+  const [toast, setToast] = useState(() => !welcomedUids.has(uid));
+  useEffect(() => {
+    if (!toast) return undefined;
+    welcomedUids.add(uid);
+    const id = setTimeout(() => setToast(false), 6000);
+    return () => clearTimeout(id);
+  }, [toast, uid]);
+  if (!name) return null;
+  return (
+    <>
+      {toast && (
+        <div className="mmte-toast no-print" role="status">
+          Bienvenue, {name}
+        </div>
+      )}
+      <div className="max-w-2xl mx-auto px-5 pt-6 no-print">
+        <div className="mmte-welcome">
+          <div>
+            <div className="mmte-welcome-hi">{greetingWord(now)}, {name}</div>
+            <div className="mmte-welcome-date">{formatDateFr(now)}</div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ============================================================================
 // EN-TÊTE / PIED DE PAGE
 // ============================================================================
-function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin, onOpenArchives }) {
+function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin, onOpenArchives, onOpenStockCompare, onHome, phase, withNav }) {
+  const now = useNow();
+  const inArchives = phase === "archives" || phase === "compare";
+  const inStock = phase === "stockcompare";
+  const nav = [];
+  if (currentAgent && withNav) {
+    nav.push({ key: "home", label: "Inventaire", Icon: Home, onClick: onHome, active: !showAdmin && !inArchives && !inStock });
+    if (onOpenArchives) nav.push({ key: "arch", label: "Mes données / Archives", Icon: Archive, onClick: onOpenArchives, active: !showAdmin && inArchives });
+    if (onOpenStockCompare) nav.push({ key: "cmp", label: "Comparer deux stocks", Icon: Columns, onClick: onOpenStockCompare, active: !showAdmin && inStock });
+    if (isAdmin) nav.push({ key: "adm", label: showAdmin ? "Fermer le panneau admin" : "Panneau admin", Icon: ShieldCheck, onClick: () => setShowAdmin((x) => !x), active: showAdmin });
+  }
+  const initial = currentAgent && currentAgent.name ? String(currentAgent.name).trim().charAt(0).toUpperCase() : "";
+  const role = isAdmin ? "Administrateur" : isGuest ? "Invité" : "Agent";
   return (
-    <header className="no-print bg-white border-b-2 border-[#1B4F8C]/15">
-      <div className="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between gap-3">
-        <img src={LOGO_BC} alt="Bénin Control" className="h-16 sm:h-20 w-auto object-contain shrink-0" />
-        <div className="text-center flex-1">
-          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight" style={{ color: BLUE_DEEP }}>
-            INVENTAIRE MMTE
-          </h1>
-          <div className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.18em] text-[#2E7DC1] mt-0.5">
-            Bénin Control &nbsp;/&nbsp; MAD-MAE
+    <header className={"mmte-head no-print" + (currentAgent && withNav ? " is-auth" : "")}>
+      <div className="mmte-brand">
+        <div className="mmte-title">Inventaire <span>MMTE</span></div>
+        <div className="mmte-gold" />
+        <div className="mmte-sub">Bénin Control / MAD-MAE</div>
+        {currentAgent && withNav && <div className="mmte-date">{formatDateFr(now)}</div>}
+      </div>
+      <div className="mmte-logos">
+        <img src={LOGO_BC} alt="Bénin Control" />
+        <img src={LOGO_DOUANES} alt="Douanes Béninoises" />
+      </div>
+      {currentAgent && withNav && (
+        <nav className="mmte-navs" aria-label="Navigation">
+          <div className="mmte-nav-label">Navigation</div>
+          {nav.map((n) => (
+            <button key={n.key} onClick={n.onClick} className={"mmte-nav" + (n.active ? " is-active" : "")}>
+              <n.Icon size={18} /> {n.label}
+            </button>
+          ))}
+          <button onClick={onLogout} className="mmte-nav mmte-nav-out"><LogOut size={18} /> Déconnexion</button>
+        </nav>
+      )}
+      {currentAgent && withNav && (
+        <div className="mmte-user">
+          <div className="mmte-avatar">{initial}</div>
+          <div className="mmte-user-txt">
+            <div className="mmte-user-name">{currentAgent.name}</div>
+            <div className={"mmte-user-role" + (isGuest ? " is-guest" : "")}>{role}</div>
           </div>
         </div>
-        <img src={LOGO_DOUANES} alt="Douanes Béninoises" className="h-16 sm:h-20 w-auto object-contain shrink-0" />
-      </div>
-      {currentAgent && (
-        <div className="max-w-3xl mx-auto px-5 pb-2 flex flex-wrap items-center justify-center gap-2 text-xs text-slate-500">
-          <span>
-            Connecté : <span className="font-semibold text-slate-700">{currentAgent.name}</span>
-          </span>
-          {isAdmin && (
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#123A66] text-white">
-              Administrateur
-            </span>
-          )}
-          {isGuest && (
-            <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-              Invité
-            </span>
-          )}
-          {onOpenArchives && (
-            <>
-              <span className="text-slate-300">·</span>
-              <button onClick={onOpenArchives} className="font-semibold text-[#1B4F8C] hover:underline">
-                Mes données / Archives
-              </button>
-            </>
-          )}
-          {isAdmin && (
-            <>
-              <span className="text-slate-300">·</span>
-              <button onClick={() => setShowAdmin((s) => !s)} className="font-semibold text-[#1B4F8C] hover:underline">
-                {showAdmin ? "Fermer le panneau admin" : "Panneau admin"}
-              </button>
-            </>
-          )}
-          <span className="text-slate-300">·</span>
-          <button onClick={onLogout} className="font-semibold text-[#1B4F8C] hover:underline">
-            Déconnexion
-          </button>
-        </div>
       )}
-      <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }} />
     </header>
   );
 }
 
 function AppFooter() {
   return (
-    <footer className="no-print max-w-3xl mx-auto px-5 py-6 mt-4">
-      <div className="text-center text-[10px] text-slate-300">v{APP_VERSION}</div>
+    <footer className="no-print max-w-3xl mx-auto px-5 py-3 mt-2">
+      <div className="text-center text-[10px] text-slate-300" aria-hidden="true">&nbsp;</div>
     </footer>
   );
 }
@@ -2231,17 +2484,20 @@ function AppFooter() {
 // ÉCRAN : EN ATTENTE DE VALIDATION
 // ============================================================================
 function PendingApprovalScreen({ onLogout, status }) {
-  const rejected = status === "rejected";
+  const disabled = status === "disabled";
+  const rejected = status === "rejected" || disabled;
   return (
     <div className="max-w-sm mx-auto px-5 py-16 text-center">
       <div className={`mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center ${rejected ? "bg-rose-100" : "bg-amber-100"}`}>
         {rejected ? <XCircle size={26} className="text-rose-600" /> : <ShieldCheck size={26} className="text-amber-600" />}
       </div>
       <h2 className="text-lg font-extrabold" style={{ color: BLUE_DEEP }}>
-        {rejected ? "Accès refusé" : "Compte en attente de validation"}
+        {disabled ? "Compte désactivé" : rejected ? "Accès refusé" : "Compte en attente de validation"}
       </h2>
       <p className="text-sm text-slate-500 mt-2">
-        {rejected
+        {disabled
+          ? "Votre compte a été désactivé par un administrateur. Contactez le service MAD-MAE pour le réactiver."
+          : rejected
           ? "Votre demande de compte agent n'a pas été approuvée. Contactez un administrateur MAD-MAE si vous pensez qu'il s'agit d'une erreur."
           : "Un administrateur doit approuver votre compte avant que vous puissiez accéder à l'application. Contactez le service MAD-MAE si l'attente se prolonge."}
       </p>
@@ -2255,199 +2511,501 @@ function PendingApprovalScreen({ onLogout, status }) {
 // ============================================================================
 // PANNEAU ADMIN
 // ============================================================================
-function AdminPanel({ onClose, parcsList, adminEmails, currentUserEmail }) {
+function AdminPanel({ onClose, parcsList, currentUserEmail, currentUid, activeInvCount }) {
   const projectId = firebaseConfig.projectId;
-  const [pending, setPending] = useState([]);
-  const [loadingPending, setLoadingPending] = useState(true);
-  const [parcsText, setParcsText] = useState(parcsList.join("\n"));
-  const [codeText, setCodeText] = useState("");
-  const [guestDocMissing, setGuestDocMissing] = useState(false);
-  const [adminsText, setAdminsText] = useState(adminEmails.join("\n"));
-  const [saveMsg, setSaveMsg] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    const unsub = db
-      .collection("users")
-      .where("status", "==", "pending")
-      .onSnapshot(
-        (snap) => {
-          setPending(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-          setLoadingPending(false);
-        },
-        () => setLoadingPending(false)
-      );
-    return unsub;
-  }, []);
-
-  // Le code invité vit dans config/guest, illisible pour les invités et les
-  // agents : seul le serveur le compare au code saisi à la connexion.
-  useEffect(() => {
-    db.collection("config").doc("guest").get()
-      .then((snap) => {
-        if (snap.exists) setCodeText(snap.data().code || "");
-        else { setCodeText(DEFAULT_GUEST_ACCESS_CODE); setGuestDocMissing(true); }
-      })
-      .catch(() => { setCodeText(DEFAULT_GUEST_ACCESS_CODE); setGuestDocMissing(true); });
-  }, []);
-
-  const approve = async (uid) => {
-    await db.collection("users").doc(uid).update({ status: "approved" });
-  };
-  const reject = async (uid) => {
-    await db.collection("users").doc(uid).update({ status: "rejected" });
+  const selfEmail = String(currentUserEmail || "").toLowerCase();
+  const fallbackLower = FALLBACK_ADMIN_EMAILS.map((e) => e.toLowerCase());
+  const [tab, setTab] = useState("accounts");
+  const [users, setUsers] = useState(null);
+  const [adminsDoc, setAdminsDoc] = useState({ emails: [], disabledEmails: [] });
+  const [guestCfg, setGuestCfg] = useState(undefined);
+  const [sessions, setSessions] = useState([]);
+  const [appCfg, setAppCfg] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [msg, setMsg] = useState(null);
+  const flash = (text, kind) => {
+    setMsg({ text, kind: kind || "ok" });
+    setTimeout(() => setMsg((m) => (m && m.text === text ? null : m)), 6000);
   };
 
-  const saveConfig = async () => {
-    setSaveMsg("");
-    const parcs = parcsText.split("\n").map((s) => s.trim()).filter(Boolean);
-    const admins = adminsText.split("\n").map((s) => s.trim().toLowerCase()).filter(Boolean);
+  useEffect(() => {
+    const subs = [];
+    subs.push(db.collection("users").onSnapshot((s) => setUsers(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setUsers([])));
+    subs.push(db.collection("config").doc("admins").onSnapshot((s) => {
+      const d = s.exists ? s.data() : {};
+      setAdminsDoc({ emails: Array.isArray(d.emails) ? d.emails : [], disabledEmails: Array.isArray(d.disabledEmails) ? d.disabledEmails : [] });
+    }, () => {}));
+    subs.push(db.collection("config").doc("guest").onSnapshot((s) => setGuestCfg(s.exists ? s.data() : null), () => setGuestCfg(null)));
+    subs.push(db.collection("guestSessions").onSnapshot((s) => setSessions(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => {}));
+    subs.push(db.collection("config").doc("app").onSnapshot((s) => setAppCfg(s.exists ? s.data() : {}), () => setAppCfg({})));
+    subs.push(db.collection("adminLog").orderBy("at", "desc").limit(50).onSnapshot((s) => setLogs(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => {}));
+    return () => subs.forEach((u) => { try { u(); } catch (e) { /* ignore */ } });
+  }, []);
 
-    const selfEmail = (currentUserEmail || "").toLowerCase();
-    const selfIsFallbackAdmin = FALLBACK_ADMIN_EMAILS.map((e) => e.toLowerCase()).includes(selfEmail);
-    if (!admins.includes(selfEmail) && !selfIsFallbackAdmin) {
-      setSaveMsg(
-        "⚠️ Enregistrement bloqué : votre propre e-mail (" +
-          currentUserEmail +
-          ") n'est plus dans la liste des administrateurs. Gardez-le dans la liste pour ne pas vous retirer vous-même l'accès au panneau admin."
-      );
-      return;
-    }
+  const log = (action, target) => {
+    db.collection("adminLog").add({ action, target: String(target || ""), byEmail: selfEmail, at: FieldValue.serverTimestamp() }).catch(() => {});
+  };
+  const fail = (e) => {
+    const denied = e && e.code === "permission-denied";
+    flash(denied ? "Action refusée par le serveur : publiez la dernière version du fichier firestore.rules dans Firebase." : "Une erreur est survenue. Réessayez.", "err");
+  };
+  const tsMs = (t) => (t && t.toMillis ? t.toMillis() : typeof t === "number" ? t : 0);
+  const fmtDate = (ms) => (ms ? new Date(ms).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");
 
-    setSaving(true);
+  const adminSet = useMemo(() => new Set([...fallbackLower, ...adminsDoc.emails.map((e) => String(e).toLowerCase())]), [adminsDoc]);
+  const disabledAdminSet = useMemo(() => new Set(adminsDoc.disabledEmails.map((e) => String(e).toLowerCase())), [adminsDoc]);
+  const isProtected = (email) => fallbackLower.includes(String(email || "").toLowerCase()) || String(email || "").toLowerCase() === selfEmail;
+
+  // ---------------- Comptes ----------------
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const setStatus = async (u, status, label) => {
     try {
-      const code = codeText.trim().toUpperCase();
-      if (!code) {
-        setSaveMsg("Le code d'accès invité ne peut pas être vide.");
-        setSaving(false);
-        return;
-      }
-      // Ordre voulu : d'abord les nouveaux documents protégés, ensuite le
-      // nettoyage de l'ancien emplacement lisible par tous.
-      await db.collection("config").doc("admins").set({ emails: admins });
-      await db.collection("config").doc("guest").set({ code });
-      await db.collection("config").doc("app").set(
-        { parcsList: parcs, guestAccessCode: FieldValue.delete(), adminEmails: FieldValue.delete() },
-        { merge: true }
-      );
-      setGuestDocMissing(false);
-      setSaveMsg("Configuration enregistrée. Le code invité et la liste des administrateurs sont désormais protégés (illisibles pour les agents et les invités).");
-    } catch (e) {
-      setSaveMsg("Erreur lors de l'enregistrement. Vérifiez que Firestore est bien activé.");
-    } finally {
-      setSaving(false);
-    }
+      await db.collection("users").doc(u.id).update({ status });
+      log(label, u.email);
+      flash(`${u.displayName || u.email} : ${label.toLowerCase()}.`);
+    } catch (e) { fail(e); }
   };
+  const resetPassword = async (u) => {
+    if (!u.email || !window.confirm(`Envoyer un lien de réinitialisation du mot de passe à ${u.email} ?`)) return;
+    try {
+      await auth.sendPasswordResetEmail(u.email);
+      log("Réinitialisation du mot de passe envoyée", u.email);
+      flash(`Lien de réinitialisation envoyé à ${u.email}.`);
+    } catch (e) { flash("Impossible d'envoyer le lien (adresse inconnue ou réseau).", "err"); }
+  };
+  const writeAdmins = async (emails, disabled) => {
+    await db.collection("config").doc("admins").set({ emails, disabledEmails: disabled });
+  };
+  const toggleRole = async (u) => {
+    const email = String(u.email || "").toLowerCase();
+    const makeAdmin = !adminSet.has(email);
+    if (isProtected(email)) return;
+    if (!window.confirm(makeAdmin ? `Donner le rôle administrateur à ${u.email} ?` : `Retirer le rôle administrateur à ${u.email} ?`)) return;
+    try {
+      const emails = adminsDoc.emails.map((e) => String(e).toLowerCase()).filter((e) => e !== email);
+      const disabled = adminsDoc.disabledEmails.map((e) => String(e).toLowerCase()).filter((e) => e !== email);
+      if (makeAdmin) emails.push(email);
+      await writeAdmins(emails, disabled);
+      await db.collection("users").doc(u.id).update(makeAdmin ? { role: "admin", status: "approved" } : { role: "agent" });
+      log(makeAdmin ? "Rôle administrateur accordé" : "Rôle administrateur retiré", u.email);
+      flash(makeAdmin ? `${u.email} est maintenant administrateur.` : `${u.email} est maintenant agent.`);
+    } catch (e) { fail(e); }
+  };
+  const [editUser, setEditUser] = useState(null); // { id, value }
+  const saveUserName = async () => {
+    const v = (editUser && editUser.value || "").trim();
+    if (!v) return flash("Le nom ne peut pas être vide.", "err");
+    const u = (users || []).find((x) => x.id === editUser.id);
+    try {
+      await db.collection("users").doc(editUser.id).update({ displayName: v });
+      log(u && u.displayName ? "Compte renommé" : "Nom ajouté", `${(u && u.displayName) || ""}${u && u.displayName ? " → " : ""}${v} (${u ? u.email : ""})`);
+      flash("Nom enregistré.");
+      setEditUser(null);
+    } catch (e) { fail(e); }
+  };
+  const deleteUser = async (u) => {
+    if (isProtected(u.email)) return;
+    if (!window.confirm(`Supprimer la fiche de ${u.email} ? La personne perdra son accès (elle pourra refaire une demande). Son compte de connexion reste dans la console Firebase.`)) return;
+    try {
+      await db.collection("users").doc(u.id).delete();
+      log("Fiche supprimée", u.email);
+      flash("Fiche supprimée.");
+    } catch (e) { fail(e); }
+  };
+  const exportUsers = () => {
+    const rows = (users || []).map((u) => [u.displayName || "", u.email || "", adminSet.has(String(u.email || "").toLowerCase()) ? "Administrateur" : "Agent", statusLabel(u.status), fmtDate(tsMs(u.createdAt)), fmtDate(tsMs(u.lastLoginAt))]);
+    const ws = XLSX.utils.aoa_to_sheet([["Nom", "E-mail", "Rôle", "Statut", "Inscrit le", "Dernière connexion"], ...rows]);
+    ws["!cols"] = [{ wch: 26 }, { wch: 34 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    wb.SheetNames.push("Comptes");
+    wb.Sheets["Comptes"] = ws;
+    XLSX.writeFile(wb, `Comptes_MMTE_${todayISO()}.xlsx`);
+  };
+  const statusLabel = (s) => ({ approved: "Actif", pending: "En attente", disabled: "Désactivé", rejected: "Refusé" }[s] || "—");
+  const statusTone = (s) => ({ approved: "bg-emerald-100 text-emerald-800", pending: "bg-amber-100 text-amber-800", disabled: "bg-slate-200 text-slate-700", rejected: "bg-rose-100 text-rose-700" }[s] || "bg-slate-100 text-slate-500");
+  const filteredUsers = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return (users || [])
+      .filter((u) => (statusFilter === "all" ? true : u.status === statusFilter))
+      .filter((u) => !t || String(u.displayName || "").toLowerCase().includes(t) || String(u.email || "").toLowerCase().includes(t))
+      .sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0) || String(a.displayName || a.email).localeCompare(String(b.displayName || b.email)));
+  }, [users, q, statusFilter]);
+
+  // ---------------- Invités ----------------
+  const [codeInput, setCodeInput] = useState("");
+  const [expiryInput, setExpiryInput] = useState("");
+  useEffect(() => {
+    if (guestCfg === undefined) return;
+    setCodeInput((guestCfg && guestCfg.code) || DEFAULT_GUEST_ACCESS_CODE);
+    setExpiryInput(guestCfg && guestCfg.expiresAtMs ? new Date(guestCfg.expiresAtMs).toISOString().slice(0, 10) : "");
+  }, [guestCfg]);
+  const guestEnabled = !guestCfg || guestCfg.enabled !== false;
+  const guestExpired = !!(guestCfg && guestCfg.expiresAtMs && Date.now() > guestCfg.expiresAtMs);
+  const liveSessions = sessions.filter((s) => Date.now() - tsMs(s.createdAt) < GUEST_SESSION_MS);
+  const revokeSession = async (s) => {
+    try { await db.collection("guestSessions").doc(s.id).delete(); log("Invité révoqué", s.name || s.id); flash("Invité déconnecté."); } catch (e) { fail(e); }
+  };
+  const revokeAll = async (silent) => {
+    try { await Promise.all(sessions.map((s) => db.collection("guestSessions").doc(s.id).delete())); if (!silent) { log("Tous les invités révoqués", ""); flash("Tous les invités ont été déconnectés."); } } catch (e) { fail(e); }
+  };
+  const setGuestEnabled = async (on) => {
+    if (!on && !window.confirm("Désactiver l'accès invité ? Plus personne ne pourra entrer avec le code, et les invités connectés seront déconnectés.")) return;
+    try {
+      await db.collection("config").doc("guest").set({ code: (guestCfg && guestCfg.code) || codeInput || DEFAULT_GUEST_ACCESS_CODE, enabled: on }, { merge: true });
+      if (!on) await revokeAll(true);
+      log(on ? "Accès invité activé" : "Accès invité désactivé", "");
+      flash(on ? "Accès invité activé." : "Accès invité désactivé.");
+    } catch (e) { fail(e); }
+  };
+  const generateCode = () => {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const bytes = new Uint32Array(8);
+    (window.crypto || window.msCrypto).getRandomValues(bytes);
+    setCodeInput(Array.from(bytes).map((b) => alphabet[b % alphabet.length]).join(""));
+  };
+  const saveGuestCode = async () => {
+    const code = codeInput.trim().toUpperCase();
+    if (code.length < 4) return flash("Le code doit contenir au moins 4 caractères.", "err");
+    try {
+      const data = { code, enabled: guestEnabled };
+      data.expiresAtMs = expiryInput ? new Date(expiryInput + "T23:59:59").getTime() : FieldValue.delete();
+      await db.collection("config").doc("guest").set(data, { merge: true });
+      log("Code d'accès invité modifié", "");
+      flash("Code d'accès invité enregistré.");
+    } catch (e) { fail(e); }
+  };
+
+  // ---------------- Parcs ----------------
+  const activeParcs = appCfg && Array.isArray(appCfg.parcsList) && appCfg.parcsList.length ? appCfg.parcsList : parcsList;
+  const disabledParcs = appCfg && Array.isArray(appCfg.parcsDisabled) ? appCfg.parcsDisabled : [];
+  const [parcQ, setParcQ] = useState("");
+  const [newParc, setNewParc] = useState("");
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [editing, setEditing] = useState(null); // { name, value }
+  const allParcs = useMemo(() => [...activeParcs.map((n) => ({ name: n, active: true })), ...disabledParcs.map((n) => ({ name: n, active: false }))]
+    .filter((p) => !parcQ.trim() || p.name.toLowerCase().includes(parcQ.trim().toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name)), [activeParcs, disabledParcs, parcQ]);
+  const writeParcs = async (act, dis, label, target) => {
+    if (act.length === 0) return flash("Gardez au moins un parc actif.", "err");
+    try {
+      await db.collection("config").doc("app").set({ parcsList: act, parcsDisabled: dis }, { merge: true });
+      if (label) log(label, target);
+      return true;
+    } catch (e) { fail(e); return false; }
+  };
+  const exists = (name, except) => [...activeParcs, ...disabledParcs].some((p) => p.toLowerCase() === name.toLowerCase() && p !== except);
+  const addParcs = async (names) => {
+    const clean = [];
+    names.map((n) => n.trim()).filter(Boolean).forEach((n) => { if (!exists(n) && !clean.some((c) => c.toLowerCase() === n.toLowerCase())) clean.push(n); });
+    if (clean.length === 0) return flash("Ce parc existe déjà (ou le nom est vide).", "err");
+    if (await writeParcs([...activeParcs, ...clean], disabledParcs, "Parc(s) ajouté(s)", clean.join(", "))) flash(`${clean.length} parc(s) ajouté(s).`);
+  };
+  const toggleParc = async (p) => {
+    const act = p.active ? activeParcs.filter((n) => n !== p.name) : [...activeParcs, p.name];
+    const dis = p.active ? [...disabledParcs, p.name] : disabledParcs.filter((n) => n !== p.name);
+    if (await writeParcs(act, dis, p.active ? "Parc désactivé" : "Parc activé", p.name)) flash(`${p.name} : ${p.active ? "désactivé" : "activé"}.`);
+  };
+  const deleteParc = async (p) => {
+    if (!window.confirm(`Supprimer le parc « ${p.name} » de la liste ? Les inventaires déjà réalisés restent intacts.`)) return;
+    const act = activeParcs.filter((n) => n !== p.name);
+    const dis = disabledParcs.filter((n) => n !== p.name);
+    if (await writeParcs(act, dis, "Parc supprimé", p.name)) flash("Parc supprimé.");
+  };
+  const renameParc = async () => {
+    const v = (editing && editing.value || "").trim();
+    if (!v) return setEditing(null);
+    if (exists(v, editing.name)) return flash("Un parc porte déjà ce nom.", "err");
+    const act = activeParcs.map((n) => (n === editing.name ? v : n));
+    const dis = disabledParcs.map((n) => (n === editing.name ? v : n));
+    if (await writeParcs(act, dis, "Parc renommé", `${editing.name} → ${v}`)) { flash("Parc renommé (les anciens inventaires gardent l'ancien nom)."); setEditing(null); }
+  };
+
+  // ---------------- Administrateurs ----------------
+  const [newAdmin, setNewAdmin] = useState("");
+  const adminRows = useMemo(() => {
+    const act = Array.from(new Set([...fallbackLower, ...adminsDoc.emails.map((e) => String(e).toLowerCase())]));
+    return [...act.map((e) => ({ email: e, active: true })), ...adminsDoc.disabledEmails.map((e) => ({ email: String(e).toLowerCase(), active: false }))];
+  }, [adminsDoc]);
+  const saveAdminsFrom = async (rows, label, target) => {
+    const emails = rows.filter((r) => r.active && !fallbackLower.includes(r.email)).map((r) => r.email);
+    const disabled = rows.filter((r) => !r.active).map((r) => r.email);
+    try { await writeAdmins(emails, disabled); log(label, target); flash("Liste des administrateurs mise à jour."); } catch (e) { fail(e); }
+  };
+  const addAdmin = async () => {
+    const e = newAdmin.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return flash("Adresse e-mail invalide.", "err");
+    if (adminRows.some((r) => r.email === e && r.active)) return flash("Cette adresse est déjà administrateur.", "err");
+    await saveAdminsFrom([...adminRows.filter((r) => r.email !== e), { email: e, active: true }], "Administrateur ajouté", e);
+    setNewAdmin("");
+  };
+  const toggleAdminRow = async (r) => {
+    if (isProtected(r.email)) return;
+    await saveAdminsFrom(adminRows.map((x) => (x.email === r.email ? { ...x, active: !x.active } : x)), r.active ? "Administrateur désactivé" : "Administrateur réactivé", r.email);
+  };
+  const removeAdminRow = async (r) => {
+    if (isProtected(r.email)) return;
+    if (!window.confirm(`Retirer ${r.email} de la liste des administrateurs ?`)) return;
+    await saveAdminsFrom(adminRows.filter((x) => x.email !== r.email), "Administrateur retiré", r.email);
+  };
+
+  // ---------------- Rendu ----------------
+  const counts = useMemo(() => ({
+    active: (users || []).filter((u) => u.status === "approved").length,
+    pending: (users || []).filter((u) => u.status === "pending").length,
+  }), [users]);
+  const tabs = [
+    { id: "accounts", label: "Comptes", badge: counts.pending },
+    { id: "guests", label: "Invités" },
+    { id: "parcs", label: "Parcs" },
+    { id: "admins", label: "Administrateurs" },
+    { id: "log", label: "Journal" },
+  ];
+  const card = "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5";
+  const btn = "px-3 py-1.5 rounded-lg text-xs font-bold";
+  const input = "w-full rounded-lg border-2 border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-[#1B4F8C]";
 
   return (
     <div className="max-w-2xl mx-auto px-5 py-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <div className="text-xs uppercase tracking-[0.2em] font-bold" style={{ color: BLUE_LIGHT }}>
-            Administration
-          </div>
-          <h1 className="text-2xl font-extrabold" style={{ color: BLUE_DEEP }}>
-            Panneau admin
-          </h1>
+          <div className="text-xs uppercase tracking-[0.2em] font-bold" style={{ color: BLUE_LIGHT }}>Administration</div>
+          <h1 className="text-2xl font-extrabold" style={{ color: BLUE_DEEP }}>Panneau admin</h1>
         </div>
         <button onClick={onClose} className="text-sm font-bold text-slate-500 flex items-center gap-1">
           <ArrowLeft size={16} /> Retour
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-3 mb-5">
-        <div className="font-bold text-slate-700 flex items-center gap-2">
-          <Users size={16} /> Comptes agents en attente de validation
-        </div>
-        {loadingPending && <p className="text-sm text-slate-400">Chargement...</p>}
-        {!loadingPending && pending.length === 0 && (
-          <p className="text-sm text-slate-500">Aucune demande en attente.</p>
-        )}
-        {pending.map((u) => (
-          <div key={u.id} className="flex items-center justify-between border-2 border-slate-100 rounded-lg px-3 py-2">
-            <div>
-              <div className="text-sm font-semibold text-slate-700">{u.displayName || "(sans nom)"}</div>
-              <div className="text-xs text-slate-400 font-plex-mono">{u.email}</div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => approve(u.id)} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white text-xs font-bold">
-                Approuver
-              </button>
-              <button onClick={() => reject(u.id)} className="px-3 py-1.5 rounded-lg bg-rose-100 text-rose-700 text-xs font-bold">
-                Refuser
-              </button>
-            </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        {[
+          ["Comptes actifs", counts.active],
+          ["En attente", counts.pending],
+          ["Invités connectés", guestEnabled ? liveSessions.length : 0],
+          ["Inventaires en cours", activeInvCount || 0],
+        ].map(([l, v]) => (
+          <div key={l} className="rounded-xl bg-white border-2 border-[#1B4F8C]/15 px-3 py-3">
+            <div className="text-2xl font-bold font-plex-mono" style={{ color: BLUE_DEEP }}>{v}</div>
+            <div className="text-[11px] uppercase tracking-wide font-semibold text-slate-500">{l}</div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-3 mb-5">
-        <div className="font-bold text-slate-700">Gestion des comptes (Firebase Console)</div>
-        <p className="text-sm text-slate-500">
-          Désactiver, réactiver ou supprimer un compte se fait depuis la console Firebase.
-        </p>
-        <a
-          href={`https://console.firebase.google.com/project/${projectId}/authentication/users`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full text-left py-2.5 px-3 rounded-lg border-2 border-slate-200 text-sm font-semibold hover:bg-slate-50"
-          style={{ color: BLUE_DEEP }}
-        >
-          Ouvrir la liste des comptes ↗
-        </a>
+      <div className="flex gap-2 overflow-x-auto pb-1 mb-4">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`shrink-0 px-4 py-2 rounded-xl text-sm font-bold border-2 ${tab === t.id ? "text-white border-transparent" : "bg-white text-slate-600 border-slate-200"}`}
+            style={tab === t.id ? { background: BLUE_DEEP } : undefined}
+          >
+            {t.label}{t.badge ? <span className="ml-2 px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[11px]">{t.badge}</span> : null}
+          </button>
+        ))}
       </div>
 
-      <div className="bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-4">
-        <div className="font-bold text-slate-700">Configuration de l'application</div>
-        <p className="text-sm text-slate-500">
-          Ces réglages sont appliqués immédiatement à tous les appareils, sans republier le code.
-        </p>
-
-        <div>
-          <label className="block text-sm font-bold text-slate-700 mb-1">Code d'accès invité</label>
-          <input
-            value={codeText}
-            onChange={(e) => setCodeText(e.target.value)}
-            className="w-full rounded-lg border-2 border-slate-200 px-3 py-2.5 text-sm font-plex-mono focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
-          />
+      {msg && (
+        <div className={`mb-4 rounded-xl px-4 py-3 text-sm font-semibold border-2 ${msg.kind === "err" ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-emerald-50 border-emerald-200 text-emerald-800"}`} role="status">
+          {msg.text}
         </div>
+      )}
 
-        <div>
-          <label className="block text-sm font-bold text-slate-700 mb-1">
-            Liste des parcs (un par ligne, {parcsText.split("\n").filter((s) => s.trim()).length} actuellement)
-          </label>
-          <textarea
-            value={parcsText}
-            onChange={(e) => setParcsText(e.target.value)}
-            rows={8}
-            className="w-full rounded-lg border-2 border-slate-200 px-3 py-2.5 text-sm font-plex-mono focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-bold text-slate-700 mb-1">E-mails administrateurs (un par ligne)</label>
-          <textarea
-            value={adminsText}
-            onChange={(e) => setAdminsText(e.target.value)}
-            rows={3}
-            className="w-full rounded-lg border-2 border-slate-200 px-3 py-2.5 text-sm font-plex-mono focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
-          />
-          <p className="text-xs text-slate-400 mt-1">
-            Cette liste fait autorité à la fois dans l'application et dans les règles de sécurité —
-            aucune synchronisation manuelle supplémentaire n'est nécessaire.
+      {tab === "accounts" && (
+        <div className={card + " space-y-3"}>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un nom ou un e-mail…" className={input} />
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={input + " sm:w-48"}>
+              <option value="all">Tous les statuts</option>
+              <option value="pending">En attente</option>
+              <option value="approved">Actifs</option>
+              <option value="disabled">Désactivés</option>
+              <option value="rejected">Refusés</option>
+            </select>
+            <button onClick={exportUsers} className={btn + " border-2 border-[#1B4F8C] text-[#1B4F8C] bg-white whitespace-nowrap"}>Exporter (Excel)</button>
+          </div>
+          {users === null && <p className="text-sm text-slate-400">Chargement...</p>}
+          {users !== null && filteredUsers.length === 0 && <p className="text-sm text-slate-500">Aucun compte à afficher.</p>}
+          {filteredUsers.map((u) => {
+            const email = String(u.email || "").toLowerCase();
+            const isAdm = adminSet.has(email);
+            const prot = isProtected(email);
+            return (
+              <div key={u.id} className="border-2 border-slate-100 rounded-xl px-3 py-3 space-y-2" data-user={email}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    {editUser && editUser.id === u.id ? (
+                      <div className="flex gap-1.5 mb-1">
+                        <input autoFocus value={editUser.value} onChange={(e) => setEditUser({ ...editUser, value: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === "Enter") saveUserName(); if (e.key === "Escape") setEditUser(null); }}
+                          className={input} aria-label="Nom de la personne" placeholder="Prénom NOM" />
+                        <button onClick={saveUserName} className={btn + " bg-emerald-600 text-white"}>Valider</button>
+                        <button onClick={() => setEditUser(null)} className={btn + " bg-slate-100 text-slate-600"}>Annuler</button>
+                      </div>
+                    ) : (
+                      <div className="text-sm font-bold text-slate-700 truncate">{u.displayName || "(sans nom)"}</div>
+                    )}
+                    <div className="text-xs text-slate-400 font-plex-mono truncate">{u.email}</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">Dernière connexion : {fmtDate(tsMs(u.lastLoginAt))}</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${statusTone(u.status)}`}>{statusLabel(u.status)}</span>
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isAdm ? "bg-[#123A66] text-white" : "bg-slate-100 text-slate-600"}`}>{isAdm ? "Administrateur" : "Agent"}</span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {u.status === "pending" && (
+                    <>
+                      <button onClick={() => setStatus(u, "approved", "Compte approuvé")} className={btn + " bg-emerald-600 text-white"}>Approuver</button>
+                      <button onClick={() => setStatus(u, "rejected", "Compte refusé")} className={btn + " bg-rose-100 text-rose-700"}>Refuser</button>
+                    </>
+                  )}
+                  {u.status === "approved" && !isAdm && (
+                    <button onClick={() => setStatus(u, "disabled", "Compte désactivé")} className={btn + " bg-slate-200 text-slate-700"}>Désactiver</button>
+                  )}
+                  {(u.status === "disabled" || u.status === "rejected") && (
+                    <button onClick={() => setStatus(u, "approved", "Compte réactivé")} className={btn + " bg-emerald-600 text-white"}>Réactiver</button>
+                  )}
+                  {!prot && (
+                    <button onClick={() => toggleRole(u)} className={btn + " bg-[#EAF1FA] text-[#123A66]"}>{isAdm ? "Passer agent" : "Passer administrateur"}</button>
+                  )}
+                  <button onClick={() => setEditUser({ id: u.id, value: u.displayName || "" })} className={btn + " bg-[#EAF1FA] text-[#123A66]"}>{u.displayName ? "Renommer" : "Ajouter un nom"}</button>
+                  <button onClick={() => resetPassword(u)} className={btn + " bg-[#EAF1FA] text-[#123A66]"}>Réinitialiser le mot de passe</button>
+                  {!prot && <button onClick={() => deleteUser(u)} className={btn + " bg-rose-50 text-rose-700"}>Supprimer</button>}
+                </div>
+              </div>
+            );
+          })}
+          <p className="text-xs text-slate-400">
+            Un compte désactivé ne peut plus lire ni pointer. Pour effacer définitivement un compte de connexion :{" "}
+            <a className="underline" href={`https://console.firebase.google.com/project/${projectId}/authentication/users`} target="_blank" rel="noopener noreferrer">console Firebase ↗</a>
           </p>
         </div>
+      )}
 
-        {saveMsg && <p className="text-sm font-semibold text-emerald-700">{saveMsg}</p>}
-        <button
-          onClick={saveConfig}
-          disabled={saving}
-          className="w-full py-3 rounded-xl text-white font-extrabold text-sm shadow-md disabled:opacity-60"
-          style={{ background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }}
-        >
-          {saving ? "Enregistrement..." : "Enregistrer la configuration"}
-        </button>
-      </div>
+      {tab === "guests" && (
+        <div className="space-y-4">
+          <div className={card + " space-y-3"}>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="font-bold text-slate-700">Accès invité (sans compte)</div>
+                <div className="text-xs text-slate-500">{!guestEnabled ? "Désactivé : personne ne peut entrer avec le code." : guestExpired ? "Le code a expiré : personne ne peut entrer." : "Actif : un code et un nom suffisent pour rejoindre un inventaire en cours."}</div>
+              </div>
+              <button
+                role="switch"
+                aria-checked={guestEnabled}
+                aria-label="Activer l'accès invité"
+                onClick={() => setGuestEnabled(!guestEnabled)}
+                className={`mmte-switch ${guestEnabled ? "is-on" : ""}`}
+              ><span /></button>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Code d'accès</label>
+              <div className="flex gap-2">
+                <input value={codeInput} onChange={(e) => setCodeInput(e.target.value)} className={input + " font-plex-mono uppercase"} aria-label="Code d'accès invité" />
+                <button onClick={generateCode} className={btn + " bg-[#EAF1FA] text-[#123A66] whitespace-nowrap"}>Générer</button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">Valable jusqu'au (facultatif)</label>
+              <input type="date" value={expiryInput} onChange={(e) => setExpiryInput(e.target.value)} className={input} aria-label="Date de fin de validité" />
+              <p className="text-xs text-slate-400 mt-1">Vide = pas de date de fin. Chaque session invité dure 24 h au maximum.</p>
+            </div>
+            <button onClick={saveGuestCode} className="w-full py-3 rounded-xl text-white font-extrabold text-sm" style={{ background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }}>Enregistrer le code</button>
+          </div>
+          <div className={card + " space-y-3"}>
+            <div className="flex items-center justify-between">
+              <div className="font-bold text-slate-700">Invités connectés ({liveSessions.length})</div>
+              {liveSessions.length > 0 && <button onClick={() => revokeAll(false)} className={btn + " bg-rose-100 text-rose-700"}>Tout révoquer</button>}
+            </div>
+            {liveSessions.length === 0 && <p className="text-sm text-slate-500">Aucun invité connecté.</p>}
+            {liveSessions.map((s) => (
+              <div key={s.id} className="flex items-center justify-between border-2 border-slate-100 rounded-lg px-3 py-2">
+                <div><div className="text-sm font-semibold text-slate-700">{s.name || "(sans nom)"}</div><div className="text-xs text-slate-400">Connecté le {fmtDate(tsMs(s.createdAt))}</div></div>
+                <button onClick={() => revokeSession(s)} className={btn + " bg-rose-50 text-rose-700"}>Révoquer</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "parcs" && (
+        <div className={card + " space-y-3"}>
+          <div className="flex gap-2">
+            <input value={newParc} onChange={(e) => setNewParc(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { addParcs([newParc]); setNewParc(""); } }} placeholder="Nom du nouveau parc" className={input} aria-label="Nouveau parc" />
+            <button onClick={() => { addParcs([newParc]); setNewParc(""); }} className={btn + " text-white whitespace-nowrap"} style={{ background: BLUE_DEEP }}>Ajouter</button>
+          </div>
+          <button onClick={() => setBulkOpen((o) => !o)} className="text-xs font-bold text-[#1B4F8C] underline">{bulkOpen ? "Fermer l'ajout en masse" : "Ajouter plusieurs parcs à la fois"}</button>
+          {bulkOpen && (
+            <div className="space-y-2">
+              <textarea value={bulkText} onChange={(e) => setBulkText(e.target.value)} rows={4} placeholder="Un parc par ligne" className={input + " font-plex-mono"} aria-label="Liste de parcs à ajouter" />
+              <button onClick={() => { addParcs(bulkText.split("\n")); setBulkText(""); setBulkOpen(false); }} className={btn + " text-white"} style={{ background: BLUE_DEEP }}>Ajouter ces parcs</button>
+            </div>
+          )}
+          <input value={parcQ} onChange={(e) => setParcQ(e.target.value)} placeholder={`Rechercher parmi ${activeParcs.length + disabledParcs.length} parcs…`} className={input} />
+          {allParcs.map((p) => (
+            <div key={p.name} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-2 border-slate-100 rounded-lg px-3 py-2" data-parc={p.name}>
+              {editing && editing.name === p.name ? (
+                <>
+                  <input autoFocus value={editing.value} onChange={(e) => setEditing({ ...editing, value: e.target.value })} onKeyDown={(e) => { if (e.key === "Enter") renameParc(); if (e.key === "Escape") setEditing(null); }} className={input} aria-label="Nouveau nom du parc" />
+                  <button onClick={renameParc} className={btn + " bg-emerald-600 text-white"}>OK</button>
+                  <button onClick={() => setEditing(null)} className={btn + " bg-slate-100 text-slate-600"}>Annuler</button>
+                </>
+              ) : (
+                <>
+                  <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                    <span className={`text-sm font-semibold break-words ${p.active ? "text-slate-700" : "text-slate-400 line-through"}`}>{p.name}</span>
+                    {!p.active && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Désactivé</span>}
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button onClick={() => setEditing({ name: p.name, value: p.name })} className={btn + " bg-[#EAF1FA] text-[#123A66]"}>Renommer</button>
+                    <button onClick={() => toggleParc(p)} className={btn + " bg-slate-200 text-slate-700"}>{p.active ? "Désactiver" : "Activer"}</button>
+                    <button onClick={() => deleteParc(p)} className={btn + " bg-rose-50 text-rose-700"}>Supprimer</button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          <p className="text-xs text-slate-400">Un parc désactivé n'est plus proposé lors de la création d'un inventaire. Les inventaires déjà réalisés ne changent jamais.</p>
+        </div>
+      )}
+
+      {tab === "admins" && (
+        <div className={card + " space-y-3"}>
+          <div className="flex gap-2">
+            <input value={newAdmin} onChange={(e) => setNewAdmin(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addAdmin(); }} placeholder="adresse@exemple.com" type="email" className={input} aria-label="Nouvel administrateur" />
+            <button onClick={addAdmin} className={btn + " text-white whitespace-nowrap"} style={{ background: BLUE_DEEP }}>Ajouter</button>
+          </div>
+          {adminRows.map((r) => (
+            <div key={r.email} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-2 border-slate-100 rounded-lg px-3 py-2" data-admin={r.email}>
+              <div className="min-w-0">
+                <div className={`text-sm font-plex-mono truncate ${r.active ? "text-slate-700" : "text-slate-400 line-through"}`}>{r.email}</div>
+                <div className="text-[11px] text-slate-400">{fallbackLower.includes(r.email) ? "Administrateur principal (protégé)" : r.email === selfEmail ? "Vous" : r.active ? "Administrateur" : "Désactivé"}</div>
+              </div>
+              {!isProtected(r.email) && (
+                <div className="flex gap-1.5 shrink-0">
+                  <button onClick={() => toggleAdminRow(r)} className={btn + " bg-slate-200 text-slate-700"}>{r.active ? "Désactiver" : "Réactiver"}</button>
+                  <button onClick={() => removeAdminRow(r)} className={btn + " bg-rose-50 text-rose-700"}>Retirer</button>
+                </div>
+              )}
+            </div>
+          ))}
+          <p className="text-xs text-slate-400">La liste fait autorité dans l'application et dans les règles de sécurité. L'administrateur principal et votre propre adresse ne peuvent pas être désactivés ni retirés.</p>
+        </div>
+      )}
+
+      {tab === "log" && (
+        <div className={card + " space-y-2"}>
+          <div className="font-bold text-slate-700">Dernières actions (50)</div>
+          {logs.length === 0 && <p className="text-sm text-slate-500">Aucune action enregistrée pour le moment.</p>}
+          {logs.map((l) => (
+            <div key={l.id} className="border-b border-slate-100 py-2 text-sm">
+              <div className="font-semibold text-slate-700">{l.action}{l.target ? <span className="font-normal text-slate-500"> — {l.target}</span> : null}</div>
+              <div className="text-xs text-slate-400">{fmtDate(tsMs(l.at))} · {l.byEmail}</div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2548,9 +3106,23 @@ function LoginScreen({ onLogin, onSignup, onGuest, onReset, guestFailure }) {
   };
 
   return (
-    <div className="max-w-sm mx-auto px-5 py-10">
-      <div className="text-center mb-6">
-        <h2 className="text-lg font-extrabold" style={{ color: BLUE_DEEP }}>
+    <div className="mmte-login">
+      <aside className="mmte-login-hero" aria-hidden="true">
+        <div className="mmte-login-kicker">Inventaire physique annuel</div>
+        <div className="mmte-gold" style={{ width: 44, margin: "16px 0 20px" }} />
+        <div className="mmte-login-title">Inventaire<br />MMTE</div>
+        <p className="mmte-login-text">
+          Pointez les véhicules de chaque parc, rapprochez-les du stock MMTE et suivez l'avancement en temps réel.
+        </p>
+        <div className="mmte-login-stats">
+          <div><b>QR</b>et codes-barres</div>
+          <div><b>Hors-ligne</b>sur le terrain</div>
+          <div><b>Temps réel</b>entre agents</div>
+        </div>
+      </aside>
+      <div className="mmte-login-form">
+      <div className="text-center lg:text-left mb-6">
+        <h2 className="text-xl font-extrabold" style={{ color: BLUE_DEEP }}>
           {titles[mode]}
         </h2>
         <p className="text-sm text-slate-500 mt-1">{subtitles[mode]}</p>
@@ -2585,24 +3157,20 @@ function LoginScreen({ onLogin, onSignup, onGuest, onReset, guestFailure }) {
           {mode !== "reset" && (
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Mot de passe</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                className="w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
               />
             </div>
           )}
           {mode === "signup" && (
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1">Confirmer le mot de passe</label>
-              <input
-                type="password"
+              <PasswordInput
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
-                className="w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
               />
             </div>
           )}
@@ -2719,6 +3287,36 @@ function LoginScreen({ onLogin, onSignup, onGuest, onReset, guestFailure }) {
           </p>
         </>
       )}
+      </div>
+    </div>
+  );
+}
+
+// Champ mot de passe avec œil pour afficher / masquer la saisie.
+function PasswordInput({ value, onChange, autoComplete, placeholder }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={onChange}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        className="w-full rounded-lg border-2 border-slate-200 px-3 py-3 pr-12 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+      />
+      <button
+        type="button"
+        onClick={() => setShow((v) => !v)}
+        aria-label={show ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+        aria-pressed={show}
+        className="mmte-eye"
+      >
+        {show ? <EyeOff size={20} /> : <Eye size={20} />}
+      </button>
     </div>
   );
 }
@@ -2809,6 +3407,7 @@ function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect,
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const wrapRef = useRef(null);
+  const listRef = useRef(null);
 
   const navigatedRef = useRef(false);
   const { suggestions, chassisHits, textHits, totalHits } = useMemo(() => {
@@ -2847,6 +3446,15 @@ function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect,
       document.removeEventListener("touchstart", handleOutside);
     };
   }, []);
+
+  const hasList = open && suggestions.length > 0;
+  useEffect(() => {
+    // Sur téléphone le clavier réduit l'écran : on remonte la saisie pour que
+    // toute la liste de propositions reste visible et défilable.
+    if (hasList && wrapRef.current && typeof wrapRef.current.scrollIntoView === "function") {
+      try { wrapRef.current.scrollIntoView({ block: "start", behavior: "smooth" }); } catch (e) { /* ignore */ }
+    }
+  }, [hasList]);
 
   const select = (item) => {
     setOpen(false);
@@ -2909,18 +3517,20 @@ function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect,
         className="w-full rounded-xl border-2 border-slate-300 px-4 py-4 text-2xl font-plex-mono tracking-wide focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
       />
       {open && suggestions.length > 0 && (
-        <div className="absolute z-20 mt-1 w-full bg-white border-2 border-[#1B4F8C]/20 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+        <div className="mmte-dd" ref={listRef}>
+          <div className="mmte-dd-head">
+            {totalHits} résultat{totalHits > 1 ? "s" : ""} · touchez pour pointer
+          </div>
           {suggestions.map((s, i) => (
             <button
               type="button"
               key={s.chassis}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => select(s)}
-              className="w-full text-left px-3 py-2.5"
-              style={i === highlight ? { background: "#EAF1FA" } : {}}
+              className={"mmte-dd-row" + (i === highlight ? " is-hl" : "")}
             >
-              <div className="text-sm font-plex-mono" style={{ color: i === highlight ? BLUE_DEEP : "#334155" }}>{s.chassis}</div>
-              {s.description && <div className="text-xs text-slate-500">{s.description}</div>}
+              <div className="mmte-dd-chassis font-plex-mono">{s.chassis}</div>
+              {s.description && <div className="mmte-dd-desc">{s.description}</div>}
             </button>
           ))}
           {totalHits > suggestions.length && (
@@ -2962,6 +3572,7 @@ function SetupScreen({
   importedFileName, mmteSize, canStart, starting, startInventory, parcsList,
   activeInventories, joinInventoryById, isGuest,
   existingClosedInv, reopenClosedInventory, replaceClosedInventory, onCancelClosedInvChoice,
+  onOpenStockCompare, importDup,
 }) {
   const parcGuesses = useMemo(
     () =>
@@ -3107,6 +3718,7 @@ function SetupScreen({
                 <CheckCircle2 size={16} /> {mmteSize} châssis chargés depuis MMTE
               </div>
             )}
+            {importDup && <DuplicatesNotice items={importDup.items} sourceName={importDup.name} />}
           </div>
 
           {existingClosedInv ? (
@@ -3154,6 +3766,15 @@ function SetupScreen({
             </button>
           )}
         </div>
+      )}
+      {!isGuest && onOpenStockCompare && (
+        <button
+          onClick={onOpenStockCompare}
+          className="w-full mt-5 py-3.5 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2 bg-white"
+          style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}
+        >
+          <FileSpreadsheet size={18} /> Comparer deux fichiers de stock
+        </button>
       )}
     </div>
   );
@@ -3259,7 +3880,7 @@ function InventoryScreen(props) {
         <StatChip label="Manquants" value={missingList.length} tone="rose" />
       </div>
 
-      <div className="bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-4 relative overflow-hidden">
+      <div className="bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-4 relative" style={{ overflow: "visible" }}>
         {stampAnim && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-10">
             <div className={`stamp-anim border-4 rounded-full px-6 py-3 font-black uppercase tracking-widest text-lg ${stampAnim === "found" ? "border-emerald-600 text-emerald-600" : "border-[#2E7DC1] text-[#2E7DC1]"}`}>
@@ -3476,7 +4097,7 @@ function InventoryScreen(props) {
         </div>
       </div>
 
-      <div className="no-print fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[#1B4F8C]/15 p-3">
+      <div className="no-print mmte-bottombar fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[#1B4F8C]/15 p-3">
         <div className="max-w-2xl mx-auto">
           <button onClick={goSummary} className="w-full py-3 rounded-xl text-white font-extrabold flex items-center justify-center gap-2 shadow-md" style={{ background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }}>
             <ListChecks size={18} /> Terminer et voir le récapitulatif
@@ -3884,6 +4505,535 @@ function CompareScreen({ data, onBack, onExport }) {
         ))}
         <TruncationNote count={rows.length} />
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// COMPARAISON DE DEUX FICHIERS DE STOCK (indépendante des inventaires)
+// ============================================================================
+// Repère les châssis présents plusieurs fois (comparaison sans espaces ni
+// majuscules). `conflicting` = les lignes en double ne sont pas identiques.
+function findDuplicates(entries) {
+  const groups = new Map();
+  entries.forEach((e) => {
+    const n = normalize(e.chassis);
+    if (!n) return;
+    const g = groups.get(n) || { norm: n, chassis: e.chassis, count: 0, sigs: new Set() };
+    g.count += 1;
+    g.sigs.add(e.sig == null ? n : e.sig);
+    groups.set(n, g);
+  });
+  return Array.from(groups.values())
+    .filter((g) => g.count > 1)
+    .map((g) => ({ norm: g.norm, chassis: g.chassis, count: g.count, conflicting: g.sigs.size > 1 }))
+    .sort((a, b) => b.count - a.count || String(a.chassis).localeCompare(String(b.chassis)));
+}
+function exportDuplicatesXlsx(items, sourceName) {
+  const rows = items.map((d) => [d.chassis, d.count, d.count - 1, d.conflicting ? "Oui" : "Non"]);
+  const ws = XLSX.utils.aoa_to_sheet([["Châssis", "Nombre de lignes", "Doublons en trop", "Lignes différentes entre elles"], ...rows]);
+  ws["!cols"] = [{ wch: 24 }, { wch: 16 }, { wch: 16 }, { wch: 28 }];
+  const wb = XLSX.utils.book_new();
+  wb.SheetNames.push("Doublons");
+  wb.Sheets["Doublons"] = ws;
+  const base = String(sourceName || "liste").replace(/\.[a-z0-9]{2,4}$/i, "").replace(/[^A-Za-z0-9_-]+/g, "_");
+  XLSX.writeFile(wb, `Doublons_${base}_${todayISO()}.xlsx`);
+}
+// Message « N doublons détectés » avec la liste des châssis concernés.
+function DuplicatesNotice({ items, sourceName, note, onDownloadClean, tone }) {
+  const [open, setOpen] = useState(false);
+  if (!items || items.length === 0) return null;
+  const total = items.reduce((n, d) => n + d.count - 1, 0);
+  const diff = items.filter((d) => d.conflicting).length;
+  return (
+    <div className="mt-3 rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+      <div className="font-bold flex items-center gap-1.5">
+        <AlertTriangle size={16} className="shrink-0" /> {total} doublon{total > 1 ? "s" : ""} détecté{total > 1 ? "s" : ""}
+        <span className="font-normal text-xs">({items.length} châssis en plusieurs exemplaires)</span>
+      </div>
+      <div className="text-xs mt-1">
+        {note || "Chaque châssis n'est compté qu'une seule fois : les doublons sont retirés automatiquement (la dernière ligne est conservée)."}
+        {diff > 0 && ` Pour ${diff} d'entre eux, les lignes ne sont pas identiques : vérifiez le fichier source.`}
+      </div>
+      <div className="flex flex-wrap gap-3 mt-2">
+        <button type="button" onClick={() => setOpen((o) => !o)} className="text-xs font-bold underline">
+          {open ? "Masquer les doublons" : "Voir les doublons"}
+        </button>
+        <button type="button" onClick={() => exportDuplicatesXlsx(items, sourceName)} className="text-xs font-bold underline">
+          Télécharger la liste des doublons (Excel)
+        </button>
+        {onDownloadClean && (
+          <button type="button" onClick={onDownloadClean} className="text-xs font-bold underline">
+            Télécharger la liste sans doublons
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="mt-2 max-h-48 overflow-y-auto rounded bg-white border border-amber-200">
+          {items.slice(0, 200).map((d) => (
+            <div key={d.norm} className="flex justify-between gap-3 px-2.5 py-1 text-xs border-b border-amber-100 last:border-0">
+              <span className="font-plex-mono">{d.chassis}</span>
+              <span className="text-slate-500">{d.count} fois{d.conflicting ? " · lignes différentes" : ""}</span>
+            </div>
+          ))}
+          {items.length > 200 && <div className="px-2.5 py-1 text-xs text-slate-400">… et {items.length - 200} autres (voir l'export Excel).</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Lit un fichier de stock (CSV / Excel) et renvoie la carte des châssis, avec
+// le nombre de lignes lues et de doublons éventuels.
+function parseStockFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read"));
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const isCsv = /\.(csv|txt)$/i.test(file.name);
+        const wb = XLSX.read(data, { type: "array", raw: isCsv });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: "" });
+        let headerRowIdx = -1;
+        for (let r = 0; r < Math.min(5, rows.length); r++) {
+          const row = rows[r] || [];
+          if (row.some((cell) => isHeaderLike(cell) || matchFieldAlias(cell))) { headerRowIdx = r; break; }
+        }
+        let map = null;
+        let rawCount = 0;
+        let dupItems = [];
+        if (headerRowIdx !== -1) {
+          const headers = rows[headerRowIdx];
+          const dataRows = rows.slice(headerRowIdx + 1);
+          map = buildRichMap(headers, dataRows);
+          if (map) {
+            const ci = headers.map((h) => matchFieldAlias(h)).indexOf("chassis");
+            const valid = dataRows.filter((r) => !isEmptyCsvValue(r[ci]) && normalize(r[ci]));
+            rawCount = valid.length;
+            dupItems = findDuplicates(valid.map((r) => ({
+              chassis: String(r[ci]).trim(),
+              sig: r.map((c) => String(c == null ? "" : c).trim().toUpperCase()).join("|"),
+            })));
+          }
+        }
+        if (!map) {
+          let colIdx = 0;
+          let startRow = 0;
+          let found = false;
+          for (let r = 0; r < Math.min(5, rows.length) && !found; r++) {
+            const row = rows[r] || [];
+            for (let c = 0; c < row.length; c++) {
+              if (isHeaderLike(row[c])) { colIdx = c; startRow = r + 1; found = true; break; }
+            }
+          }
+          const values = rows.slice(startRow).map((r) => (r && r[colIdx] !== undefined ? String(r[colIdx]) : "")).filter(Boolean).filter((v) => !isHeaderLike(v));
+          map = buildMap(values);
+          rawCount = values.filter((v) => normalize(v)).length;
+          dupItems = findDuplicates(values.filter((v) => normalize(v)).map((v) => ({ chassis: String(v).trim(), sig: normalize(v) })));
+        }
+        if (!map || map.size === 0) return reject(new Error("empty"));
+        resolve({ name: file.name, map, rawCount, duplicates: Math.max(0, rawCount - map.size), dupItems });
+      } catch (e) {
+        reject(e);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+const STOCK_DIFF_FIELDS = ["description", "registredAt", "depotDate", "entryDate", "atp", "shipName", "weight", "companyNumber", "bl"];
+const STOCK_DIFF_LABELS = { description: "Véhicule", ...FIELD_LABELS };
+function stockDiffs(a, b) {
+  const out = [];
+  STOCK_DIFF_FIELDS.forEach((f) => {
+    const x = String((a && a[f]) || "").trim().toUpperCase();
+    const y = String((b && b[f]) || "").trim().toUpperCase();
+    if (x !== y) out.push(STOCK_DIFF_LABELS[f]);
+  });
+  return out;
+}
+// Compare deux cartes de châssis : communs, seulement dans A, seulement dans B.
+function compareStockMaps(A, B) {
+  const both = [], onlyA = [], onlyB = [];
+  A.forEach((a, k) => {
+    const b = B.get(k);
+    if (b) both.push({ norm: k, chassis: b.chassis || a.chassis, a, b, diffs: stockDiffs(a, b) });
+    else onlyA.push({ norm: k, chassis: a.chassis, info: a });
+  });
+  B.forEach((b, k) => { if (!A.has(k)) onlyB.push({ norm: k, chassis: b.chassis, info: b }); });
+  const byChassis = (x, y) => String(x.chassis).localeCompare(String(y.chassis));
+  both.sort(byChassis); onlyA.sort(byChassis); onlyB.sort(byChassis);
+  return { both, onlyA, onlyB };
+}
+
+// Mémorise la comparaison en cours pendant la session : quitter l'écran puis
+// y revenir ne fait rien perdre.
+const stockCompareCache = { fileA: null, fileB: null, labelA: "", labelB: "", draftA: "", draftB: "", validated: false };
+function StockCompareScreen({ onBack }) {
+  const [fileA, setFileA] = useState(stockCompareCache.fileA);
+  const [fileB, setFileB] = useState(stockCompareCache.fileB);
+  const [labelA, setLabelA] = useState(stockCompareCache.labelA);
+  const [labelB, setLabelB] = useState(stockCompareCache.labelB);
+  // Les noms courts se tapent dans un brouillon et ne sont pris en compte qu'après validation ;
+  // la comparaison ne se lance qu'après validation des deux fichiers.
+  const [draftA, setDraftA] = useState(stockCompareCache.draftA);
+  const [draftB, setDraftB] = useState(stockCompareCache.draftB);
+  const [validated, setValidated] = useState(stockCompareCache.validated);
+  useEffect(() => { Object.assign(stockCompareCache, { fileA, fileB, labelA, labelB, draftA, draftB, validated }); }, [fileA, fileB, labelA, labelB, draftA, draftB, validated]);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState("both");
+  const [filter, setFilter] = useState("");
+  const [printMode, setPrintMode] = useState("summary"); // summary | full
+
+  const load = async (slot, e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    setErr("");
+    setBusy(true);
+    try {
+      const r = await parseStockFile(f);
+      if (slot === "A") setFileA(r); else setFileB(r);
+      setValidated(false);
+    } catch (ex) {
+      setErr(`Impossible de lire « ${f.name} ». Formats acceptés : CSV, XLS, XLSX, avec une colonne « chassis ».`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const res = useMemo(() => (validated && fileA && fileB ? compareStockMaps(fileA.map, fileB.map) : null), [validated, fileA, fileB]);
+  const nameA = labelA.trim() || "Fichier 1";
+  const nameB = labelB.trim() || "Fichier 2";
+  const swap = () => { setFileA(fileB); setFileB(fileA); setLabelA(labelB); setLabelB(labelA); setDraftA(draftB); setDraftB(draftA); };
+  const resetAll = () => { if (res && !window.confirm("Tout remettre à zéro ? Les deux fichiers, les noms et les résultats seront effacés de cet écran (vos fichiers d'origine ne sont pas touchés). Pensez à avoir fait vos exports.")) return; reset(); };
+  const reset = () => { setFileA(null); setFileB(null); setLabelA(""); setLabelB(""); setDraftA(""); setDraftB(""); setValidated(false); setErr(""); setFilter(""); };
+
+  const counts = res
+    ? {
+        a: fileA.map.size, b: fileB.map.size,
+        both: res.both.length, onlyA: res.onlyA.length, onlyB: res.onlyB.length,
+        union: res.both.length + res.onlyA.length + res.onlyB.length,
+        changed: res.both.filter((x) => x.diffs.length > 0).length,
+      }
+    : null;
+  const pct = (n, d) => (d ? `${Math.round((n / d) * 1000) / 10} %` : "—");
+
+  const tabs = res
+    ? [
+        ["both", `Communs (${counts.both})`],
+        ["onlyA", `Seulement ${nameA} (${counts.onlyA})`],
+        ["onlyB", `Seulement ${nameB} (${counts.onlyB})`],
+      ]
+    : [];
+  const listFor = (k) => (k === "both" ? res.both : k === "onlyA" ? res.onlyA : res.onlyB);
+  const shownRows = res ? listFor(tab).filter((r) => matchesAllTerms(filter, r.info || r.b)) : [];
+
+  const summaryRows = res
+    ? [
+        [`Châssis dans « ${nameA} »`, counts.a],
+        [`Châssis dans « ${nameB} »`, counts.b],
+        ["Présents dans les deux fichiers (communs)", counts.both],
+        [`Uniquement dans « ${nameA} »`, counts.onlyA],
+        [`Uniquement dans « ${nameB} »`, counts.onlyB],
+        ["Total des châssis distincts (réunion des deux fichiers)", counts.union],
+        ["Communs dont les informations diffèrent", counts.changed],
+        [`Doublons ignorés dans « ${nameA} »`, fileA.duplicates],
+        [`Doublons ignorés dans « ${nameB} »`, fileB.duplicates],
+        [`Part de « ${nameA} » retrouvée dans « ${nameB} »`, pct(counts.both, counts.a)],
+        [`Part de « ${nameB} » déjà présente dans « ${nameA} »`, pct(counts.both, counts.b)],
+      ]
+    : [];
+
+  const infoHeaders = ["Châssis", "Véhicule", FIELD_LABELS.registredAt, FIELD_LABELS.depotDate, "Jours restants", FIELD_LABELS.entryDate, FIELD_LABELS.atp, FIELD_LABELS.shipName, FIELD_LABELS.weight, FIELD_LABELS.companyNumber, FIELD_LABELS.bl];
+  const infoCells = (chassis, i) => [chassis, i.description || "", i.registredAt || "", i.depotDate || "", formatJoursRestantText(i.depotDate), i.entryDate || "", i.atp || "", i.shipName || "", i.weight || "", i.companyNumber || "", i.bl || ""];
+  const DATE_COLS = [2, 3, 5];
+  const exportClean = (file, label) => {
+    const rows = Array.from(file.map.values())
+      .sort((x, y) => String(x.chassis).localeCompare(String(y.chassis)))
+      .map((i) => [...infoCells(i.chassis, i), i.extra ? Object.entries(i.extra).map(([k, v]) => `${k} : ${v}`).join(" ; ") : ""]);
+    const ws = XLSX.utils.aoa_to_sheet([[...infoHeaders, "Autres informations"], ...rows]);
+    applyDateCells(ws, DATE_COLS);
+    const wb = XLSX.utils.book_new();
+    wb.SheetNames.push("Sans doublons");
+    wb.Sheets["Sans doublons"] = ws;
+    XLSX.writeFile(wb, `${String(label || "stock").replace(/[^A-Za-z0-9_-]+/g, "_")}_sans_doublons_${todayISO()}.xlsx`);
+  };
+
+  const exportExcel = () => {
+    if (!res) return;
+    const wb = XLSX.utils.book_new();
+    const addSheet = (name, headers, rows, dateCols) => {
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      applyDateCells(ws, dateCols || []);
+      wb.SheetNames.push(name);
+      wb.Sheets[name] = ws;
+    };
+    const sum = [
+      ["INVENTAIRE MMTE — Comparaison de deux fichiers de stock"],
+      ["Édité le", new Date().toLocaleDateString("fr-FR")],
+      [],
+      ["Fichier 1", `${nameA}${fileA.name !== nameA ? ` (${fileA.name})` : ""}`],
+      ["Fichier 2", `${nameB}${fileB.name !== nameB ? ` (${fileB.name})` : ""}`],
+      [],
+      ["Indicateur", "Valeur"],
+      ...summaryRows,
+    ];
+    const wsSum = XLSX.utils.aoa_to_sheet(sum);
+    wsSum["!cols"] = [{ wch: 60 }, { wch: 40 }];
+    wb.SheetNames.push("Résumé");
+    wb.Sheets["Résumé"] = wsSum;
+    addSheet("Communs", [...infoHeaders, "Informations différentes entre les deux fichiers"],
+      res.both.map((r) => [...infoCells(r.chassis, r.b), r.diffs.join(", ")]), DATE_COLS);
+    const cut = (s) => s.slice(0, 31).replace(/[\\/?*[\]:]/g, " ");
+    addSheet(cut(`Seulement ${nameA}`), infoHeaders, res.onlyA.map((r) => infoCells(r.chassis, r.info)), DATE_COLS);
+    addSheet(cut(`Seulement ${nameB}`), infoHeaders, res.onlyB.map((r) => infoCells(r.chassis, r.info)), DATE_COLS);
+    if (fileA.dupItems.length || fileB.dupItems.length) {
+      const dupRows = [
+        ...fileA.dupItems.map((d) => [nameA, d.chassis, d.count, d.count - 1, d.conflicting ? "Oui" : "Non"]),
+        ...fileB.dupItems.map((d) => [nameB, d.chassis, d.count, d.count - 1, d.conflicting ? "Oui" : "Non"]),
+      ];
+      const wsD = XLSX.utils.aoa_to_sheet([["Fichier", "Châssis", "Nombre de lignes", "Doublons en trop", "Lignes différentes entre elles"], ...dupRows]);
+      wsD["!cols"] = [{ wch: 28 }, { wch: 24 }, { wch: 16 }, { wch: 16 }, { wch: 28 }];
+      wb.SheetNames.push("Doublons");
+      wb.Sheets["Doublons"] = wsD;
+    }
+    XLSX.writeFile(wb, `Comparaison_stocks_${todayISO()}.xlsx`);
+  };
+  const printPdf = (mode) => {
+    setPrintMode(mode);
+    setTimeout(() => window.print(), 80);
+  };
+
+  const renderSlot = ({ slot, file, label, setLabel, draft, setDraft, title }) => (
+    <div key={slot}>
+    <div className="rounded-xl border-2 border-slate-200 bg-white p-4">
+      <div className="text-sm font-bold text-slate-700 mb-2">{title}</div>
+      {file ? (
+        <>
+          <div className="text-sm text-emerald-700 font-semibold flex items-center gap-1.5">
+            <CheckCircle2 size={16} /> {file.name}
+          </div>
+          <div className="text-xs text-slate-500 mt-0.5">
+            {file.map.size} châssis distincts{file.duplicates ? ` · ${file.duplicates} doublon(s) ignoré(s)` : ""}
+          </div>
+          <div className="flex gap-2 mt-2">
+            <input value={draft} onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") setLabel(draft.trim()); }}
+              aria-label={`Nom court du ${title.toLowerCase()}`} placeholder="Nom court (facultatif) : ex. Stock d'hier"
+              className="flex-1 min-w-0 px-3 py-2 text-sm rounded-lg border-2 border-slate-200 focus:outline-none focus:border-[#1B4F8C]" />
+            <button onClick={() => setLabel(draft.trim())} disabled={draft.trim() === label}
+              className="px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-40" style={{ background: BLUE_DEEP }}>Valider le nom</button>
+          </div>
+          <div className="text-[11px] text-slate-500 mt-1">{label ? `Nom enregistré : « ${label} »` : "Aucun nom enregistré : « " + title + " » sera utilisé."}</div>
+          <label className="inline-block mt-2 text-xs font-bold cursor-pointer underline" style={{ color: BLUE_DEEP }}>
+            Remplacer le fichier
+            <input type="file" accept=".csv,.xlsx,.xls,.txt" className="hidden" onChange={(e) => load(slot, e)} />
+          </label>
+        </>
+      ) : (
+        <label className="block rounded-lg border-2 border-dashed border-[#2E7DC1]/40 bg-blue-50/40 p-5 text-center cursor-pointer">
+          <FileSpreadsheet className="mx-auto text-[#2E7DC1] mb-2" size={26} />
+          <span className="inline-block px-4 py-2 rounded-lg text-white font-bold text-sm" style={{ background: BLUE_DEEP }}>Choisir le fichier</span>
+          <div className="text-xs text-slate-500 mt-2">CSV ou Excel (.csv, .xlsx, .xls)</div>
+          <input type="file" accept=".csv,.xlsx,.xls,.txt" className="hidden" onChange={(e) => load(slot, e)} />
+        </label>
+      )}
+    </div>
+    </div>
+  );
+
+  const PrintList = ({ title, rows, withDiff }) => (
+    <div style={{ marginTop: 16, pageBreakInside: "auto" }}>
+      <div style={{ fontWeight: 800, fontSize: 13, color: "#123A66", marginBottom: 4 }}>{title} ({rows.length})</div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 10 }}>
+        <thead>
+          <tr>
+            {["Châssis", "Véhicule", FIELD_LABELS.depotDate, FIELD_LABELS.atp, ...(withDiff ? ["Différences"] : [])].map((h) => (
+              <th key={h} style={{ border: "1px solid #94a3b8", padding: "3px 5px", background: "#EAF1FA", textAlign: "left" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const i = r.info || r.b;
+            return (
+              <tr key={r.norm}>
+                <td style={{ border: "1px solid #cbd5e1", padding: "2px 5px", fontFamily: "monospace" }}>{r.chassis}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "2px 5px" }}>{i.description || ""}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "2px 5px" }}>{i.depotDate || ""}</td>
+                <td style={{ border: "1px solid #cbd5e1", padding: "2px 5px" }}>{i.atp || ""}</td>
+                {withDiff && <td style={{ border: "1px solid #cbd5e1", padding: "2px 5px" }}>{r.diffs.join(", ")}</td>}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <div className="max-w-2xl mx-auto px-5 py-8">
+      <div className="no-print">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm font-bold text-slate-500 mb-4">
+          <ArrowLeft size={16} /> Retour à l'accueil
+        </button>
+        <h2 className="text-2xl font-extrabold mb-1" style={{ color: BLUE_DEEP }}>Comparer deux fichiers de stock</h2>
+        <p className="text-slate-500 text-sm mb-4">
+          Choisissez deux exports de stock : l'application indique les châssis présents dans les deux fichiers, ceux présents seulement dans le premier et ceux présents seulement dans le second. Cette comparaison est indépendante des inventaires et rien n'est enregistré.
+        </p>
+        <div className="space-y-3 mb-3">
+          {renderSlot({ slot: "A", file: fileA, label: labelA, setLabel: setLabelA, draft: draftA, setDraft: setDraftA, title: "Fichier 1" })}
+          {renderSlot({ slot: "B", file: fileB, label: labelB, setLabel: setLabelB, draft: draftB, setDraft: setDraftB, title: "Fichier 2" })}
+        </div>
+        {fileA && fileA.dupItems.length > 0 && (
+          <DuplicatesNotice items={fileA.dupItems} sourceName={fileA.name} onDownloadClean={() => exportClean(fileA, nameA)}
+            note={`« ${nameA} » : chaque châssis n'est compté qu'une seule fois dans la comparaison (la dernière ligne est conservée).`} />
+        )}
+        {fileB && fileB.dupItems.length > 0 && (
+          <DuplicatesNotice items={fileB.dupItems} sourceName={fileB.name} onDownloadClean={() => exportClean(fileB, nameB)}
+            note={`« ${nameB} » : chaque châssis n'est compté qu'une seule fois dans la comparaison (la dernière ligne est conservée).`} />
+        )}
+        {busy && <div className="text-sm text-slate-500 mb-2">Lecture du fichier...</div>}
+        {err && <div className="text-sm font-semibold text-rose-600 mb-2">{err}</div>}
+        {(fileA || fileB) && (
+          <div className="flex gap-3 mb-4">
+            {fileA && fileB && (
+              <button onClick={swap} className="text-xs font-bold underline" style={{ color: BLUE_DEEP }}>Inverser les deux fichiers</button>
+            )}
+            <button onClick={resetAll} className="px-3 py-1.5 rounded-lg border-2 border-rose-200 text-rose-700 bg-rose-50 text-xs font-bold">Tout réinitialiser</button>
+          </div>
+        )}
+
+        {fileA && fileB && !validated && !busy && (
+          <button onClick={() => { setLabelA(draftA.trim()); setLabelB(draftB.trim()); setValidated(true); }}
+            className="w-full mb-4 py-3.5 rounded-xl text-white font-extrabold text-sm"
+            style={{ background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }}>
+            Valider et lancer la comparaison
+          </button>
+        )}
+        {fileA && fileB && validated && (
+          <button onClick={() => setValidated(false)} className="mb-3 text-xs font-bold underline" style={{ color: BLUE_DEEP }}>Modifier les fichiers ou les noms</button>
+        )}
+
+        {res && (
+          <>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="rounded-xl p-4 text-white" style={{ background: BLUE_DEEP }}>
+                <div className="text-3xl font-extrabold font-plex-mono leading-none">{counts.a}</div>
+                <div className="text-xs font-semibold mt-1 opacity-90">Châssis dans « {nameA} »</div>
+              </div>
+              <div className="rounded-xl p-4 text-white" style={{ background: BLUE_DEEP }}>
+                <div className="text-3xl font-extrabold font-plex-mono leading-none">{counts.b}</div>
+                <div className="text-xs font-semibold mt-1 opacity-90">Châssis dans « {nameB} »</div>
+              </div>
+              <div className="rounded-xl p-4 bg-emerald-600 text-white">
+                <div className="text-3xl font-extrabold font-plex-mono leading-none">{counts.both}</div>
+                <div className="text-xs font-semibold mt-1 opacity-90">Communs aux deux</div>
+              </div>
+              <div className="rounded-xl p-4 text-white" style={{ background: "#2E7DC1" }}>
+                <div className="text-3xl font-extrabold font-plex-mono leading-none">{counts.union}</div>
+                <div className="text-xs font-semibold mt-1 opacity-90">Châssis distincts au total</div>
+              </div>
+              <div className="rounded-xl p-4 bg-amber-500 text-white">
+                <div className="text-3xl font-extrabold font-plex-mono leading-none">{counts.onlyA}</div>
+                <div className="text-xs font-semibold mt-1 opacity-90">Seulement dans « {nameA} »</div>
+              </div>
+              <div className="rounded-xl p-4 bg-rose-600 text-white">
+                <div className="text-3xl font-extrabold font-plex-mono leading-none">{counts.onlyB}</div>
+                <div className="text-xs font-semibold mt-1 opacity-90">Seulement dans « {nameB} »</div>
+              </div>
+            </div>
+            {(fileA.duplicates > 0 || fileB.duplicates > 0 || counts.changed > 0) && (
+              <div className="text-xs text-slate-500 mb-3">
+                {counts.changed > 0 && <div>{counts.changed} châssis communs ont des informations différentes entre les deux fichiers (détail dans l'export Excel).</div>}
+                {fileA.duplicates > 0 && <div>{fileA.duplicates} doublon(s) ignoré(s) dans « {nameA} ».</div>}
+                {fileB.duplicates > 0 && <div>{fileB.duplicates} doublon(s) ignoré(s) dans « {nameB} ».</div>}
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-5">
+              <button onClick={exportExcel} className="py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2" style={{ background: BLUE_DEEP }}>
+                <Download size={16} /> Excel complet
+              </button>
+              <button onClick={() => printPdf("summary")} className="py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
+                <Printer size={16} /> PDF : quantités
+              </button>
+              <button onClick={() => printPdf("full")} className="py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2" style={{ borderColor: BLUE_LIGHT, color: BLUE_DEEP }}>
+                <Printer size={16} /> PDF : quantités + listes
+              </button>
+            </div>
+            <div className="flex gap-1 overflow-x-auto border-b-2 border-slate-100 mb-3">
+              {tabs.map(([k, l]) => (
+                <button key={k} onClick={() => setTab(k)} className="px-3 py-2 text-sm font-bold whitespace-nowrap border-b-2"
+                  style={tab === k ? { borderColor: BLUE_DEEP, color: BLUE_DEEP } : { borderColor: "transparent", color: "#94a3b8" }}>
+                  {l}
+                </button>
+              ))}
+            </div>
+            <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filtrer : châssis, marque, modèle… (combinables)"
+              className="w-full px-3 py-2 mb-3 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none focus:border-[#1B4F8C]" />
+            <div className="space-y-2">
+              {shownRows.length === 0 && <div className="text-center text-sm text-slate-400 py-6">Aucune entrée.</div>}
+              {shownRows.slice(0, LIST_RENDER_CAP).map((r) => {
+                const i = r.info || r.b;
+                const detail = { description: i.description, registredAt: i.registredAt, depotDate: i.depotDate, atp: i.atp, shipName: i.shipName, weight: i.weight, companyNumber: i.companyNumber, bl: i.bl, entryDate: i.entryDate, extra: i.extra };
+                return (
+                  <ListRow key={r.norm} chassis={r.chassis} detail={detail}
+                    badge={r.diffs ? (r.diffs.length ? "Modifié" : "Commun") : undefined}
+                    badgeTone={r.diffs && r.diffs.length ? "rose" : "emerald"} />
+                );
+              })}
+              <TruncationNote count={shownRows.length} />
+            </div>
+            <button onClick={resetAll} className="w-full mt-6 py-3 rounded-xl border-2 border-rose-200 bg-rose-50 text-rose-700 font-extrabold text-sm">
+              Terminer et tout remettre à zéro
+            </button>
+          </>
+        )}
+      </div>
+
+      {res && (
+        <div className="print-only">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <img src={LOGO_BC} alt="Bénin Control" style={{ height: 56, width: "auto" }} />
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontWeight: 800, fontSize: 17, color: "#123A66" }}>COMPARAISON DE DEUX FICHIERS DE STOCK</div>
+              <div style={{ fontSize: 11, color: "#2E7DC1", fontWeight: 700 }}>BÉNIN CONTROL / MAD-MAE — édité le {new Date().toLocaleDateString("fr-FR")}</div>
+            </div>
+            <img src={LOGO_DOUANES} alt="Douanes Béninoises" style={{ height: 56, width: "auto" }} />
+          </div>
+          <div style={{ fontSize: 12, marginBottom: 10 }}>
+            <div><b>Fichier 1 :</b> {nameA}{fileA.name !== nameA ? ` (${fileA.name})` : ""}</div>
+            <div><b>Fichier 2 :</b> {nameB}{fileB.name !== nameB ? ` (${fileB.name})` : ""}</div>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+            <thead>
+              <tr>
+                <th style={{ border: "1px solid #94a3b8", padding: "5px 8px", background: "#123A66", color: "#fff", textAlign: "left" }}>Indicateur</th>
+                <th style={{ border: "1px solid #94a3b8", padding: "5px 8px", background: "#123A66", color: "#fff", textAlign: "right" }}>Valeur</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summaryRows.map(([l, v]) => (
+                <tr key={l}>
+                  <td style={{ border: "1px solid #cbd5e1", padding: "4px 8px" }}>{l}</td>
+                  <td style={{ border: "1px solid #cbd5e1", padding: "4px 8px", textAlign: "right", fontWeight: 700 }}>{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {printMode === "full" && (
+            <>
+              <PrintList title="Communs aux deux fichiers" rows={res.both} withDiff />
+              <PrintList title={`Uniquement dans « ${nameA} »`} rows={res.onlyA} />
+              <PrintList title={`Uniquement dans « ${nameB} »`} rows={res.onlyB} />
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
