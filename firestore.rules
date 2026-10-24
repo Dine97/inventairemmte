@@ -127,6 +127,16 @@ service cloud.firestore {
       allow list: if isAdminToken();
     }
 
+    // Compteur de consommation (estimation) : chaque appareil connecté y ajoute
+    // ses totaux ; seuls les administrateurs le lisent.
+    match /usage/{day} {
+      allow read: if isAdminToken();
+      allow create, update: if (isStaff() || isGuestOk())
+        && request.resource.data.keys().hasOnly(['day', 'reads', 'writes', 'deletes', 'updatedAt', 'byUser'])
+        && request.resource.data.day == day;
+      allow delete: if false;
+    }
+
     // Journal des actions d'administration : écrit et lu par les admins,
     // jamais modifiable ni supprimable.
     match /adminLog/{id} {
