@@ -74,7 +74,7 @@ const Home = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PU
 const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
 const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
 const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
-const APP_VERSION = "5.3.0";
+const APP_VERSION = "5.6.0";
 const firebaseConfig = {
   apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
   authDomain: "benin-control-mmte.firebaseapp.com",
@@ -106,7 +106,7 @@ function usageDayKey(d) {
   }
 }
 const USAGE_STORE_KEY = "mmte-usage-pending";
-const usageMeter = { r: 0, w: 0, d: 0, mute: false, flushing: false, installed: false, saveTimer: null };
+const usageMeter = { r: 0, w: 0, d: 0, mute: false, flushing: false, installed: false, saveTimer: null, lastOk: 0, lastErr: "", lastTry: 0 };
 function usageLoad() {
   try {
     const v = JSON.parse(localStorage.getItem(USAGE_STORE_KEY) || "null");
@@ -158,9 +158,9 @@ function installUsageMeter(database) {
   usageLoad();
   try {
     const collRef = database.collection("__usage_probe");
-    const docRef = collRef.doc("__p");
+    const docRef2 = collRef.doc("__p");
     const protoColl = Object.getPrototypeOf(collRef);
-    const protoDoc = Object.getPrototypeOf(docRef);
+    const protoDoc = Object.getPrototypeOf(docRef2);
     const protoBatch = Object.getPrototypeOf(database.batch());
     const protoQuery = protoColl ? Object.getPrototypeOf(protoColl) : null;
     const good = (x) => x && x !== Object.prototype;
@@ -260,8 +260,8 @@ function installUsageMeter(database) {
   const tick = () => {
     usageFlush();
   };
-  setInterval(tick, 10 * 60 * 1e3);
-  setTimeout(tick, 90 * 1e3);
+  setInterval(tick, 5 * 60 * 1e3);
+  setTimeout(tick, 45 * 1e3);
   try {
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") tick();
@@ -271,11 +271,15 @@ function installUsageMeter(database) {
   }
 }
 function usageFlush() {
-  if (usageMeter.flushing) return;
+  if (usageMeter.flushing) return Promise.resolve();
   const u = auth.currentUser;
-  if (!u) return;
+  if (!u) {
+    usageMeter.lastErr = "non-connecte";
+    return Promise.resolve();
+  }
   const r = usageMeter.r, w = usageMeter.w, d = usageMeter.d;
-  if (r + w + d === 0) return;
+  if (r + w + d === 0) return Promise.resolve();
+  usageMeter.lastTry = Date.now();
   usageMeter.r = 0;
   usageMeter.w = 0;
   usageMeter.d = 0;
@@ -300,16 +304,21 @@ function usageFlush() {
       byUser: { [u.uid]: { name: agentDisplayName(u), reads: inc(r), writes: inc(w + 1) } }
     }, { merge: true });
     usageMeter.mute = false;
-    pr.then(() => {
+    return pr.then(() => {
       usageMeter.flushing = false;
-    }, () => {
+      usageMeter.lastOk = Date.now();
+      usageMeter.lastErr = "";
+    }, (e) => {
       usageMeter.flushing = false;
+      usageMeter.lastErr = e && (e.code || e.message) || "erreur";
       restore();
     });
   } catch (e) {
     usageMeter.mute = false;
     usageMeter.flushing = false;
+    usageMeter.lastErr = e && (e.code || e.message) || "erreur";
     restore();
+    return Promise.resolve();
   }
 }
 installUsageMeter(db);
@@ -853,6 +862,27 @@ function ocrAnalyse(lines, knownMap) {
         if (b.length < 8) return;
         const hit = idx.folded.get(ocrFold(b));
         if (hit) hit.forEach((k) => near.set(k, true));
+        else if (b.length >= 10) {
+          const fb = ocrFold(b);
+          let best = null, bestScore = 0, tie = false;
+          idx.keys.forEach((k) => {
+            const fk = ocrFold(k.replace(/[^A-Z0-9]/g, ""));
+            if (Math.abs(fk.length - fb.length) > 3) return;
+            let p = 0;
+            while (p < fb.length && p < fk.length && fb[p] === fk[p]) p++;
+            let q = 0;
+            while (q < fb.length - p && q < fk.length - p && fb[fb.length - 1 - q] === fk[fk.length - 1 - q]) q++;
+            const sc = p + q;
+            if (sc >= Math.max(10, fb.length - 2)) {
+              if (sc > bestScore) {
+                best = k;
+                bestScore = sc;
+                tie = false;
+              } else if (sc === bestScore) tie = true;
+            }
+          });
+          if (best && !tie) near.set(best, true);
+        }
       });
     }
     const tokList = /GVWR|GAWR|PRESSURE|TIRE|KPA|PSI|\bKG\b|\bLBS?\b/.test(up) ? [] : Array.from(toks);
@@ -1071,6 +1101,7 @@ function TextScanner({ knownMap, onDetect, onSwitchCode }) {
         if (stopped) return;
         setStage("");
         const canvas = document.createElement("canvas");
+        let boost = false;
         const loop = async () => {
           if (stopped) return;
           try {
@@ -1085,8 +1116,14 @@ function TextScanner({ knownMap, onDetect, onSwitchCode }) {
             const k = Math.min(1, 960 / fw);
             canvas.width = Math.round(fw * k);
             canvas.height = Math.round(fh * k);
-            canvas.getContext("2d").drawImage(v, sx, sy, fw, fh, 0, 0, canvas.width, canvas.height);
+            const cx = canvas.getContext("2d");
+            try {
+              cx.filter = boost ? "grayscale(1) contrast(1.9) brightness(1.5)" : "none";
+            } catch (e) {
+            }
+            cx.drawImage(v, sx, sy, fw, fh, 0, 0, canvas.width, canvas.height);
             const lines = await engine.read(canvas);
+            boost = !boost && lines.length === 0 ? true : false;
             if (stopped) return;
             setReads((n) => n + 1);
             const a = ocrAnalyse(lines, knownMap);
@@ -2008,6 +2045,11 @@ function InventaireMMTEApp() {
     setShowAdmin(false);
     setPhase("stockcompare");
   };
+  const openDocs = () => {
+    leaveSetupSafely();
+    setShowAdmin(false);
+    setPhase("docs");
+  };
   const openArchives = () => {
     leaveSetupSafely();
     setShowAdmin(false);
@@ -2327,9 +2369,10 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       setShowAdmin,
       onOpenArchives: authUser && isApproved && !isGuest ? openArchives : null,
       onOpenStockCompare: authUser && isApproved && !isGuest ? openStockCompare : null,
+      onOpenDocs: authUser && isApproved && !isGuest ? openDocs : null,
       onHome: () => {
         setShowAdmin(false);
-        if (phase === "stockcompare" || phase === "archives" || phase === "compare") setPhase("setup");
+        if (phase === "stockcompare" || phase === "archives" || phase === "compare" || phase === "docs") setPhase("setup");
       },
       phase,
       withNav: !!(authUser && isApproved && currentAgent)
@@ -2380,6 +2423,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       replaceClosedInventory,
       onCancelClosedInvChoice: () => setExistingClosedInv(null),
       onOpenStockCompare: openStockCompare,
+      onOpenDocs: openDocs,
       importDup
     }
   ), authUser && isApproved && !(isAdmin && showAdmin) && phase === "inventory" && /* @__PURE__ */ React.createElement(
@@ -2441,7 +2485,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       onReopen: reopenArchived,
       onCompare: compareInventories
     }
-  ), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "stockcompare" && /* @__PURE__ */ React.createElement(StockCompareScreen, { onBack: () => setPhase("setup") }), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "compare" && compareData && /* @__PURE__ */ React.createElement(CompareScreen, { data: compareData, onBack: () => {
+  ), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "stockcompare" && /* @__PURE__ */ React.createElement(StockCompareScreen, { onBack: () => setPhase("setup") }), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "docs" && /* @__PURE__ */ React.createElement(DocsScreen, { parcsList: PARCS_LIST }), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "compare" && compareData && /* @__PURE__ */ React.createElement(CompareScreen, { data: compareData, onBack: () => {
     setPhase("archives");
   }, onExport: exportComparison }), authUser && isApproved && !(isAdmin && showAdmin) && phase === "summary" && /* @__PURE__ */ React.createElement(
     SummaryScreen,
@@ -2643,6 +2687,27 @@ function QuotaBanner() {
   const red = level === 2;
   return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 pt-4 no-print" }, /* @__PURE__ */ React.createElement("div", { className: `rounded-xl border-2 px-4 py-3 text-sm flex items-start gap-3 ${red ? "bg-rose-50 border-rose-300 text-rose-800" : "bg-amber-50 border-amber-300 text-amber-900"}`, role: "alert" }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 18, className: "mt-0.5 shrink-0" }), /* @__PURE__ */ React.createElement("div", { className: "flex-1" }, /* @__PURE__ */ React.createElement("b", null, red ? "Quota Firebase presque atteint" : "Attention au quota Firebase du jour"), " (estimation) : lectures ", pr, " %, écritures ", pw, " %.", red ? " Passez au plan Blaze maintenant pour éviter un blocage." : " Évitez les rechargements et les comparaisons d'archives pendant le terrain."), /* @__PURE__ */ React.createElement("button", { onClick: () => setHiddenLevel(level), className: "text-xs font-bold underline shrink-0" }, "Masquer")));
 }
+function QuotaDiag() {
+  const [, bump] = useState(0);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const t = setInterval(() => bump((n) => n + 1), 3e3);
+    return () => clearInterval(t);
+  }, []);
+  const m = usageMeter;
+  const hm = (t) => t ? new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "jamais";
+  const denied = /permission|PERMISSION/.test(m.lastErr);
+  const flushNow = async () => {
+    setBusy(true);
+    try {
+      await Promise.race([usageFlush(), new Promise((r) => setTimeout(r, 8e3))]);
+    } catch (e) {
+    }
+    setBusy(false);
+    bump((n) => n + 1);
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-slate-50 border-2 border-slate-100 p-3 text-xs text-slate-600", "data-testid": "quota-diag" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-1" }, "État du compteur sur cet appareil"), /* @__PURE__ */ React.createElement("div", null, "En attente d'envoi : ", m.r, " lect. · ", m.w, " écr. · Dernier envoi réussi : ", hm(m.lastOk)), m.lastErr && /* @__PURE__ */ React.createElement("div", { className: "mt-1 text-rose-700 font-bold" }, denied ? "Envoi refusé par Firestore : publiez le fichier firestore.rules (console Firebase → Firestore → Règles → Publier), puis touchez « Envoyer maintenant »." : `Dernier essai en échec (${m.lastErr}). Les chiffres reviendront dès que la connexion le permettra.`), /* @__PURE__ */ React.createElement("button", { "data-testid": "quota-flush", disabled: busy, onClick: flushNow, className: "mt-2 px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-[#1B4F8C] text-[#1B4F8C] bg-white disabled:opacity-60" }, busy ? "Envoi..." : "Envoyer maintenant"));
+}
 function QuotaTab({ docs, projectId }) {
   const today = usageDayKey();
   const cur = docs.find((d) => d.day === today) || {};
@@ -2653,7 +2718,7 @@ function QuotaTab({ docs, projectId }) {
   const byUser = Object.values(cur.byUser || {}).sort((a, b) => (b.reads || 0) - (a.reads || 0)).slice(0, 8);
   const Gauge = ({ label, n, quota, pct }) => /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between text-sm font-bold text-slate-700 mb-1" }, /* @__PURE__ */ React.createElement("span", null, label), /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono" }, nf(n), " / ", nf(quota), " · ", pct, " %")), /* @__PURE__ */ React.createElement("div", { className: "h-3 rounded-full bg-slate-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full", style: { width: `${Math.max(pct, n ? 1 : 0)}%`, background: tone(pct) } })));
   const linkCls = "inline-block px-3 py-2 rounded-lg text-xs font-bold border-2 border-[#1B4F8C] text-[#1B4F8C] bg-white";
-  return /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700" }, "Consommation du jour (estimation)"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500" }, "Jour Firebase du ", today, " : remise à zéro vers 8 h ou 9 h, heure du Bénin. Plan gratuit : ", nf(USAGE_READ_QUOTA), " lectures et ", nf(USAGE_WRITE_QUOTA), " écritures par jour.")), /* @__PURE__ */ React.createElement(Gauge, { label: "Lectures", n: cur.reads, quota: USAGE_READ_QUOTA, pct: pr }), /* @__PURE__ */ React.createElement(Gauge, { label: "Écritures", n: cur.writes, quota: USAGE_WRITE_QUOTA, pct: pw }), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, "Chiffres estimés d'après ce que mesurent les appareils de l'application (mise à jour toutes les 10 minutes environ). Ils peuvent être en dessous de la réalité si un appareil est hors-ligne ou fermé, et ne comptent pas les autres applications du même projet. La console Firebase fait foi."), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, /* @__PURE__ */ React.createElement("a", { className: linkCls, href: `https://console.firebase.google.com/project/${projectId}/firestore/databases/-default-/usage`, target: "_blank", rel: "noopener noreferrer" }, "Voir l'usage réel (console Firebase) ↗"), /* @__PURE__ */ React.createElement("a", { className: linkCls, href: `https://console.firebase.google.com/project/${projectId}/usage/details`, target: "_blank", rel: "noopener noreferrer" }, "Facturation et plan Blaze ↗"))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2" }, "Par personne (aujourd'hui)"), byUser.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucune donnée pour le moment."), byUser.map((x, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex justify-between text-sm border-b border-slate-100 py-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-700 truncate pr-3" }, x.name || "—"), /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono text-slate-500 shrink-0" }, nf(x.reads), " lect. · ", nf(x.writes), " écr.")))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2" }, "Derniers jours"), docs.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucun historique pour le moment."), docs.map((d) => /* @__PURE__ */ React.createElement("div", { key: d.day, className: "flex justify-between text-sm border-b border-slate-100 py-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-700" }, d.day, d.day === today ? " (aujourd'hui)" : ""), /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono text-slate-500" }, nf(d.reads), " lect. · ", nf(d.writes), " écr.")))));
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700" }, "Consommation du jour (estimation)"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500" }, "Jour Firebase du ", today, " : remise à zéro vers 8 h ou 9 h, heure du Bénin. Plan gratuit : ", nf(USAGE_READ_QUOTA), " lectures et ", nf(USAGE_WRITE_QUOTA), " écritures par jour.")), /* @__PURE__ */ React.createElement(Gauge, { label: "Lectures", n: cur.reads, quota: USAGE_READ_QUOTA, pct: pr }), /* @__PURE__ */ React.createElement(Gauge, { label: "Écritures", n: cur.writes, quota: USAGE_WRITE_QUOTA, pct: pw }), /* @__PURE__ */ React.createElement(QuotaDiag, null), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, "Chiffres estimés d'après ce que mesurent les appareils de l'application (mise à jour toutes les 5 minutes environ). Ils peuvent être en dessous de la réalité si un appareil est hors-ligne ou fermé, et ne comptent pas les autres applications du même projet. La console Firebase fait foi."), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, /* @__PURE__ */ React.createElement("a", { className: linkCls, href: `https://console.firebase.google.com/project/${projectId}/firestore/databases/-default-/usage`, target: "_blank", rel: "noopener noreferrer" }, "Voir l'usage réel (console Firebase) ↗"), /* @__PURE__ */ React.createElement("a", { className: linkCls, href: `https://console.firebase.google.com/project/${projectId}/usage/details`, target: "_blank", rel: "noopener noreferrer" }, "Facturation et plan Blaze ↗"))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2" }, "Par personne (aujourd'hui)"), byUser.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucune donnée pour le moment."), byUser.map((x, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex justify-between text-sm border-b border-slate-100 py-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-700 truncate pr-3" }, x.name || "—"), /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono text-slate-500 shrink-0" }, nf(x.reads), " lect. · ", nf(x.writes), " écr.")))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2" }, "Derniers jours"), docs.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucun historique pour le moment."), docs.map((d) => /* @__PURE__ */ React.createElement("div", { key: d.day, className: "flex justify-between text-sm border-b border-slate-100 py-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-700" }, d.day, d.day === today ? " (aujourd'hui)" : ""), /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono text-slate-500" }, nf(d.reads), " lect. · ", nf(d.writes), " écr.")))));
 }
 const welcomedUids = /* @__PURE__ */ new Set();
 function WelcomeBar({ uid, name }) {
@@ -2668,15 +2733,17 @@ function WelcomeBar({ uid, name }) {
   if (!name) return null;
   return /* @__PURE__ */ React.createElement(React.Fragment, null, toast && /* @__PURE__ */ React.createElement("div", { className: "mmte-toast no-print", role: "status" }, "Bienvenue, ", name), /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 pt-6 no-print" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-hi" }, greetingWord(now), ", ", name), /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-date" }, formatDateFr(now))))));
 }
-function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin, onOpenArchives, onOpenStockCompare, onHome, phase, withNav }) {
+function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin, onOpenArchives, onOpenStockCompare, onOpenDocs, onHome, phase, withNav }) {
   const now = useNow();
   const inArchives = phase === "archives" || phase === "compare";
   const inStock = phase === "stockcompare";
+  const inDocs = phase === "docs";
   const nav = [];
   if (currentAgent && withNav) {
-    nav.push({ key: "home", label: "Inventaire", Icon: Home, onClick: onHome, active: !showAdmin && !inArchives && !inStock });
+    nav.push({ key: "home", label: "Inventaire", Icon: Home, onClick: onHome, active: !showAdmin && !inArchives && !inStock && !inDocs });
     if (onOpenArchives) nav.push({ key: "arch", label: "Mes données / Archives", Icon: Archive, onClick: onOpenArchives, active: !showAdmin && inArchives });
     if (onOpenStockCompare) nav.push({ key: "cmp", label: "Comparer deux stocks", Icon: Columns, onClick: onOpenStockCompare, active: !showAdmin && inStock });
+    if (onOpenDocs) nav.push({ key: "docs", label: "Fiches et rapports", Icon: FileSpreadsheet, onClick: onOpenDocs, active: !showAdmin && inDocs });
     if (isAdmin) nav.push({ key: "adm", label: showAdmin ? "Fermer le panneau admin" : "Panneau admin", Icon: ShieldCheck, onClick: () => setShowAdmin((x) => !x), active: showAdmin });
   }
   const initial = currentAgent && currentAgent.name ? String(currentAgent.name).trim().charAt(0).toUpperCase() : "";
@@ -3472,6 +3539,7 @@ function SetupScreen({
   replaceClosedInventory,
   onCancelClosedInvChoice,
   onOpenStockCompare,
+  onOpenDocs,
   importDup
 }) {
   const parcGuesses = useMemo(
@@ -3573,6 +3641,16 @@ function SetupScreen({
     },
     /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 18 }),
     " Comparer deux fichiers de stock"
+  ), !isGuest && onOpenDocs && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      "data-testid": "setup-docs",
+      onClick: onOpenDocs,
+      className: "w-full mt-3 py-3.5 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2 bg-white",
+      style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP }
+    },
+    /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 18 }),
+    " Fiche de clôture ou rapport sans inventaire"
   ));
 }
 function InventoryScreen(props) {
@@ -3808,9 +3886,1283 @@ function TruncationNote({ count }) {
   if (count <= LIST_RENDER_CAP) return null;
   return /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-400 text-center py-3" }, count - LIST_RENDER_CAP, " entrée(s) supplémentaire(s) non affichée(s) — utilisez le filtre ci-dessus pour retrouver un châssis précis.");
 }
+const FR_MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+const FR_JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+const NS_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+const NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const DC = { navy: "0B3C5D", blue: "1F6FA3", gold: "E3B505", light: "EEF5FA", pale: "DCEAF5", grey: "5B6B7B", line: "C9D6E2", ink: "1B2A3A", emerald: "0A8F44", rose: "B42318", sky: "1F6FA3", slate: "2C4A63" };
+const xmlEsc = (s) => String(s == null ? "" : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const pad2 = (n) => String(n).padStart(2, "0");
+const plural = (n, a, b) => n > 1 ? b : a;
+function docDates(iso) {
+  const [y, m, d] = String(iso || "").split("-").map(Number);
+  const dt = new Date(y || 2e3, (m || 1) - 1, d || 1);
+  const mois = FR_MOIS[(m || 1) - 1];
+  const jour = FR_JOURS[dt.getDay()];
+  return { y, m, d, mois, jour, long: `${d} ${mois} ${y}`, longJour: `${jour} ${d} ${mois} ${y}`, moisAnnee: mois.charAt(0).toUpperCase() + mois.slice(1) + " " + y, iso, date: dt };
+}
+function docHeures(rows) {
+  let min = Infinity, max = -Infinity;
+  (rows || []).forEach((r) => {
+    const t = r.scannedAt;
+    const ms = t && t.toMillis ? t.toMillis() : t instanceof Date ? t.getTime() : typeof t === "number" ? t : 0;
+    if (ms) {
+      if (ms < min) min = ms;
+      if (ms > max) max = ms;
+    }
+  });
+  if (!isFinite(min)) return { debut: "08H", fin: "18H", minutes: 0 };
+  const f = (ms) => {
+    const d = new Date(ms);
+    const h = pad2(d.getHours());
+    const mi = d.getMinutes();
+    return mi ? `${h}H${pad2(mi)}` : `${h}H`;
+  };
+  return { debut: f(min), fin: f(max), minutes: Math.round((max - min) / 6e4) };
+}
+function parseDepot(s) {
+  const t = String(s || "").trim();
+  let m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  return null;
+}
+function ctrlHash(D) {
+  const s = [D.parc, D.invDate, D.mmte, D.found, D.registered, D.missing].join("|");
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h.toString(16).toUpperCase().padStart(8, "0");
+}
+function docRef(D) {
+  const slug = String(D.parc || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 10) || "PARC";
+  return `INV-${slug}-${String(D.invDate || "").replace(/-/g, "")}`;
+}
+function collectDocExtras(invDate, foundList, registeredList, missingList) {
+  const ref = parseDepot(invDate) || /* @__PURE__ */ new Date();
+  const age = { over1: 0, under1: 0, nd: 0 };
+  registeredList.forEach((r) => {
+    if (r.vehicleAge === "over1") age.over1++;
+    else if (r.vehicleAge === "under1") age.under1++;
+    else age.nd++;
+  });
+  const hm = (ts) => {
+    const t = ts && ts.toMillis ? new Date(ts.toMillis()) : null;
+    return t ? `${pad2(t.getHours())}:${pad2(t.getMinutes())}` : "";
+  };
+  const horsMmte = registeredList.map((r) => ({ chassis: r.chassis, marque: r.vehicleName || "", modele: r.vehicleModel || "", age: VEHICLE_AGE_LABELS[r.vehicleAge] || "—", agent: r.agentName || "", heure: hm(r.scannedAt), photo: r.hasPhoto || r.photo ? "Oui" : "" }));
+  const manquants = missingList.map((r) => {
+    const i = r.info || r;
+    return { chassis: r.chassis, description: i.description || "", depot: i.depotDate || "" };
+  });
+  const depot = [];
+  foundList.forEach((r) => {
+    const d = parseDepot(r.depotDate);
+    if (d && d < ref) depot.push({ chassis: r.chassis, description: r.description || "", depot: r.depotDate, statut: "Présent" });
+  });
+  missingList.forEach((r) => {
+    const i = r.info || r;
+    const d = parseDepot(i.depotDate);
+    if (d && d < ref) depot.push({ chassis: r.chassis, description: i.description || "", depot: i.depotDate, statut: "Manquant" });
+  });
+  const byAgent = /* @__PURE__ */ new Map();
+  [...foundList, ...registeredList].forEach((r) => {
+    const k = r.agentName || "—";
+    byAgent.set(k, (byAgent.get(k) || 0) + 1);
+  });
+  const agentStats = Array.from(byAgent.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  return { hasDetails: true, age, horsMmte, manquants, depot, depotFound: depot.filter((x) => x.statut === "Présent").length, depotMissing: depot.filter((x) => x.statut === "Manquant").length, agentStats };
+}
+const SANS = 'Calibri, Carlito, "Segoe UI", Arial, sans-serif';
+function canvasPng(c, jpeg) {
+  return new Promise((resolve) => c.toBlob((b) => b.arrayBuffer().then((ab) => resolve(new Uint8Array(ab))), jpeg ? "image/jpeg" : "image/png", jpeg ? 0.9 : void 0));
+}
+function rrect(x, X, Y, w, h, r) {
+  x.beginPath();
+  x.moveTo(X + r, Y);
+  x.arcTo(X + w, Y, X + w, Y + h, r);
+  x.arcTo(X + w, Y + h, X, Y + h, r);
+  x.arcTo(X, Y + h, X, Y, r);
+  x.arcTo(X, Y, X + w, Y, r);
+  x.closePath();
+}
+function drawDashPng(D) {
+  const W = 1500, H = 620;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const x = c.getContext("2d");
+  x.fillStyle = "#fff";
+  x.fillRect(0, 0, W, H);
+  const cx = 300, cy = 290, R = 215, T = 58;
+  x.lineWidth = T;
+  x.lineCap = "butt";
+  x.strokeStyle = "#DCEAF5";
+  x.beginPath();
+  x.arc(cx, cy, R, 0, Math.PI * 2);
+  x.stroke();
+  const frac = Math.max(0, Math.min(1, D.mmte > 0 ? D.found / D.mmte : 0));
+  if (frac > 0) {
+    x.strokeStyle = "#0A8F44";
+    x.beginPath();
+    x.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    x.stroke();
+  }
+  x.textAlign = "center";
+  x.fillStyle = "#0B3C5D";
+  x.font = `bold 96px ${SANS}`;
+  x.fillText(D.pct + " %", cx, cy + 22);
+  x.fillStyle = "#5B6B7B";
+  x.font = `30px ${SANS}`;
+  x.fillText("retrouvés", cx, cy + 66);
+  x.fillStyle = "#0B3C5D";
+  x.font = `bold 30px ${SANS}`;
+  x.fillText(`${D.found} sur ${D.mmte} attendus`, cx, 596);
+  const rows = [["Attendus sur MMTE", D.mmte, "#0B3C5D"], ["Retrouvés sur le parc", D.found, "#0A8F44"], ["Manquants", D.missing, "#B42318"], ["Hors MMTE (enregistrés)", D.registered, "#1F6FA3"]];
+  const mx = Math.max(1, D.mmte, D.total, D.registered);
+  const bx = 660, bw = 700, rowH = 140, y0 = 56;
+  rows.forEach((r, i) => {
+    const y = y0 + i * rowH;
+    x.textAlign = "left";
+    x.fillStyle = "#334155";
+    x.font = `bold 30px ${SANS}`;
+    x.fillText(r[0], bx, y + 30);
+    x.fillStyle = "#EEF5FA";
+    rrect(x, bx, y + 46, bw, 44, 22);
+    x.fill();
+    const w = Math.max(r[1] > 0 ? 44 : 0, Math.round(r[1] / mx * bw));
+    if (w > 0) {
+      x.fillStyle = r[2];
+      rrect(x, bx, y + 46, w, 44, 22);
+      x.fill();
+    }
+    x.textAlign = "right";
+    x.fillStyle = r[2];
+    x.font = `bold 52px ${SANS}`;
+    x.fillText(String(r[1]), bx + bw + 120, y + 88);
+  });
+  return canvasPng(c);
+}
+function drawCompPng(D) {
+  const W = 1500, H = 470;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const x = c.getContext("2d");
+  x.fillStyle = "#fff";
+  x.fillRect(0, 0, W, H);
+  const bx = 400, bw = 1060, bh = 96;
+  const bar = (y, label, sub, total, parts) => {
+    x.textAlign = "left";
+    x.fillStyle = "#0B3C5D";
+    x.font = `bold 34px ${SANS}`;
+    x.fillText(label, 30, y + 42);
+    x.fillStyle = "#5B6B7B";
+    x.font = `27px ${SANS}`;
+    x.fillText(sub, 30, y + 78);
+    x.save();
+    rrect(x, bx, y, bw, bh, 20);
+    x.clip();
+    x.fillStyle = "#DCEAF5";
+    x.fillRect(bx, y, bw, bh);
+    let px = bx;
+    parts.forEach((p) => {
+      if (!(p.v > 0) || !(total > 0)) return;
+      const w = p.v / total * bw;
+      x.fillStyle = p.col;
+      x.fillRect(px, y, w + 1, bh);
+      if (w > 120) {
+        x.fillStyle = "#fff";
+        x.textAlign = "center";
+        x.font = `bold 40px ${SANS}`;
+        x.fillText(String(p.v), px + w / 2, y + bh / 2 + 14);
+      }
+      px += w;
+    });
+    x.restore();
+  };
+  bar(40, "Liste MMTE", `${D.mmte} véhicule${D.mmte > 1 ? "s" : ""} attendu${D.mmte > 1 ? "s" : ""}`, D.mmte, [{ v: D.found, col: "#0A8F44" }, { v: D.missing, col: "#B42318" }]);
+  bar(200, "Parc inventorié", `${D.total} véhicule${D.total > 1 ? "s" : ""} présent${D.total > 1 ? "s" : ""}`, D.total, [{ v: D.found, col: "#0A8F44" }, { v: D.registered, col: "#1F6FA3" }]);
+  const leg = [["#0A8F44", "Retrouvés"], ["#B42318", "Manquants"], ["#1F6FA3", "Hors MMTE"]];
+  let lx = 400;
+  leg.forEach((l) => {
+    x.fillStyle = l[0];
+    rrect(x, lx, 372, 30, 30, 8);
+    x.fill();
+    x.fillStyle = "#334155";
+    x.textAlign = "left";
+    x.font = `28px ${SANS}`;
+    x.fillText(l[1], lx + 42, 398);
+    lx += 42 + x.measureText(l[1]).width + 48;
+  });
+  return canvasPng(c);
+}
+function loadImg(src) {
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => res(null);
+    im.src = src;
+  });
+}
+const COVER_TW = { w: 11906, h: 16838, blockTop: 4400, blockH: 6e3, ruleY: 7900, bandTop: 15100, lx: 1400 };
+async function drawCoverPng(D) {
+  const W = 1240, H = 1754, k = W / 11906;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const x = c.getContext("2d");
+  x.fillStyle = "#fff";
+  x.fillRect(0, 0, W, H);
+  const T = COVER_TW;
+  const [bc, dg] = await Promise.all([loadImg(D.logoBC), loadImg(D.logoDouane)]);
+  const lh = 1500 * k;
+  if (bc) x.drawImage(bc, T.lx * k, 700 * k, lh * bc.width / bc.height, lh);
+  if (dg) {
+    const w = lh * dg.width / dg.height;
+    x.drawImage(dg, (T.w - 1134) * k - w, 700 * k, w, lh);
+  }
+  x.fillStyle = "#C9D6E2";
+  x.fillRect(T.lx * k, 2650 * k, (T.w - 1134 - T.lx) * k, 2);
+  x.fillStyle = "#E3B505";
+  x.fillRect(T.lx * k, 2650 * k - 2, 1300 * k, 6);
+  const by = T.blockTop * k, bh = T.blockH * k;
+  const g = x.createLinearGradient(0, by, W, by + bh);
+  g.addColorStop(0, "#082B45");
+  g.addColorStop(0.55, "#0B3C5D");
+  g.addColorStop(1, "#14598A");
+  x.fillStyle = g;
+  x.fillRect(0, by, W, bh);
+  x.save();
+  x.beginPath();
+  x.rect(0, by, W, bh);
+  x.clip();
+  x.strokeStyle = "rgba(255,255,255,0.07)";
+  x.lineWidth = 3;
+  for (let r = 1; r <= 7; r++) {
+    x.beginPath();
+    x.arc(W + 60, by + bh * 0.45, r * 135, 0, 7);
+    x.stroke();
+  }
+  x.fillStyle = "rgba(31,111,163,0.55)";
+  x.beginPath();
+  x.moveTo(W, by + bh);
+  x.lineTo(W - 360, by + bh);
+  x.lineTo(W, by + bh - 300);
+  x.closePath();
+  x.fill();
+  x.fillStyle = "rgba(227,181,5,0.9)";
+  x.beginPath();
+  x.moveTo(W, by + bh);
+  x.lineTo(W - 150, by + bh);
+  x.lineTo(W, by + bh - 125);
+  x.closePath();
+  x.fill();
+  x.restore();
+  x.fillStyle = "#E3B505";
+  x.fillRect(0, by, 20, bh);
+  x.fillStyle = "#E3B505";
+  x.fillRect(T.lx * k, T.ruleY * k, 340 * k, 6);
+  const fy = T.bandTop * k;
+  const g2 = x.createLinearGradient(0, fy, W, H);
+  g2.addColorStop(0, "#0B3C5D");
+  g2.addColorStop(1, "#082B45");
+  x.fillStyle = g2;
+  x.fillRect(0, fy, W, H - fy);
+  x.fillStyle = "#E3B505";
+  x.fillRect(0, fy, W, 6);
+  return canvasPng(c, true);
+}
+let jszipPromise = null;
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve(window.JSZip);
+  if (!jszipPromise) {
+    jszipPromise = new Promise((resolve, reject) => {
+      const sc = document.createElement("script");
+      sc.src = "lib/jszip.min.js";
+      sc.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error("jszip"));
+      sc.onerror = () => {
+        jszipPromise = null;
+        reject(new Error("Bibliothèque Word indisponible (réseau nécessaire la première fois)"));
+      };
+      document.head.appendChild(sc);
+    });
+  }
+  return jszipPromise;
+}
+function pngSize(dataUrl) {
+  try {
+    const b = atob(dataUrl.split(",")[1].slice(0, 40));
+    const g = (o) => b.charCodeAt(o) << 24 | b.charCodeAt(o + 1) << 16 | b.charCodeAt(o + 2) << 8 | b.charCodeAt(o + 3);
+    return { w: g(16), h: g(20) };
+  } catch (e) {
+    return { w: 3, h: 1 };
+  }
+}
+function dataUrlBytes(dataUrl) {
+  const b = atob(dataUrl.split(",")[1]);
+  const u = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u;
+}
+function normDoc(R) {
+  const D = { ...R };
+  D.parc = String(D.parc || "").trim().replace(/^parc[\s_-]+/i, "").toUpperCase() || "—";
+  D.mmte = +D.mmte || 0;
+  D.found = +D.found || 0;
+  D.registered = +D.registered || 0;
+  D.total = D.found + D.registered;
+  D.missing = D.missing != null ? +D.missing : Math.max(0, D.mmte - D.found);
+  D.pct = D.mmte > 0 ? Math.round(D.found / D.mmte * 100) : 0;
+  D.dt = docDates(D.invDate);
+  D.heures = D.heures || { debut: "08H", fin: "18H" };
+  if (!D.minutes) {
+    const hm = (s) => {
+      const m = String(s || "").match(/^(\d{1,2})H(\d{2})?$/i);
+      return m ? +m[1] * 60 + (+m[2] || 0) : null;
+    };
+    const a0 = hm(D.heures.debut), z0 = hm(D.heures.fin);
+    D.minutes = a0 != null && z0 != null && z0 > a0 ? z0 - a0 : 0;
+  }
+  D.agents = (D.agents || []).filter(Boolean);
+  D.sign = { douane: "", bc: "", parc: "", ...D.sign || {} };
+  D.taux = D.taux || ["30%", "70%", "0%"];
+  D.opts = { annexMissing: true, annexHors: true, annexDepot: true, taux: true, ...D.opts || {} };
+  D.x = D.extras || { hasDetails: false, age: { over1: 0, under1: 0, nd: 0 }, horsMmte: [], manquants: [], depot: [], depotFound: 0, depotMissing: 0, agentStats: [] };
+  D.modele = D.modele === "classique" || D.modele === "synthese" ? D.modele : "visuel";
+  D.ref = docRef(D);
+  D.hash = ctrlHash(D);
+  return D;
+}
+const H1 = (num, text, pb) => ({ t: "h1", num, text, pb: !!pb });
+const Pp = (text, o) => ({ t: "p", text, ...o || {} });
+function figuresTable(D, closure) {
+  const rows = [["Attendus sur MMTE (liste du parc)", D.mmte], ["Véhicules retrouvés (pointés)", D.found], ["Véhicules présents hors MMTE (enregistrés)", D.registered], ["Total présent sur le parc", D.total], ["Véhicules manquants", D.missing], ["Taux de véhicules retrouvés", D.pct + " %"]];
+  return { t: "table", widths: [0.72, 0.28], head: closure ? null : ["Indicateur", "Valeur"], rows: rows.map((r) => [r[0], { text: String(r[1]), bold: true, align: "center" }]), zebra: true, wFrac: 0.8 };
+}
+function signBlock(D, withDate) {
+  return { t: "sign", withDate, parties: [{ title: "Bénin Control", name: D.sign.bc }, { title: "Douane — Recette des Véhicules Automobiles / DGD", name: D.sign.douane }, { title: `Gestionnaire du parc ${D.parc}`, name: D.sign.parc }] };
+}
+function closureBlocks(D, standalone) {
+  const b = [];
+  b.push({ t: "banner", toc: "Fiche de clôture d’inventaire", title: "FICHE DE CLÔTURE D'INVENTAIRE", sub: "Bénin Control / MAD-MAE  ·  Recette des Véhicules Automobiles / DGD" });
+  b.push({ t: "table", widths: [0.3, 0.7], rows: [
+    ["Parc inventorié", { text: D.parc, bold: true }],
+    ["Date de l'inventaire", D.dt.longJour],
+    ["Horaires", `${D.heures.debut} – ${D.heures.fin}`],
+    ["Agents ayant participé", D.agents.length ? D.agents.join(", ") : "—"],
+    ["Référence", D.ref],
+    ["Date d'édition de la fiche", (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")]
+  ], labelCol: true });
+  b.push({ t: "h2", text: "Résultats de l'inventaire" });
+  b.push({ t: "kpis", items: [
+    { label: "Attendus MMTE", value: D.mmte, tone: "navy" },
+    { label: "Retrouvés", value: D.found, tone: "emerald" },
+    { label: "Hors MMTE", value: D.registered, tone: "blue" },
+    { label: "Total présent", value: D.total, tone: "slate" },
+    { label: "Manquants", value: D.missing, tone: "rose" },
+    { label: "Taux de retrouvés", value: D.pct + " %", tone: "gold" }
+  ] });
+  b.push({ t: "h2", text: "Observations et constats à chaud" });
+  b.push({ t: "box", text: D.observations || "", lines: D.observations ? 0 : 4 });
+  b.push(Pp("Les parties soussignées attestent avoir pris connaissance des résultats ci-dessus, arrêtés à la clôture de l'inventaire du parc " + D.parc + ".", { small: true, italic: true }));
+  b.push(signBlock(D, true));
+  return b;
+}
+function reportBlocks(D) {
+  const b = [];
+  const M = D.modele === "classique" || D.modele === "synthese" ? D.modele : "visuel";
+  const x = D.x;
+  const dt = D.dt;
+  b.push({ t: "cover", kicker: "INVENTAIRE PHYSIQUE DES VÉHICULES SOUS DOUANE", title: "RAPPORT\nD’INVENTAIRE", parc: "PARC " + D.parc, rows: [["Date", dt.longJour], ["Lieu", "Parc " + D.parc], ["Horaires", `${D.heures.debut} – ${D.heures.fin}`], ["Responsables", "Recette Véhicules Automobiles / DGD  ·  MAD – MAE / BC"], ["Référence", D.ref]], mois: dt.moisAnnee.toUpperCase(), org: "Bénin Control SA  ·  MAD-MAE  ·  Douanes Béninoises" });
+  b.push({ t: "toc" });
+  b.push({ t: "callout", title: "Identification du document", lines: [`Référence : **${D.ref}**`, `Parc : **${D.parc}** — inventaire du **${dt.longJour}**`, `Édité le ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")} avec l’application INVENTAIRE MMTE`] });
+  b.push(H1("", "Synthèse de l'inventaire", true));
+  if (M !== "classique") b.push({ t: "verdict", tone: D.pct >= 95 ? "emerald" : D.pct >= 80 ? "blue" : "rose", title: `${D.pct} % des véhicules attendus ont été retrouvés`, text: `Parc ${D.parc} · inventaire du ${dt.long} · ${D.total} ${plural(D.total, "véhicule présent", "véhicules présents")}, ${D.missing} ${plural(D.missing, "manquant", "manquants")}.` });
+  b.push({ t: "kpis", items: [
+    { label: "Attendus MMTE", value: D.mmte, tone: "navy" },
+    { label: "Retrouvés", value: D.found, tone: "emerald" },
+    { label: "Hors MMTE", value: D.registered, tone: "blue" },
+    { label: "Total présent", value: D.total, tone: "slate" },
+    { label: "Manquants", value: D.missing, tone: "rose" },
+    { label: "Taux de retrouvés", value: D.pct + " %", tone: "gold" }
+  ] });
+  const key = [];
+  key.push(`**${D.found}** ${plural(D.found, "véhicule", "véhicules")} sur **${D.mmte}** attendus ${plural(D.found, "a été retrouvé", "ont été retrouvés")} sur le parc, soit **${D.pct} %** de la liste MMTE.`);
+  if (D.missing > 0) key.push(`**${D.missing}** ${plural(D.missing, "véhicule attendu n'a pas été retrouvé", "véhicules attendus n'ont pas été retrouvés")} : ${plural(D.missing, "il est", "ils sont")} à régulariser dans MMTE (constats d'enlèvement ou de sortie).`);
+  if (D.registered > 0) key.push(`**${D.registered}** ${plural(D.registered, "véhicule présent sur le parc ne figurait", "véhicules présents sur le parc ne figuraient")} pas dans l'extraction MMTE${x.hasDetails && x.age.over1 ? `, dont ${x.age.over1} de plus d'un an` : ""}.`);
+  if (x.hasDetails && x.depot.length) key.push(`**${x.depot.length}** ${plural(x.depot.length, "véhicule de la liste a dépassé", "véhicules de la liste ont dépassé")} le délai de séjour (${x.depotFound} ${plural(x.depotFound, "présent", "présents")}, ${x.depotMissing} ${plural(x.depotMissing, "manquant", "manquants")}).`);
+  if (D.listeParc != null) key.push(`Le gestionnaire avait remis une liste de **${D.listeParc}** véhicules ; le total inventorié est de **${D.total}** (${D.total === D.listeParc ? "conforme" : "non conforme"} au stock déclaré).`);
+  if (D.erronnes > 0) key.push(`**${D.erronnes}** ${plural(D.erronnes, "châssis erroné ou incomplet a été relevé", "châssis erronés ou incomplets ont été relevés")} sur la liste du parc.`);
+  b.push({ t: "callout", title: "Points clés", lines: key });
+  b.push({ t: "img", key: "dash", wIn: 6.5, hIn: 2.69, caption: `Synthèse chiffrée de l’inventaire du parc ${D.parc}` });
+  if (M === "visuel") {
+    b.push(H1("A", "Contexte", true));
+    b.push({ t: "callout", title: "Cadre réglementaire et technique", lines: [
+      "**Arrêté N°1069/MEF/DC/SGM/DGDDI/DAR du 13/08/2009** : conditions d’établissement et d’exploitation, modalités d’utilisation des MAD, TAC et MAE.",
+      "**Module MAD ROULANT** de la plateforme MMTE : mis en production le 11 octobre 2021, pleinement opérationnel depuis le 30 avril 2022.",
+      "**Objectif** : garantir la traçabilité des marchandises débarquées au port autonome de Cotonou et permettre à la Douane d’effectuer les contrôles périodiques (inventaires)."
+    ] });
+    b.push(Pp(`Dans ce cadre, une équipe conjointe de la Douane et de Bénin Control a réalisé, le **${dt.longJour}**, l’inventaire physique du parc **${D.parc}** avec l’application INVENTAIRE MMTE : pointage numérique des véhicules en temps réel et croisement automatique avec l’extraction MMTE.`));
+    b.push({ t: "facts", items: [
+      { label: "Parc inventorié", value: D.parc },
+      { label: "Date", value: dt.long },
+      { label: "Horaires", value: `${D.heures.debut} – ${D.heures.fin}` },
+      { label: "Véhicules attendus", value: String(D.mmte) },
+      { label: "Participants", value: D.agents.length ? `${D.agents.length} ${plural(D.agents.length, "agent", "agents")}` : "—" },
+      { label: "Outil", value: "INVENTAIRE MMTE" }
+    ] });
+    b.push(H1("B", "Méthodologie"));
+    b.push(Pp("L’opération s’est déroulée en dix étapes, le pointage et le croisement des données étant assurés par l’application :", { keep: true }));
+    b.push({ t: "steps", phases: [
+      { title: "Préparation", items: [
+        "Information des gestionnaires de parcs par courriel de la Recette Véhicules Automobiles (date de démarrage de l’inventaire).",
+        `Mise à disposition du stock par le gestionnaire et extraction de la liste MMTE du parc ${D.parc}, chargée dans l’application.`,
+        "Séance d’ouverture entre l’équipe conjointe Douane / BC et l’administration du parc."
+      ] },
+      { title: "Opérations sur le terrain", items: [
+        "Dénombrement physique par les équipes, équipées de téléphones ou de tablettes connectés à l’application.",
+        "Pointage de chaque véhicule (code-barres, QR code, texte du châssis ou saisie) ; les véhicules non listés sont enregistrés sur place avec marque, modèle, ancienneté et photo.",
+        "Suivi de l’avancement en temps réel par tous les participants et correction immédiate des erreurs de saisie.",
+        "Séance de clôture entre l’équipe Douane / BC et l’administration du parc pour s’accorder sur les constats à chaud."
+      ] },
+      { title: "Analyse et restitution", items: [
+        `Croisement automatique des données du parc ${D.parc} avec l’extraction MMTE (retrouvés, manquants, hors MMTE).`,
+        "Analyse des résultats et formulation des recommandations.",
+        "Édition du rapport et de la fiche de clôture, signés par la Douane, Bénin Control et le Gestionnaire du parc."
+      ] }
+    ] });
+    b.push(H1("C", "Résultats"));
+    b.push(Pp(`La liste des véhicules attendus sur le parc **${D.parc}**, extraite de MMTE, a été chargée dans l’application le ${dt.longJour} : elle recensait **${D.mmte}** ${plural(D.mmte, "véhicule", "véhicules")}${D.listeParc != null ? `, contre **${D.listeParc}** déclarés par le gestionnaire` : ""}.`));
+    b.push({ t: "facts", title: "Composition de chaque équipe", items: [{ label: "Douane", value: "Un agent de douane" }, { label: "Bénin Control", value: "Un agent de Bénin Control" }, { label: "Parc", value: "Un représentant : importateur ou mandataire" }] });
+    b.push(Pp("Cette composition garantit la transparence, la rigueur et la traçabilité de la vérification sur le terrain : chaque équipe pointe dans l’application les véhicules retrouvés et enregistre, avec photo, ceux qui ne figurent pas sur la liste."));
+    let chrono = `Les opérations se sont déroulées de **${D.heures.debut}** à **${D.heures.fin}**`;
+    if (D.minutes >= 10 && D.total > 0) chrono += `, soit environ ${Math.floor(D.minutes / 60)} h ${pad2(D.minutes % 60)} min de pointage, à la cadence moyenne de **${Math.round(D.total / D.minutes * 60)} véhicules à l’heure**`;
+    chrono += ".";
+    b.push(Pp(chrono));
+    if (x.hasDetails && x.agentStats.length) {
+      b.push(Pp(`Pointages par participant (${x.agentStats.length}) :`, { keep: true }));
+      b.push({ t: "table", widths: [0.7, 0.3], head: ["Agent", "Pointages"], rows: x.agentStats.map((a) => [a.name, { text: String(a.count), align: "center", bold: true }]), zebra: true, wFrac: 0.7 });
+    } else if (D.agents.length) b.push(Pp(`Agents ayant participé : ${D.agents.join(", ")}.`));
+    let conf = `Au terme du dénombrement, **${D.total}** ${plural(D.total, "véhicule a été recensé", "véhicules ont été recensés")} sur le parc`;
+    if (D.listeParc != null) conf += `, chiffre ${D.total === D.listeParc ? "conforme" : "non conforme"} au stock initialement déclaré par le gestionnaire.`;
+    else conf += `, dont ${D.found} ${plural(D.found, "figurait", "figuraient")} sur la liste MMTE et ${D.registered} ${plural(D.registered, "n’y figurait", "n’y figuraient")} pas.`;
+    b.push(Pp(conf, { keep: true }));
+    const pr = [[`Total sur liste MMTE du parc ${D.parc}`, D.mmte]];
+    if (D.listeParc != null) pr.push(["Total sur liste remise par le parc", D.listeParc]);
+    pr.push(["Véhicules retrouvés (pointés)", D.found], [D.listeParc != null ? "Véhicules manuscrits" : "Véhicules enregistrés hors MMTE", D.listeParc != null ? D.manuscrits : D.registered], [`Total inventorié sur le parc ${D.parc}`, D.total], ["Véhicules manquants", D.missing]);
+    if (D.erronnes > 0) pr.push(["Châssis erronés ou incomplets sur la liste du parc", D.erronnes]);
+    b.push({ t: "table", widths: [0.8, 0.2], head: ["Point du parc", "Nombre"], rows: pr.map((r) => [r[0], { text: String(r[1]), bold: true, align: "center" }]), zebra: true, wFrac: 0.92 });
+    if (D.observations) b.push({ t: "callout", title: "Constats à chaud (séance de clôture)", lines: String(D.observations).split(/\n+/).filter(Boolean) });
+    b.push({ t: "callout", title: "Rappel formel au parc " + D.parc, lines: ["Mettre à jour le stock du parc en intégrant les observations relevées lors de l’inventaire.", "Retirer du parc, **dans un délai de 72 heures maximum**, tout véhicule ayant été dédouané."] });
+    b.push(H1("D", "Analyse des données"));
+    b.push(Pp(`Le croisement entre les données du parc **${D.parc}** et celles de la plateforme MMTE fait ressortir trois situations :`, { keep: true }));
+    b.push({ t: "img", key: "comp", wIn: 6.4, hIn: 2, caption: `Répartition des véhicules : liste MMTE (${D.mmte}) et parc inventorié (${D.total}) — ${D.found} en commun` });
+    b.push({ t: "table", widths: [0.27, 0.09, 0.4, 0.24], head: ["Situation", "Nombre", "Explication probable", "Action recommandée"], small: true, zebra: true, rows: [
+      [{ text: "Présents dans MMTE et sur le parc", bold: true }, { text: String(D.found), bold: true, align: "center", color: DC.emerald }, "Aucun écart.", "RAS"],
+      [{ text: "Présents dans MMTE mais absents du parc", bold: true }, { text: String(D.missing), bold: true, align: "center", color: DC.rose }, "Véhicules ayant fait l’objet d’une demande de transfert via MMTE, mais dont le constat d’enlèvement n’a pas encore été fait.", "Réaliser tous les constats d’enlèvement."],
+      [{ text: "Absents de MMTE mais présents sur le parc", bold: true }, { text: String(D.registered), bold: true, align: "center", color: DC.blue }, "Véhicules présents avant MMTE, conteneurisés transférés après la mise en production, ou passés en statut dépôt.", "Intégrer dans MMTE / ROULANT tous les véhicules importés."]
+    ] });
+    if (x.hasDetails && D.registered > 0) {
+      b.push({ t: "h2", text: "Véhicules présents hors MMTE : ancienneté" });
+      b.push({ t: "table", widths: [0.7, 0.3], head: ["Ancienneté", "Véhicules"], zebra: true, wFrac: 0.6, rows: [["Plus d’un an", { text: String(x.age.over1), bold: true, align: "center" }], ["Moins d’un an", { text: String(x.age.under1), bold: true, align: "center" }], ["Non précisée", { text: String(x.age.nd), bold: true, align: "center" }]] });
+      if (x.age.over1 > 0) b.push(Pp("Les véhicules de plus d’un an hors MMTE constituent le principal risque de régularisation : ils doivent être rapprochés des statuts dépôt et des délais de séjour légaux.", { small: true, italic: true }));
+    }
+    if (x.hasDetails && x.depot.length) {
+      b.push({ t: "h2", text: "Délai de séjour dépassé" });
+      b.push(Pp(`**${x.depot.length}** ${plural(x.depot.length, "véhicule de la liste MMTE a dépassé", "véhicules de la liste MMTE ont dépassé")} la date d’entrée en dépôt à la date de l’inventaire : **${x.depotFound}** ${plural(x.depotFound, "présent", "présents")} sur le parc et **${x.depotMissing}** ${plural(x.depotMissing, "manquant", "manquants")}. La liste figure en annexe.`));
+    }
+    if (D.opts.taux) {
+      b.push({ t: "h2", text: "Taux d’utilisation de MMTE" });
+      b.push(Pp("Les taux d’utilisation de la plateforme sont consignés dans le tableau suivant :", { keep: true }));
+      const T = (n, a, s, t, o) => {
+        const v = parseInt(t, 10);
+        return [String(n), a, s, { text: t, align: "center", bold: true, color: isNaN(v) ? DC.grey : v >= 90 ? DC.emerald : v >= 50 ? "B7791F" : DC.rose }, o];
+      };
+      b.push({ t: "table", widths: [0.06, 0.24, 0.2, 0.1, 0.4], head: ["N°", "Actions", "Structures chargées", "Taux d’exécution", "Observations"], small: true, zebra: true, rows: [
+        T(1, "Manifestes sur MMTE", "GUCE", "100%", "Pas toujours en temps réel"),
+        T(2, "Demande de transfert PTU vers les parcs", "Gestionnaires de parcs", "100%", "Aucune autre issue n’est possible"),
+        T(3, "Constats de vu à quai", "Manutentionnaires BM et RTB", "100%", "Obligatoire car cette action vient constater le déchargement des marchandises, valider la demande de transfert faite en amont par les gestionnaires de parcs, créditer le stock du manutentionnaire et positionner la marchandise en attente d’entrée chez le gestionnaire."),
+        T(4, "Constats d’enlèvement des PTU", "Manutentionnaires BM et RTB", "100%", "Ce taux a été atteint après la mise en place des mesures coercitives qui consistent à empêcher de nouveaux transferts aux parcs concernés 15 jours après les transferts."),
+        T(5, "Constats de réception des parcs", `Gestionnaire du parc ${D.parc}`, "100%", "Ce taux a été atteint après la mise en place des mesures coercitives qui consistent à empêcher de nouveaux transferts aux parcs concernés 15 jours après les transferts."),
+        T(6, "Constats d’enlèvement des parcs", "Gestionnaires de parcs", D.taux[0] || "30%", "Cette action étant obligatoire dans GUCE, les gestionnaires pensent qu’elle est superflue dans MMTE. L’interfaçage de MMTE et GUCE en cours viendra corriger cette insuffisance."),
+        T(7, "Transferts de parc à parc", "Gestionnaires de parcs et chefs sections Douane", "-", "Cette action se fait toujours dans MMTE."),
+        T(8, "Mise à disposition des stocks par semaine", "Gestionnaires des parcs", D.taux[1] || "70%", "Les gestionnaires ne respectent pas toujours le format retenu par la Douane ni le délai de transmission."),
+        T(9, "Rencontres périodiques avec les usagers", "Douane et BC", "-", "Appréhension des difficultés et apport de solutions à travers le forum d’échanges WhatsApp ainsi que des séances en présentiel le cas échéant."),
+        T(10, "Prise en compte des véhicules conteneurisés par MMTE", "MMTE", D.taux[2] || "0%", "Le module des terminaux à conteneurs est en cours d’actualisation."),
+        T(11, `Inventaire du parc ${D.parc}`, "Douane et BC", "100%", "Fait, avec l’application INVENTAIRE MMTE.")
+      ] });
+    }
+    b.push(H1("E", "Recommandations"));
+    b.push(Pp("À l’issue du recensement et de l’analyse, les actions suivantes sont recommandées, classées par priorité :", { keep: true }));
+    const HI = { text: "Haute", bold: true, align: "center", color: "FFFFFF", fill: DC.rose }, MD = { text: "Moyenne", bold: true, align: "center", color: DC.navy, fill: "F3D468" }, LO = { text: "Continue", bold: true, align: "center", color: "FFFFFF", fill: DC.emerald };
+    const rec = [];
+    if (D.missing > 0) rec.push([`Régulariser dans MMTE ${plural(D.missing, "le véhicule attendu et absent", "les " + D.missing + " véhicules attendus et absents")} du parc (constats d’enlèvement ou de sortie manquants).`, `Gestionnaire du parc ${D.parc}`, HI]);
+    if (D.registered > 0) rec.push([`Intégrer dans MMTE / ROULANT ${plural(D.registered, "le véhicule présent", "les " + D.registered + " véhicules présents")} sur le parc mais ${plural(D.registered, "absent", "absents")} de l’extraction.`, `Gestionnaire du parc ${D.parc}`, HI]);
+    rec.push([x.hasDetails && x.depot.length ? `Transmettre sans délai la liste des véhicules frappés de dépôt (${x.depot.length} identifiés en annexe) pour faciliter leur mise en vente aux enchères.` : "Transmettre sans délai la liste des véhicules frappés de dépôt pour faciliter leur mise en vente aux enchères.", `Gestionnaire du parc ${D.parc}`, HI]);
+    if (D.erronnes > 0) rec.push(["Corriger les numéros de châssis incorrects et renforcer la validation des données lors de l’enregistrement.", `Gestionnaire du parc ${D.parc}`, MD]);
+    rec.push(["Assurer en temps réel les constats de réception et d’enlèvement des véhicules ; imposer la transmission journalière des constats d’enlèvement.", `Gestionnaire du parc ${D.parc} / Recette Véhicules Automobiles`, MD]);
+    rec.push(["Instaurer une gestion rigoureuse du stock du parc et respecter scrupuleusement les délais légaux de séjour.", `Gestionnaire du parc ${D.parc}`, MD]);
+    rec.push(["Rendre possible la prise en compte par MMTE / ROULANT des véhicules conteneurisés à transférer sur les parcs de vente.", "Bénin Control", MD]);
+    rec.push(["Maintenir l’application rigoureuse de la plateforme MMTE (transferts, constats d’enlèvement et de réception) et généraliser INVENTAIRE MMTE aux autres parcs.", "Recette Véhicules Automobiles", LO]);
+    b.push({ t: "table", widths: [0.06, 0.56, 0.24, 0.14], head: ["N°", "Recommandation", "Destinataire", "Priorité"], small: true, zebra: true, rows: rec.map((r, i) => [{ text: String(i + 1), align: "center", bold: true }, r[0], r[1], r[2]]) });
+    b.push(H1("", "Conclusion"));
+    b.push({ t: "verdict", tone: D.pct >= 95 ? "emerald" : D.pct >= 80 ? "blue" : "rose", title: `${D.found} véhicules sur ${D.mmte} retrouvés (${D.pct} %)`, text: `${D.total} ${plural(D.total, "véhicule effectivement présent", "véhicules effectivement présents")} sur le parc ${D.parc} — ${D.missing} ${plural(D.missing, "écart", "écarts")} à régulariser dans MMTE.` });
+    b.push(Pp(`L’inventaire du parc **${D.parc}** a permis à la Recette Véhicules Automobiles d’examiner de façon structurée le stock de véhicules sous douane et a mis en évidence la nécessité d’une gestion rigoureuse et transparente du parc. Il confirme la valeur ajoutée de la plateforme MMTE pour la comptabilité-matières des véhicules sous douane, ainsi que celle du pointage numérique pour la fiabilité et la rapidité de l’inventaire. Cette initiative s’impose comme cadre de référence pour les autres parcs et souligne l’urgence de dispositifs opérationnels garantissant la traçabilité des mouvements de stock.`));
+  } else if (M === "classique") {
+    b.push(H1("A", "Contexte", true));
+    b.push(Pp("En application de l’arrêté N°1069/MEF/DC/SGM/DGDDI/DAR du 13/08/2009 fixant les conditions d’établissement et d’exploitation ainsi que les modalités d’utilisation des MAD et TAC et MAE et dans le cadre de la gestion automatisée de la comptabilité matière des parcs de vente de véhicules automobiles, il a été mis en production le 11 octobre 2021 un module dénommé MAD ROULANT sur la plateforme MMTE dédiée à cet effet. Ce module est devenu totalement opérationnel depuis le 30 avril 2022 et permet d’une part à tous les MAD, d’effectuer les transferts de leurs marchandises débarquées au port autonome de Cotonou garantissant ainsi une bonne traçabilité des mouvements et d’autre part à l’administration douanière d’effectuer les contrôles périodiques (inventaires)."));
+    b.push(Pp(`Ainsi, une équipe conjointe de la Douane et de Benin Control a effectué le **${dt.longJour}** un inventaire du stock du parc **${D.parc}**, à l’aide de l’application INVENTAIRE MMTE, qui permet le pointage numérique des véhicules en temps réel et le croisement automatique avec l’extraction MMTE.`));
+    b.push(H1("B", "Méthodologie"));
+    b.push(Pp("La méthodologie retenue pour effectuer ces opérations s’articule en dix points, le pointage et le croisement des données étant assurés par l’application INVENTAIRE MMTE :"));
+    b.push({ t: "ol", items: [
+      "Envoi de courriel par la Recette Véhicules Automobiles pour informer les gestionnaires de parcs de la date retenue pour le démarrage de l’inventaire ;",
+      `Mise à disposition de la douane du stock à date par les gestionnaires (fichier électronique) et extraction de la liste MMTE du parc ${D.parc}, chargée dans l’application ;`,
+      "Séance d’ouverture entre l’équipe conjointe Douane/BC et l’administration du parc ;",
+      "Dénombrement physique du stock par les équipes d’inventaire, équipées de téléphones ou de tablettes connectés à l’application ;",
+      "Inventaire proprement dit : chaque véhicule est pointé par lecture du code-barres, du QR code ou du texte du numéro de châssis (ou par saisie), en vérifiant la marque et tous les caractères du châssis ; les véhicules non listés sont enregistrés sur place avec leur marque, leur modèle, leur ancienneté et une photo ;",
+      "Suivi de l’avancement en temps réel par tous les participants (véhicules pointés et restants) et correction immédiate des erreurs de saisie ;",
+      "Séance de clôture entre l’équipe Douane/BC et l’administration du parc pour s’accorder sur les constats à chaud ;",
+      `Croisement automatique des données physiques du parc ${D.parc} avec celles extraites de MMTE (retrouvés, manquants, hors MMTE) ;`,
+      "Analyse des résultats issus du croisement et formulation de recommandations ;",
+      "Édition du rapport d’inventaire et de la fiche de clôture, à faire signer par les trois parties : la Douane, Benin Control et le Gestionnaire du parc."
+    ] });
+    b.push(H1("C", "Résultats"));
+    b.push(Pp(`À la suite de la correspondance émanant de la Recette Véhicules Automobiles, la liste des véhicules attendus sur le parc **${D.parc}**, extraite de MMTE, a été chargée dans l’application le ${dt.longJour}. Cette liste recensait un total de **${D.mmte}** ${plural(D.mmte, "véhicule", "véhicules")}${D.listeParc != null ? `, tandis que la liste remise par le gestionnaire en recensait **${D.listeParc}**` : ""}.`));
+    b.push(Pp("Pour mener à bien cette opération, des équipes dédiées ont été constituées. Chaque équipe comprenait :"));
+    b.push({ t: "ul", items: ["Un agent de douane ;", "Un agent de Benin Control ;", "Un représentant du parc, soit l’importateur ou son mandataire."] });
+    b.push(Pp("Cette composition visait à garantir la transparence, la rigueur et la traçabilité du processus de vérification sur le terrain. Chaque équipe avait pour mission de pointer dans l’application les véhicules retrouvés et d’enregistrer, avec photo, les véhicules retrouvés physiquement mais ne figurant pas sur la liste."));
+    let chrono = `Les opérations se sont déroulées de **${D.heures.debut}** à **${D.heures.fin}**`;
+    if (D.minutes >= 10 && D.total > 0) chrono += `, soit environ ${Math.floor(D.minutes / 60)} h ${pad2(D.minutes % 60)} min de pointage et une cadence moyenne de ${Math.round(D.total / D.minutes * 60)} véhicules à l’heure`;
+    chrono += ".";
+    b.push(Pp(chrono));
+    if (x.hasDetails && x.agentStats.length) {
+      b.push(Pp(`${x.agentStats.length} ${plural(x.agentStats.length, "participant a effectué", "participants ont effectué")} des pointages :`, { keep: true }));
+      b.push({ t: "table", widths: [0.7, 0.3], head: ["Agent", "Pointages"], rows: x.agentStats.map((a) => [a.name, { text: String(a.count), align: "center", bold: true }]), zebra: true });
+    } else if (D.agents.length) b.push(Pp(`Agents ayant participé : ${D.agents.join(", ")}.`));
+    let conf = `À l’issue du dénombrement, un total de **${D.total}** ${plural(D.total, "véhicule a été recensé", "véhicules ont été recensés")} sur le parc`;
+    if (D.listeParc != null) conf += `, chiffre ${D.total === D.listeParc ? "conforme" : "non conforme"} au stock initialement déclaré par le gestionnaire.`;
+    else conf += `, dont ${D.found} ${plural(D.found, "figurait", "figuraient")} sur la liste MMTE et ${D.registered} ${plural(D.registered, "n’y figurait", "n’y figuraient")} pas.`;
+    b.push(Pp(conf));
+    b.push(Pp(`Au terme des opérations, le point du parc **${D.parc}** est le suivant :`, { keep: true }));
+    const pr = [[`TOTAL SUR LISTE MMTE DU PARC ${D.parc}`, D.mmte]];
+    if (D.listeParc != null) pr.push(["TOTAL SUR LISTE REMISE PAR LE PARC", D.listeParc]);
+    pr.push(["TOTAL VÉHICULES RETROUVÉS (POINTÉS)", D.found], [D.listeParc != null ? "TOTAL VÉHICULES MANUSCRITS" : "TOTAL VÉHICULES ENREGISTRÉS HORS MMTE", D.listeParc != null ? D.manuscrits : D.registered], [`TOTAL VÉHICULES INVENTORIÉS SUR LE PARC ${D.parc}`, D.total], ["TOTAL VÉHICULES MANQUANTS", D.missing]);
+    if (D.erronnes > 0) pr.push(["TOTAL CHÂSSIS ERRONÉS OU INCOMPLETS SUR LISTE DU PARC", D.erronnes]);
+    b.push({ t: "table", widths: [0.8, 0.2], rows: pr.map((r) => [r[0], { text: String(r[1]), bold: true, align: "center" }]), zebra: true });
+    if (D.observations) b.push({ t: "callout", title: "Constats à chaud (séance de clôture)", lines: String(D.observations).split(/\n+/).filter(Boolean) });
+    b.push(Pp(`Le Parc **${D.parc}** a été invité à procéder à une mise à jour du stock du parc, en intégrant les observations relevées lors des opérations d’inventaire. Pour clore la séance d’inventaire, un rappel formel a été fait concernant l’obligation de retirer du parc, dans un délai ne dépassant pas 72 heures, tout véhicule ayant été dédouané.`));
+    b.push(H1("D", "Analyse des données"));
+    b.push(Pp(`L’analyse comparative entre les données issues du parc **${D.parc}** et les données de la plateforme MMTE a révélé les constats suivants :`));
+    b.push({ t: "img", key: "comp", wIn: 6.4, hIn: 2, caption: `Croisement données MMTE et parc ${D.parc} — extraction MMTE : ${D.mmte} · inventorié : ${D.total} · intersection : ${D.found}` });
+    b.push(Pp("Les données issues de l’extraction de MMTE, croisées avec celles du parc, donnent le tableau suivant :", { keep: true }));
+    b.push({ t: "table", widths: [0.27, 0.1, 0.38, 0.25], head: ["Statuts", "Nombre", "Justifications", "Recommandations"], small: true, zebra: true, rows: [
+      ["Véhicules présents dans l’extraction MMTE et présents sur le parc", { text: String(D.found), bold: true, align: "center" }, "RAS", "RAS"],
+      ["Véhicules présents dans l’extraction MMTE mais absents du stock du parc", { text: String(D.missing), bold: true, align: "center" }, "Les véhicules concernés sont ceux ayant fait l’objet d’une demande de transfert via MMTE, mais pour lesquels le constat d’enlèvement n’a pas encore été fait.", "Réaliser tous les constats."],
+      ["Véhicules absents dans MMTE mais présents dans le stock du parc", { text: String(D.registered), bold: true, align: "center" }, "Ces véhicules pourraient représenter : ceux déjà présents sur le parc avant MMTE ; ceux conteneurisés ayant fait l’objet de transfert sur le parc après la mise en production de MMTE ; ceux passés en statut dépôt.", "Intégrer dans MMTE/ROULANT tous les véhicules importés."]
+    ] });
+    if (x.hasDetails && D.registered > 0) {
+      b.push({ t: "h2", text: "Véhicules présents hors MMTE : ancienneté" });
+      b.push({ t: "table", widths: [0.7, 0.3], head: ["Ancienneté", "Véhicules"], zebra: true, rows: [["Plus d’un an", { text: String(x.age.over1), bold: true, align: "center" }], ["Moins d’un an", { text: String(x.age.under1), bold: true, align: "center" }], ["Non précisée", { text: String(x.age.nd), bold: true, align: "center" }]] });
+      if (x.age.over1 > 0) b.push(Pp("Les véhicules de plus d’un an hors MMTE constituent le principal risque de régularisation : ils doivent être rapprochés des statuts dépôt et des délais de séjour légaux.", { small: true, italic: true }));
+    }
+    if (x.hasDetails && x.depot.length) {
+      b.push({ t: "h2", text: "Délai de séjour dépassé" });
+      b.push(Pp(`**${x.depot.length}** ${plural(x.depot.length, "véhicule de la liste MMTE a dépassé", "véhicules de la liste MMTE ont dépassé")} la date d’entrée en dépôt à la date de l’inventaire : **${x.depotFound}** ${plural(x.depotFound, "présent", "présents")} sur le parc et **${x.depotMissing}** ${plural(x.depotMissing, "manquant", "manquants")}. La liste figure en annexe.`));
+    }
+    if (D.opts.taux) {
+      b.push(Pp("Les taux d’utilisation de MMTE sont consignés dans le tableau suivant :", { keep: true, before: 200 }));
+      const T = (n, a, s, t, o) => [String(n), a, s, { text: t, align: "center", bold: true }, o];
+      b.push({ t: "table", widths: [0.06, 0.24, 0.2, 0.1, 0.4], head: ["N°", "Actions", "Structures chargées", "Taux d’exécution", "Observations"], small: true, zebra: true, rows: [
+        T(1, "Manifestes sur MMTE", "GUCE", "100%", "Pas toujours en temps réel"),
+        T(2, "Demande de transfert PTU vers les parcs", "Gestionnaires de parcs", "100%", "Aucune autre issue n’est possible"),
+        T(3, "Constats de vu à quai", "Manutentionnaires BM et RTB", "100%", "Obligatoire car cette action vient constater le déchargement des marchandises, valider la demande de transfert faite en amont par les gestionnaires de parcs, créditer le stock du manutentionnaire et positionner la marchandise en attente d’entrée chez le gestionnaire."),
+        T(4, "Constats d’enlèvement des PTU", "Manutentionnaires BM et RTB", "100%", "Ce taux a été atteint après la mise en place des mesures coercitives qui consistent à empêcher de nouveaux transferts aux parcs concernés 15 jours après les transferts."),
+        T(5, "Constats de réception des parcs", `Gestionnaire du parc ${D.parc}`, "100%", "Ce taux a été atteint après la mise en place des mesures coercitives qui consistent à empêcher de nouveaux transferts aux parcs concernés 15 jours après les transferts."),
+        T(6, "Constats d’enlèvement des parcs", "Gestionnaires de parcs", D.taux[0] || "30%", "Cette action étant obligatoire dans GUCE, les gestionnaires pensent qu’elle est superflue dans MMTE. L’interfaçage de MMTE et GUCE en cours viendra corriger cette insuffisance."),
+        T(7, "Transferts de parc à parc", "Gestionnaires de parcs et chefs sections Douane", "-", "Cette action se fait toujours dans MMTE."),
+        T(8, "Mise à disposition des stocks par semaine", "Gestionnaires des parcs", D.taux[1] || "70%", "Les gestionnaires ne respectent pas toujours le format retenu par la Douane ni le délai de transmission."),
+        T(9, "Rencontres périodiques avec les usagers", "Douane et BC", "-", "Appréhension des difficultés et apport de solutions à travers le forum d’échanges WhatsApp ainsi que des séances en présentiel le cas échéant."),
+        T(10, "Prise en compte des véhicules conteneurisés par MMTE", "MMTE", D.taux[2] || "0%", "Le module des terminaux à conteneurs est en cours d’actualisation."),
+        T(11, `Inventaire du parc ${D.parc}`, "Douane et BC", "100%", "Fait, avec l’application INVENTAIRE MMTE.")
+      ] });
+    }
+    b.push(H1("E", "Recommandations"));
+    b.push(Pp("À l’issue des opérations de recensement et d’analyse, plusieurs recommandations ont été formulées à l’attention des parties prenantes afin d’améliorer le suivi et la gestion du stock des véhicules sous douane admis sur les parcs de vente."));
+    b.push({ t: "h2", text: `À l’attention du Gestionnaire du parc ${D.parc}` });
+    const rg = ["Assurer la réalisation en temps réel des constats de réception et d’enlèvement des véhicules."];
+    if (D.missing > 0) rg.push(`Régulariser dans MMTE ${plural(D.missing, "le véhicule attendu et absent", "les " + D.missing + " véhicules attendus et absents")} du parc (constats d’enlèvement ou de sortie manquants).`);
+    if (D.registered > 0) rg.push(`Intégrer dans MMTE/ROULANT ${plural(D.registered, "le véhicule présent", "les " + D.registered + " véhicules présents")} sur le parc mais ${plural(D.registered, "absent", "absents")} de l’extraction MMTE.`);
+    rg.push("Instaurer une gestion plus rigoureuse du stock du parc afin de garantir l’exhaustivité et la fiabilité des données.");
+    if (D.erronnes > 0) rg.push("Procéder à la correction des numéros de châssis incorrects et renforcer les mécanismes de validation des données lors de l’enregistrement.");
+    rg.push(x.hasDetails && x.depot.length ? `Transmettre sans délai la liste des véhicules frappés de dépôt (${x.depot.length} identifiés en annexe) afin de faciliter les démarches liées à leur mise en vente aux enchères.` : "Transmettre sans délai la liste des véhicules frappés de dépôt afin de faciliter les démarches liées à leur mise en vente aux enchères.");
+    rg.push("Respecter scrupuleusement les délais légaux de séjour des marchandises sous douane.");
+    b.push({ t: "ul", items: rg });
+    b.push({ t: "h2", text: "À l’attention de Benin Control" });
+    b.push({ t: "ul", items: ["Rendre possible la prise en compte par MMTE/ROULANT des véhicules conteneurisés à transférer sur les parcs de vente."] });
+    b.push({ t: "h2", text: "À l’attention de la Recette Véhicules Automobiles" });
+    b.push({ t: "ul", items: ["Maintenir une application rigoureuse de la plateforme MMTE pour les transferts, constats d’enlèvement et de réception des véhicules admis sur les parcs.", "Imposer aux gestionnaires de parc la transmission journalière des constats d’enlèvement.", "Généraliser l’usage de l’application INVENTAIRE MMTE pour les inventaires des autres parcs."] });
+    b.push(H1("", "Conclusion"));
+    b.push(Pp(`L’inventaire effectué sur le parc **${D.parc}** a permis à la Recette Véhicules Automobiles de conduire un examen approfondi et structuré du stock de véhicules sous douane : **${D.found}** véhicules sur **${D.mmte}** attendus ont été retrouvés (${D.pct} %), pour **${D.total}** véhicules effectivement présents. Cette opération a mis en exergue la nécessité d’une gestion rigoureuse et transparente du parc. Par ailleurs, elle a confirmé la valeur ajoutée de la plateforme MMTE en tant qu’outil pertinent de gestion automatisée de la comptabilité-matières des véhicules sous douane, ainsi que celle du pointage numérique pour la fiabilité et la rapidité de l’inventaire. Enfin, cette initiative s’impose comme un cadre de référence pour la réalisation d’opérations similaires dans les autres parcs, tout en soulignant l’urgence de mettre en œuvre des dispositifs opérationnels adaptés, garants de la fiabilité et de la traçabilité des mouvements de stock des parcs.`));
+    b.push(signBlock(D, false));
+  } else {
+    b.push(H1("", "Résultats", false));
+    b.push(Pp(`Inventaire physique du parc **${D.parc}** réalisé le **${dt.longJour}** de ${D.heures.debut} à ${D.heures.fin} avec l’application INVENTAIRE MMTE, par une équipe conjointe Douane / Bénin Control / représentant du parc${D.agents.length ? ` (${D.agents.length} ${plural(D.agents.length, "agent", "agents")})` : ""}.`));
+    const prs = [[`Attendus sur la liste MMTE du parc ${D.parc}`, D.mmte]];
+    if (D.listeParc != null) prs.push(["Liste remise par le parc", D.listeParc]);
+    prs.push(["Véhicules retrouvés (pointés)", D.found], ["Véhicules enregistrés hors MMTE", D.registered], ["Total inventorié sur le parc", D.total], ["Véhicules manquants", D.missing]);
+    if (D.erronnes > 0) prs.push(["Châssis erronés ou incomplets", D.erronnes]);
+    b.push({ t: "table", widths: [0.8, 0.2], head: ["Point du parc", "Nombre"], rows: prs.map((r) => [r[0], { text: String(r[1]), bold: true, align: "center" }]), zebra: true, wFrac: 0.92 });
+    if (D.observations) b.push({ t: "callout", title: "Constats à chaud (séance de clôture)", lines: String(D.observations).split(/\n+/).filter(Boolean) });
+    b.push(H1("", "Écarts constatés", false));
+    b.push({ t: "table", widths: [0.3, 0.1, 0.35, 0.25], head: ["Situation", "Nombre", "Explication probable", "Action recommandée"], small: true, zebra: true, rows: [
+      [{ text: "Présents dans MMTE et sur le parc", bold: true }, { text: String(D.found), bold: true, align: "center", color: DC.emerald }, "Aucun écart.", "RAS"],
+      [{ text: "Présents dans MMTE mais absents du parc", bold: true }, { text: String(D.missing), bold: true, align: "center", color: DC.rose }, "Demande de transfert faite via MMTE, constat d’enlèvement non réalisé.", "Réaliser les constats d’enlèvement."],
+      [{ text: "Absents de MMTE mais présents sur le parc", bold: true }, { text: String(D.registered), bold: true, align: "center", color: DC.blue }, "Véhicules antérieurs à MMTE, conteneurisés ou en statut dépôt.", "Intégrer dans MMTE / ROULANT."]
+    ] });
+    if (x.hasDetails && D.registered > 0 && x.age.over1 > 0) b.push(Pp(`Parmi les véhicules hors MMTE, **${x.age.over1}** ${plural(x.age.over1, "a plus", "ont plus")} d’un an : ${plural(x.age.over1, "il constitue", "ils constituent")} le principal risque de régularisation.`));
+    if (x.hasDetails && x.depot.length) b.push(Pp(`**${x.depot.length}** ${plural(x.depot.length, "véhicule a dépassé", "véhicules ont dépassé")} le délai de séjour (${x.depotFound} ${plural(x.depotFound, "présent", "présents")}, ${x.depotMissing} ${plural(x.depotMissing, "manquant", "manquants")}) — liste en annexe.`));
+    b.push({ t: "img", key: "comp", wIn: 6.4, hIn: 2, caption: `Répartition des véhicules : liste MMTE (${D.mmte}) et parc inventorié (${D.total}) — ${D.found} en commun` });
+    b.push(H1("", "Recommandations"));
+    b.push(Pp("À l’issue du recensement et de l’analyse, les actions suivantes sont recommandées, classées par priorité :", { keep: true }));
+    const HI = { text: "Haute", bold: true, align: "center", color: "FFFFFF", fill: DC.rose }, MD = { text: "Moyenne", bold: true, align: "center", color: DC.navy, fill: "F3D468" }, LO = { text: "Continue", bold: true, align: "center", color: "FFFFFF", fill: DC.emerald };
+    const rec = [];
+    if (D.missing > 0) rec.push([`Régulariser dans MMTE ${plural(D.missing, "le véhicule attendu et absent", "les " + D.missing + " véhicules attendus et absents")} du parc (constats d’enlèvement ou de sortie manquants).`, `Gestionnaire du parc ${D.parc}`, HI]);
+    if (D.registered > 0) rec.push([`Intégrer dans MMTE / ROULANT ${plural(D.registered, "le véhicule présent", "les " + D.registered + " véhicules présents")} sur le parc mais ${plural(D.registered, "absent", "absents")} de l’extraction.`, `Gestionnaire du parc ${D.parc}`, HI]);
+    rec.push([x.hasDetails && x.depot.length ? `Transmettre sans délai la liste des véhicules frappés de dépôt (${x.depot.length} identifiés en annexe) pour faciliter leur mise en vente aux enchères.` : "Transmettre sans délai la liste des véhicules frappés de dépôt pour faciliter leur mise en vente aux enchères.", `Gestionnaire du parc ${D.parc}`, HI]);
+    if (D.erronnes > 0) rec.push(["Corriger les numéros de châssis incorrects et renforcer la validation des données lors de l’enregistrement.", `Gestionnaire du parc ${D.parc}`, MD]);
+    rec.push(["Assurer en temps réel les constats de réception et d’enlèvement des véhicules ; imposer la transmission journalière des constats d’enlèvement.", `Gestionnaire du parc ${D.parc} / Recette Véhicules Automobiles`, MD]);
+    rec.push(["Instaurer une gestion rigoureuse du stock du parc et respecter scrupuleusement les délais légaux de séjour.", `Gestionnaire du parc ${D.parc}`, MD]);
+    rec.push(["Rendre possible la prise en compte par MMTE / ROULANT des véhicules conteneurisés à transférer sur les parcs de vente.", "Bénin Control", MD]);
+    rec.push(["Maintenir l’application rigoureuse de la plateforme MMTE (transferts, constats d’enlèvement et de réception) et généraliser INVENTAIRE MMTE aux autres parcs.", "Recette Véhicules Automobiles", LO]);
+    b.push({ t: "table", widths: [0.06, 0.56, 0.24, 0.14], head: ["N°", "Recommandation", "Destinataire", "Priorité"], small: true, zebra: true, rows: rec.map((r, i) => [{ text: String(i + 1), align: "center", bold: true }, r[0], r[1], r[2]]) });
+  }
+  b.push({ t: "pb" });
+  closureBlocks(D).forEach((k) => b.push(k));
+  if (x.hasDetails) {
+    if (D.opts.annexMissing && x.manquants.length) {
+      b.push(H1("", `Annexe 1 — Véhicules manquants (${x.manquants.length})`, true));
+      b.push(Pp(`Véhicules attendus sur MMTE et non retrouvés sur le parc ${D.parc}.`, { small: true }));
+      b.push({ t: "table", widths: [0.07, 0.3, 0.43, 0.2], head: ["N°", "Châssis", "Description", "Entrée en dépôt"], small: true, zebra: true, repeat: true, rows: x.manquants.map((r, i) => [String(i + 1), r.chassis, r.description, r.depot]) });
+    }
+    if (D.opts.annexHors && x.horsMmte.length) {
+      b.push(H1("", `Annexe 2 — Véhicules présents hors MMTE (${x.horsMmte.length})`, true));
+      b.push(Pp(`Véhicules retrouvés sur le parc ${D.parc} mais absents de l’extraction MMTE.`, { small: true }));
+      b.push({ t: "table", widths: [0.06, 0.25, 0.14, 0.15, 0.13, 0.17, 0.1], head: ["N°", "Châssis", "Marque", "Modèle", "Ancienneté", "Agent", "Photo"], small: true, zebra: true, repeat: true, rows: x.horsMmte.map((r, i) => [String(i + 1), r.chassis, r.marque, r.modele, r.age, r.agent, r.photo]) });
+    }
+    if (D.opts.annexDepot && x.depot.length) {
+      b.push(H1("", `Annexe 3 — Délai de séjour dépassé (${x.depot.length})`, true));
+      b.push(Pp("Véhicules de la liste MMTE dont la date d’entrée en dépôt est antérieure à la date de l’inventaire.", { small: true }));
+      b.push({ t: "table", widths: [0.07, 0.27, 0.34, 0.17, 0.15], head: ["N°", "Châssis", "Description", "Entrée en dépôt", "Statut"], small: true, zebra: true, repeat: true, rows: x.depot.map((r, i) => [String(i + 1), r.chassis, r.description, r.depot, r.statut]) });
+    }
+  }
+  return b;
+}
+function annexTitles(D) {
+  const x = D.x, out = [];
+  if (x.hasDetails) {
+    if (D.opts.annexMissing && x.manquants.length) out.push("Annexe 1 — Véhicules manquants");
+    if (D.opts.annexHors && x.horsMmte.length) out.push("Annexe 2 — Véhicules hors MMTE");
+    if (D.opts.annexDepot && x.depot.length) out.push("Annexe 3 — Délai de séjour dépassé");
+  }
+  return out;
+}
+const WFONT = '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/>';
+const wr = (text, o = {}) => `<w:r><w:rPr>${WFONT}${o.b ? "<w:b/>" : ""}${o.i ? "<w:i/>" : ""}${o.caps ? "<w:caps/>" : ""}${o.color ? `<w:color w:val="${o.color}"/>` : ""}${o.spacing ? `<w:spacing w:val="${o.spacing}"/>` : ""}<w:sz w:val="${o.sz || 21}"/><w:szCs w:val="${o.sz || 21}"/>${o.shd ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.shd}"/>` : ""}</w:rPr><w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r>`;
+const wrs = (text, o = {}) => String(text).split("**").map((seg, i) => seg === "" ? "" : wr(seg, { ...o, b: o.b || i % 2 === 1 })).join("");
+const wpr = (o = {}) => `<w:pPr>${o.style ? `<w:pStyle w:val="${o.style}"/>` : ""}${o.keepNext ? "<w:keepNext/>" : ""}${o.keepLines ? "<w:keepLines/>" : ""}${o.pb ? "<w:pageBreakBefore/>" : ""}${o.bdrBottom ? `<w:pBdr><w:bottom w:val="${o.bdrBottom.val || "single"}" w:sz="${o.bdrBottom.sz || 12}" w:space="4" w:color="${o.bdrBottom.color}"/></w:pBdr>` : ""}${o.bdrTop ? `<w:pBdr><w:top w:val="single" w:sz="6" w:space="4" w:color="${o.bdrTop}"/></w:pBdr>` : ""}${o.shd ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.shd}"/>` : ""}${o.tabs || ""}<w:spacing w:before="${o.before || 0}" w:after="${o.after == null ? 120 : o.after}"${o.line ? ` w:line="${o.line}" w:lineRule="${o.lineRule || "auto"}"` : ""}/>${o.indL != null ? `<w:ind w:left="${o.indL}"${o.hang ? ` w:hanging="${o.hang}"` : ""}/>` : ""}${o.jc ? `<w:jc w:val="${o.jc}"/>` : ""}</w:pPr>`;
+const wp = (inner, o = {}) => `<w:p>${wpr(o)}${inner}</w:p>`;
+const wBorders = (kind, color, sz) => ["top", "left", "bottom", "right"].map((k) => `<w:${k} w:val="${kind}" w:sz="${sz || 4}" w:space="0" w:color="${color || "auto"}"/>`).join("");
+const wtc = (inner, o = {}) => `<w:tc><w:tcPr><w:tcW w:w="${o.w}" w:type="dxa"/>${o.span ? `<w:gridSpan w:val="${o.span}"/>` : ""}${o.borders ? `<w:tcBorders>${o.borders}</w:tcBorders>` : ""}${o.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>` : ""}${o.mar ? `<w:tcMar>${o.mar}</w:tcMar>` : ""}${o.va ? `<w:vAlign w:val="${o.va}"/>` : ""}</w:tcPr>${inner || "<w:p/>"}</w:tc>`;
+const wtr = (cells, o = {}) => `<w:tr><w:trPr><w:cantSplit/>${o.h ? `<w:trHeight w:val="${o.h}" w:hRule="${o.exact ? "exact" : "atLeast"}"/>` : ""}${o.header ? "<w:tblHeader/>" : ""}</w:trPr>${cells.join("")}</w:tr>`;
+const wtbl = (rows, widths, o = {}) => `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a, b) => a + b, 0)}" w:type="dxa"/><w:jc w:val="${o.jc || "center"}"/>${o.ind != null ? `<w:tblInd w:w="${o.ind}" w:type="dxa"/>` : ""}<w:tblBorders>${o.noBorder ? ["top", "left", "bottom", "right", "insideH", "insideV"].map((k) => `<w:${k} w:val="nil"/>`).join("") : ["top", "left", "bottom", "right", "insideH", "insideV"].map((k) => `<w:${k} w:val="single" w:sz="4" w:space="0" w:color="${DC.line}"/>`).join("")}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="${o.padV == null ? 70 : o.padV}" w:type="dxa"/><w:left w:w="${o.padH == null ? 110 : o.padH}" w:type="dxa"/><w:bottom w:w="${o.padV == null ? 70 : o.padV}" w:type="dxa"/><w:right w:w="${o.padH == null ? 110 : o.padH}" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${widths.map((w) => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${rows.join("")}</w:tbl>`;
+const GRAPHIC = (rid, id, cx, cy) => `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="image${id}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>`;
+const wImgRun = (rid, id, cx, cy) => `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Image ${id}"/>${GRAPHIC(rid, id, cx, cy)}</wp:inline></w:drawing></w:r>`;
+const wAnchorRun = (rid, id, cx, cy) => `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="1" locked="1" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/><wp:docPr id="${id}" name="Fond ${id}"/><wp:cNvGraphicFramePr/>${GRAPHIC(rid, id, cx, cy)}</wp:anchor></w:drawing></w:r>`;
+const TONE = { navy: DC.navy, emerald: DC.emerald, sky: DC.sky, rose: DC.rose, slate: DC.slate, gold: DC.gold, blue: DC.blue };
+function fitWidths(fr, W) {
+  const w = fr.map((f) => Math.round(f * W));
+  w[w.length - 1] += W - w.reduce((a, b) => a + b, 0);
+  return w;
+}
+function cellVal(c) {
+  return typeof c === "object" && c !== null ? c : { text: c };
+}
+const tocLabel = (b) => b.t === "h1" ? (b.num ? b.num + ".  " : "") + b.text : b.toc || "";
+function docxBlock(b, ctx) {
+  const W = ctx.W;
+  switch (b.t) {
+    case "pb":
+      return `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
+    case "h1":
+      return wp((b.num ? wr(" " + b.num + " ", { b: 1, sz: 34, color: "FFFFFF", shd: DC.blue }) + wr("   ", { sz: 34 }) : "") + wr(b.text, { b: 1, sz: 34, color: DC.navy }), { style: "Heading1", keepNext: 1, pb: b.pb, bdrBottom: { color: DC.blue, sz: 8 }, before: b.pb ? 0 : 320, after: 220 });
+    case "h2":
+      return wp(wr(b.text, { b: 1, sz: 24, color: DC.blue }), { style: "Heading2", keepNext: 1, before: 240, after: 100 });
+    case "p":
+      return wp(wrs(b.text, { sz: b.small ? 18 : 21, i: b.italic, color: b.small ? DC.grey : DC.ink }), { jc: b.align || "both", keepNext: b.keep, before: b.before || 0, after: b.small ? 80 : 120, line: 288 });
+    case "ul":
+    case "ol":
+      return b.items.map((t, i) => wp(wr(b.t === "ul" ? "•" : `${i + 1}.`, { b: 1, color: DC.blue, sz: 21 }) + "<w:r><w:tab/></w:r>" + wrs(t, { sz: 21, color: DC.ink }), { tabs: '<w:tabs><w:tab w:val="left" w:pos="454"/></w:tabs>', indL: 454, hang: 340, jc: "both", after: 80, line: 276 })).join("");
+    case "toc":
+      return wp(wr("SOMMAIRE", { b: 1, sz: 52, color: DC.navy, spacing: 60 }), { bdrBottom: { color: DC.gold, sz: 18 }, after: 360, before: 200 }) + (ctx.toc || []).map((t, i) => wp(wr(pad2(i + 1), { b: 1, sz: 30, color: DC.blue }) + "<w:r><w:tab/></w:r>" + wr(t, { sz: 25, color: DC.ink }), { tabs: '<w:tabs><w:tab w:val="left" w:pos="760"/></w:tabs>', indL: 760, hang: 760, after: 90, before: 90, bdrBottom: { color: DC.line, sz: 4, val: "dotted" } })).join("") + wp("", { after: 300 });
+    case "banner":
+      return wtbl([wtr([wtc(wp(wr(b.title, { b: 1, sz: 34, color: "FFFFFF", spacing: 30 }), { jc: "center", after: 40, before: 40 }) + wp(wr(b.sub, { sz: 18, color: "F3D468" }), { jc: "center", after: 40 }), { w: W, fill: DC.navy, va: "center", borders: `<w:bottom w:val="single" w:sz="36" w:space="0" w:color="${DC.gold}"/>` })], { h: 1100 })], [W], { noBorder: true, padV: 120 }) + wp("", { after: 160 });
+    case "table": {
+      const Wt = Math.round(W * (b.wFrac || 1));
+      const widths = fitWidths(b.widths, Wt);
+      const sz = b.small ? 17 : 19;
+      const keepAll = b.keep !== false && !b.repeat;
+      const last = b.rows.length - 1;
+      const rows = [];
+      if (b.head) rows.push(wtr(b.head.map((h, i) => wtc(wp(wr(h, { b: 1, sz, color: "FFFFFF" }), { after: 0, keepNext: 1, jc: i > 0 && b.widths.length === 2 ? "center" : "left" }), { w: widths[i], fill: DC.navy, va: "center" })), { header: true }));
+      b.rows.forEach((r, ri) => rows.push(wtr(r.map((c0, i) => {
+        const c = cellVal(c0);
+        const isLabel = b.labelCol && i === 0;
+        return wtc(wp(wrs(String(c.text == null ? "" : c.text), { sz, b: c.bold || isLabel, color: isLabel ? DC.navy : c.color || DC.ink }), { after: 0, jc: c.align || "left", line: 252, keepNext: keepAll && ri < last }), { w: widths[i], fill: isLabel ? DC.pale : c.fill || (b.zebra && ri % 2 === 1 ? DC.light : null), va: "center" });
+      }))));
+      return wtbl(rows, widths) + wp("", { after: 140 });
+    }
+    case "kpis": {
+      const cw = Math.floor(W / 3), ws = [cw, cw, W - 2 * cw];
+      const mk = (it, i) => {
+        const dark = it.tone === "gold";
+        return wtc(wp(wr(String(it.value), { b: 1, sz: 52, color: dark ? DC.navy : "FFFFFF" }), { jc: "center", after: 0, before: 60, keepNext: 1 }) + wp(wr(it.label, { sz: 17, color: dark ? DC.navy : "FFFFFF", caps: 1, spacing: 10 }), { jc: "center", after: 60, keepNext: 1 }), { w: ws[i % 3], fill: TONE[it.tone] || DC.navy, va: "center", borders: wBorders("single", "FFFFFF", 36) });
+      };
+      const rows = [];
+      for (let r = 0; r < b.items.length; r += 3) rows.push(wtr(b.items.slice(r, r + 3).map((it, i) => mk(it, i)), { h: 800 }));
+      return wtbl(rows, ws, { noBorder: true, padV: 60, padH: 60 }) + wp("", { after: 140 });
+    }
+    case "callout":
+      return wtbl([wtr([wtc(wp(wr(b.title, { b: 1, sz: 23, color: DC.navy }), { after: 80 }) + b.lines.map((t) => wp(wr("•", { b: 1, color: DC.blue }) + "<w:r><w:tab/></w:r>" + wrs(t, { sz: 20, color: DC.ink }), { tabs: '<w:tabs><w:tab w:val="left" w:pos="300"/></w:tabs>', indL: 300, hang: 300, after: 60, jc: "left" })).join(""), { w: W, fill: DC.light, borders: `<w:left w:val="single" w:sz="36" w:space="0" w:color="${DC.blue}"/>`, mar: '<w:top w:w="140" w:type="dxa"/><w:left w:w="220" w:type="dxa"/><w:bottom w:w="100" w:type="dxa"/><w:right w:w="160" w:type="dxa"/>' })])], [W], { noBorder: true }) + wp("", { after: 160 });
+    case "box":
+      return wtbl([wtr([wtc(b.text ? String(b.text).split(/\n+/).map((t) => wp(wr(t, { sz: 20, color: DC.ink }), { after: 60 })).join("") : wp("", { after: 0 }), { w: W })], { h: b.text ? 640 : b.lines * 300 })], [W]) + wp("", { after: 140 });
+    case "img": {
+      const k = ctx.imgs[b.key];
+      if (!k) return "";
+      const cx = Math.round(b.wIn * 914400), cy = Math.round(b.hIn * 914400);
+      return wp(wImgRun(k.rid, ctx.nextId(), cx, cy), { jc: "center", after: 40, keepNext: 1 }) + wp(wr(b.caption || "", { i: 1, sz: 17, color: DC.grey }), { jc: "center", after: 160 });
+    }
+    case "sign": {
+      const cw = Math.floor(W / 3), ws = [cw, cw, W - 2 * cw];
+      const head = wtr(b.parties.map((p, i) => wtc(wp(wr(p.title, { b: 1, sz: 18, color: DC.navy }), { jc: "center", after: 0, keepNext: 1 }), { w: ws[i], fill: DC.pale, va: "center" })), { h: 400 });
+      const sig = wtr(b.parties.map((p, i) => wtc(wp(wr(b.withDate ? "Signature et cachet :" : "Signature :", { sz: 18, color: DC.grey }), { after: 0, keepNext: 1 }), { w: ws[i] })), { h: b.withDate ? 1e3 : 1150 });
+      const nm = wtr(b.parties.map((p, i) => wtc(wp(wr("Nom : ", { sz: 18, color: DC.grey }) + (p.name ? wr(p.name, { b: 1, sz: 19 }) : wr("______________", { sz: 18, color: DC.grey })), { after: 0 }), { w: ws[i] })), { h: 520 });
+      return wp("", { after: 60, keepNext: 1 }) + wp(wr("Signatures", { b: 1, sz: 24, color: DC.blue }), { keepNext: 1, after: 80 }) + wtbl([head, sig, nm], ws);
+    }
+    case "facts": {
+      const cw = Math.floor(W / 3), ws = [cw, cw, W - 2 * cw];
+      const bd = `<w:top w:val="single" w:sz="48" w:space="0" w:color="FFFFFF"/><w:left w:val="single" w:sz="24" w:space="0" w:color="${DC.blue}"/><w:bottom w:val="single" w:sz="48" w:space="0" w:color="FFFFFF"/><w:right w:val="single" w:sz="48" w:space="0" w:color="FFFFFF"/>`;
+      const rows = [];
+      for (let r = 0; r < b.items.length; r += 3) rows.push(wtr(Array.from({ length: 3 }, (_, i) => {
+        const it = b.items[r + i];
+        return wtc(it ? wp(wr(it.label, { sz: 15, b: 1, color: DC.blue, caps: 1, spacing: 15 }), { after: 20, keepNext: 1 }) + wp(wr(it.value, { sz: 21, b: 1, color: DC.navy }), { after: 0 }) : "", { w: ws[i], fill: it ? DC.light : null, va: "center", borders: it ? bd : void 0, mar: '<w:top w:w="90" w:type="dxa"/><w:left w:w="170" w:type="dxa"/><w:bottom w:w="90" w:type="dxa"/><w:right w:w="100" w:type="dxa"/>' });
+      }), { h: 620 }));
+      return (b.title ? wp(wr(b.title, { b: 1, sz: 22, color: DC.blue }), { keepNext: 1, after: 60, before: 80 }) : "") + wtbl(rows, ws, { noBorder: true, padV: 0, padH: 0 }) + wp("", { after: 140 });
+    }
+    case "steps": {
+      const nw = 640, tw = W - nw;
+      const rows = [];
+      let n = 0;
+      b.phases.forEach((ph) => {
+        rows.push(wtr([wtc(wp(wr(ph.title, { b: 1, sz: 19, color: "FFFFFF", caps: 1, spacing: 20 }), { after: 0, keepNext: 1 }), { w: W, span: 2, fill: DC.navy, va: "center" })], { h: 380 }));
+        ph.items.forEach((t, k) => {
+          n++;
+          const keep = k < ph.items.length - 1;
+          rows.push(wtr([wtc(wp(wr(String(n), { b: 1, sz: 24, color: "FFFFFF" }), { jc: "center", after: 0, keepNext: keep }), { w: nw, fill: DC.blue, va: "center" }), wtc(wp(wrs(t, { sz: 19, color: DC.ink }), { after: 0, keepNext: keep, line: 252 }), { w: tw, fill: n % 2 ? DC.light : "FFFFFF", va: "center" })], { h: 460 }));
+        });
+      });
+      return wtbl(rows, [nw, tw]) + wp("", { after: 140 });
+    }
+    case "verdict":
+      return wtbl([wtr([wtc(wp(wr(b.title, { b: 1, sz: 36, color: "FFFFFF" }), { after: 40, keepNext: 1 }) + wp(wr(b.text, { sz: 20, color: "FFFFFF" }), { after: 0 }), { w: W, fill: TONE[b.tone] || DC.navy, va: "center", borders: `<w:left w:val="single" w:sz="72" w:space="0" w:color="${DC.gold}"/>`, mar: '<w:top w:w="160" w:type="dxa"/><w:left w:w="280" w:type="dxa"/><w:bottom w:w="160" w:type="dxa"/><w:right w:w="200" w:type="dxa"/>' })], { h: 900 })], [W], { noBorder: true }) + wp("", { after: 160 });
+    case "cover":
+      return "";
+    // traité à part
+    default:
+      return "";
+  }
+}
+function coverXml(b, ids, ctx) {
+  const T = COVER_TW, PW = T.w, lx = T.lx, rx = 1134, IW = PW - lx - rx;
+  const noMar = '<w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>';
+  const ex = (tw) => Math.round(tw * 635);
+  const bg = wp(wAnchorRun(ids.bg, ctx.nextId(), ex(PW), ex(T.h)), { after: 0, line: 5e3, lineRule: "exact" });
+  const lines = String(b.title || "").split("\n");
+  const inner = wp(wr(b.kicker || "", { b: 1, sz: 20, color: DC.gold, spacing: 50 }), { after: 200, line: 360, lineRule: "exact" }) + lines.map((t) => wp(wr(t, { b: 1, sz: 92, color: "FFFFFF", spacing: 30 }), { after: 0, line: 1080, lineRule: "exact" })).join("") + wp("", { after: 0, line: 580, lineRule: "exact" }) + wp(wr(b.parc || "", { b: 1, sz: 48, color: "F3D468" }), { after: 0, line: 640, lineRule: "exact" });
+  const title = wtbl([wtr([wtc(inner, { w: IW, va: "top", mar: noMar })], { h: 5e3, exact: 1 })], [IW], { noBorder: true, ind: 0, padV: 0, padH: 0, jc: "left" });
+  const rows = (b.rows || []).map(([k, v]) => wtr([wtc(wp(wr(k, { b: 1, sz: 18, color: DC.blue, caps: 1, spacing: 25 }), { after: 0 }), { w: 2300, va: "center", mar: noMar, borders: `<w:bottom w:val="single" w:sz="4" w:space="0" w:color="${DC.line}"/>` }), wtc(wp(wr(v, { sz: 23, color: DC.ink }), { after: 0 }), { w: IW - 2300, va: "center", mar: noMar, borders: `<w:bottom w:val="single" w:sz="4" w:space="0" w:color="${DC.line}"/>` })], { h: 560 }));
+  const info = rows.length ? wtbl(rows, [2300, IW - 2300], { noBorder: true, ind: 0, padV: 0, padH: 0, jc: "left" }) : "";
+  const infoH = rows.length * 560;
+  const gap = Math.max(300, 15400 - (5e3 + 5e3 + 900 + infoH));
+  return bg + title + wp("", { after: 0, line: 900, lineRule: "exact" }) + info + wp("", { after: 0, line: gap, lineRule: "exact" }) + wp(wr(b.mois || "", { b: 1, sz: 28, color: "FFFFFF", spacing: 60 }), { after: 0, line: 420, lineRule: "exact", jc: "center" }) + wp(wr(b.org || "", { sz: 18, color: "F3D468", spacing: 10 }), { after: 0, line: 340, lineRule: "exact", jc: "center" }) + `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:sectPr><w:pgSz w:w="${PW}" w:h="${T.h}"/><w:pgMar w:top="0" w:right="${rx}" w:bottom="0" w:left="${lx}" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr></w:pPr></w:p>`;
+}
+const DOCX_NS = `xmlns:w="${NS_W}" xmlns:r="${NS_R}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
+const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+async function makeAssets(D, blocks) {
+  const A = {};
+  if (blocks.some((b) => b.t === "cover")) A.cover = await drawCoverPng(D);
+  if (blocks.some((b) => b.t === "img" && b.key === "dash")) A.dash = await drawDashPng(D);
+  if (blocks.some((b) => b.t === "img" && b.key === "comp")) A.comp = await drawCompPng(D);
+  return A;
+}
+async function buildDocx(D, blocks, assets) {
+  const JSZip = await loadJSZip();
+  const zip = new JSZip();
+  const W = 9638;
+  let idc = 100;
+  const A = assets || await makeAssets(D, blocks);
+  const ctx = { W, imgs: { dash: { rid: "rIdDash" }, comp: { rid: "rIdComp" } }, nextId: () => ++idc, toc: blocks.map(tocLabel).filter(Boolean) };
+  let body = "";
+  blocks.forEach((b) => {
+    body += b.t === "cover" ? coverXml(b, { bg: "rIdCover" }, ctx) : docxBlock(b, ctx);
+  });
+  const sect = `<w:sectPr><w:headerReference w:type="default" r:id="rIdHdr"/><w:footerReference w:type="default" r:id="rIdFtr"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1550" w:right="1134" w:bottom="1150" w:left="1134" w:header="500" w:footer="500" w:gutter="0"/></w:sectPr>`;
+  zip.file("word/document.xml", XML_HEAD + `<w:document ${DOCX_NS}><w:body>${body}${wp("", { after: 0 })}${sect}</w:body></w:document>`);
+  const logo = (dataUrl, rid, n, h) => {
+    const s = pngSize(dataUrl);
+    return wImgRun(rid, n, Math.round(h * s.w / s.h), h);
+  };
+  zip.file("word/header1.xml", XML_HEAD + `<w:hdr ${DOCX_NS}>${wp(logo(D.logoBC, "rIdLogoBC", 701, 38e4) + "<w:r><w:tab/></w:r>" + logo(D.logoDouane, "rIdLogoDG", 702, 38e4), { tabs: '<w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs>', bdrBottom: { color: DC.blue, sz: 8 }, after: 0 })}</w:hdr>`);
+  const fld = (instr) => `<w:fldSimple w:instr="${instr}"><w:r><w:rPr>${WFONT}<w:b/><w:color w:val="${DC.blue}"/><w:sz w:val="17"/></w:rPr><w:t>1</w:t></w:r></w:fldSimple>`;
+  const ftxt = D.kind === "rapport" ? `Rapport d’inventaire — Parc ${D.parc} — ${D.dt.long}` : `Fiche de clôture — Parc ${D.parc} — ${D.dt.long}`;
+  zip.file("word/footer1.xml", XML_HEAD + `<w:ftr ${DOCX_NS}>${wp(wr(ftxt + "  ·  " + D.ref, { sz: 16, color: DC.grey }) + "<w:r><w:tab/></w:r>" + wr("Page ", { sz: 16, color: DC.grey }) + fld("PAGE") + wr(" / ", { sz: 16, color: DC.grey }) + fld("NUMPAGES"), { tabs: '<w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs>', bdrTop: DC.gold, after: 0 })}</w:ftr>`);
+  zip.file("word/styles.xml", XML_HEAD + `<w:styles xmlns:w="${NS_W}"><w:docDefaults><w:rPrDefault><w:rPr>${WFONT}<w:sz w:val="21"/><w:szCs w:val="21"/><w:lang w:val="fr-FR" w:eastAsia="fr-FR" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:outlineLvl w:val="0"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:outlineLvl w:val="1"/></w:pPr></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`);
+  zip.file("word/settings.xml", XML_HEAD + `<w:settings xmlns:w="${NS_W}"><w:defaultTabStop w:val="708"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`);
+  const rel = (id, type, target) => `<Relationship Id="${id}" Type="${NS_R}/${type}" Target="${target}"/>`;
+  zip.file("word/_rels/document.xml.rels", XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel("rIdSty", "styles", "styles.xml")}${rel("rIdSet", "settings", "settings.xml")}${rel("rIdHdr", "header", "header1.xml")}${rel("rIdFtr", "footer", "footer1.xml")}${rel("rIdLogoBC", "image", "media/logo_bc.png")}${rel("rIdLogoDG", "image", "media/logo_dg.png")}${A.cover ? rel("rIdCover", "image", "media/cover.jpg") : ""}${A.dash ? rel("rIdDash", "image", "media/dash.png") : ""}${A.comp ? rel("rIdComp", "image", "media/comp.png") : ""}</Relationships>`);
+  zip.file("word/_rels/header1.xml.rels", XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel("rIdLogoBC", "image", "media/logo_bc.png")}${rel("rIdLogoDG", "image", "media/logo_dg.png")}</Relationships>`);
+  zip.file("word/media/logo_bc.png", dataUrlBytes(D.logoBC));
+  zip.file("word/media/logo_dg.png", dataUrlBytes(D.logoDouane));
+  if (A.cover) zip.file("word/media/cover.jpg", A.cover);
+  if (A.dash) zip.file("word/media/dash.png", A.dash);
+  if (A.comp) zip.file("word/media/comp.png", A.comp);
+  zip.file("_rels/.rels", XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel("rId1", "officeDocument", "word/document.xml")}<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`);
+  const now = (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d+Z$/, "Z");
+  zip.file("docProps/core.xml", XML_HEAD + `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xmlEsc(D.kind === "rapport" ? "Rapport d’inventaire" : "Fiche de clôture")} — ${xmlEsc(D.parc)}</dc:title><dc:creator>Bénin Control / MAD-MAE</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created></cp:coreProperties>`);
+  zip.file("[Content_Types].xml", XML_HEAD + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`);
+  const blob = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", compression: "DEFLATE" });
+  return { blob };
+}
+const hesc = xmlEsc;
+const hrich = (t) => hesc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+function bytesToDataUrl(u8, mime) {
+  let s = "";
+  for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+  return "data:" + (mime || "image/png") + ";base64," + btoa(s);
+}
+const mmTw = (n) => (n * 0.0176389).toFixed(2) + "mm";
+function htmlCover(b, A) {
+  const T = COVER_TW;
+  const at = (top, extra) => `position:absolute;left:${mmTw(T.lx)};right:${mmTw(1134)};top:${mmTw(top)};${extra || ""}`;
+  const lines = String(b.title || "").split("\n").map(hesc).join("<br>");
+  return `<section class="rp-cover" style="background-image:url(${A.cover})">
+    <div class="ck" style="${at(5e3)}">${hesc(b.kicker || "")}</div>
+    <div class="ct" style="${at(5560)}">${lines}</div>
+    <div class="cp" style="${at(8300)}">${hesc(b.parc || "")}</div>
+    ${(b.rows || []).map(([k, v], i) => `<div class="cr" style="${at(10900 + i * 560)}height:${mmTw(560)}"><span class="k">${hesc(k)}</span><span class="v">${hesc(v)}</span></div>`).join("")}
+    <div class="cm" style="${at(15400)}">${hesc(b.mois || "")}</div>
+    <div class="co" style="${at(15820)}">${hesc(b.org || "")}</div></section>`;
+}
+function htmlBlock(b, A) {
+  switch (b.t) {
+    case "cover":
+      return "";
+    case "pb":
+      return '<div class="rp-pb"></div>';
+    case "h1":
+      return `<h1 class="rp-h1"${b.pb ? ' style="break-before:page"' : ""}>${b.num ? `<span class="rp-num">${hesc(b.num)}</span>` : ""}${hesc(b.text)}</h1>`;
+    case "h2":
+      return `<h2 class="rp-h2">${hesc(b.text)}</h2>`;
+    case "p":
+      return `<p class="rp-p${b.small ? " rp-sm" : ""}${b.italic ? " rp-it" : ""}"${b.before || b.keep ? ` style="${b.before ? `margin-top:${Math.round(b.before / 20)}pt;` : ""}${b.keep ? "break-after:avoid;" : ""}"` : ""}>${hrich(b.text)}</p>`;
+    case "ul":
+      return `<ul class="rp-ul">${b.items.map((t) => `<li>${hrich(t)}</li>`).join("")}</ul>`;
+    case "ol":
+      return `<ol class="rp-ol">${b.items.map((t) => `<li>${hrich(t)}</li>`).join("")}</ol>`;
+    case "toc":
+      return `<div class="rp-toc"><div class="rp-toct">SOMMAIRE</div>${(A.toc || []).map((t, i) => `<div class="rp-toci"><b>${pad2(i + 1)}</b><span>${hesc(t)}</span></div>`).join("")}</div>`;
+    case "banner":
+      return `<div class="rp-banner"><div class="rp-bt">${hesc(b.title)}</div><div class="rp-bs">${hesc(b.sub)}</div></div>`;
+    case "table": {
+      const cols = b.widths.map((w) => `<col style="width:${(w * 100).toFixed(1)}%">`).join("");
+      const head = b.head ? `<thead><tr>${b.head.map((h, i) => `<th style="text-align:${i > 0 && b.widths.length === 2 ? "center" : "left"}">${hesc(h)}</th>`).join("")}</tr></thead>` : "";
+      const rows = b.rows.map((r, ri) => `<tr class="${b.zebra && ri % 2 ? "z" : ""}">${r.map((c0, i) => {
+        const c = cellVal(c0);
+        const lab = b.labelCol && i === 0;
+        return `<td class="${lab ? "lab" : ""}" style="text-align:${c.align || "left"};${c.bold ? "font-weight:700;" : ""}${c.color ? "color:#" + c.color + ";" : ""}${c.fill ? "background:#" + c.fill + ";" : ""}">${hrich(c.text == null ? "" : String(c.text))}</td>`;
+      }).join("")}</tr>`).join("");
+      const keep = b.keep !== false && !b.repeat;
+      return `<table class="rp-t${b.small ? " rp-ts" : ""}${keep ? " rp-keep" : ""}" style="width:${Math.round((b.wFrac || 1) * 100)}%"><colgroup>${cols}</colgroup>${head}<tbody>${rows}</tbody></table>`;
+    }
+    case "kpis":
+      return `<div class="rp-kpis">${b.items.map((it) => `<div class="rp-kpi" style="background:#${TONE[it.tone] || DC.navy};${it.tone === "gold" ? "color:#" + DC.navy : ""}"><div class="v">${hesc(it.value)}</div><div class="l">${hesc(it.label)}</div></div>`).join("")}</div>`;
+    case "callout":
+      return `<div class="rp-call"><div class="ct">${hesc(b.title)}</div>${b.lines.map((t) => `<div class="cl"><span>•</span><div>${hrich(t)}</div></div>`).join("")}</div>`;
+    case "box":
+      return `<div class="rp-box" style="min-height:${b.text ? 16 : b.lines * 6}mm">${b.text ? hesc(b.text).replace(/\n+/g, "<br>") : ""}</div>`;
+    case "img":
+      return A[b.key] ? `<figure class="rp-fig"><img src="${A[b.key]}" style="width:${b.wIn}in"><figcaption>${hesc(b.caption || "")}</figcaption></figure>` : "";
+    case "sign":
+      return `<div class="rp-signt">Signatures</div><table class="rp-sign"><tr>${b.parties.map((p) => `<th>${hesc(p.title)}</th>`).join("")}</tr><tr class="sg">${b.parties.map(() => `<td>${b.withDate ? "Signature et cachet :" : "Signature :"}</td>`).join("")}</tr><tr class="nm">${b.parties.map((p) => `<td>Nom : ${p.name ? `<b>${hesc(p.name)}</b>` : "______________"}</td>`).join("")}</tr></table>`;
+    case "facts":
+      return (b.title ? `<div class="rp-h3">${hesc(b.title)}</div>` : "") + `<div class="rp-facts">${b.items.map((it) => `<div class="rp-fact"><div class="l">${hesc(it.label)}</div><div class="v">${hesc(it.value)}</div></div>`).join("")}</div>`;
+    case "steps": {
+      let n = 0;
+      return `<table class="rp-steps">${b.phases.map((ph) => `<tr class="ph"><th colspan="2">${hesc(ph.title)}</th></tr>${ph.items.map((t) => {
+        n++;
+        return `<tr><td class="n">${n}</td><td class="t${n % 2 ? " z" : ""}">${hrich(t)}</td></tr>`;
+      }).join("")}`).join("")}</table>`;
+    }
+    case "verdict":
+      return `<div class="rp-verdict" style="background:#${TONE[b.tone] || DC.navy}"><div class="vt">${hesc(b.title)}</div><div class="vx">${hesc(b.text)}</div></div>`;
+    default:
+      return "";
+  }
+}
+const RP_CSS = `#rp-host{font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif;color:#1B2A3A;font-size:10.5pt;line-height:1.4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#rp-host *{box-sizing:border-box}
+.rp-cover{page:cover;width:210mm;height:296.5mm;position:relative;break-after:page;overflow:hidden;background-color:#fff;background-size:100% 100%;background-repeat:no-repeat}
+.rp-cover div{overflow:visible}.rp-cover .ck{font-size:10pt;font-weight:800;letter-spacing:2.5pt;color:#E3B505;line-height:18pt}
+.rp-cover .ct{font-size:46pt;font-weight:800;letter-spacing:1.5pt;line-height:54pt;color:#fff}
+.rp-cover .cp{font-size:24pt;font-weight:800;color:#F3D468;line-height:32pt}
+.rp-cover .cr{display:flex;align-items:center;border-bottom:.5pt solid #C9D6E2;width:auto}.rp-cover .cr .k{width:${(2300 * 0.0176389).toFixed(1)}mm;font-size:9pt;font-weight:800;letter-spacing:1.2pt;text-transform:uppercase;color:#1F6FA3}.rp-cover .cr .v{font-size:11.5pt;color:#1B2A3A}
+.rp-cover .cm{font-size:14pt;font-weight:800;letter-spacing:3pt;color:#fff;text-align:center;line-height:21pt}.rp-cover .co{font-size:9pt;color:#F3D468;text-align:center;letter-spacing:.5pt;line-height:17pt}
+.rp-wrapt{width:100%;border-collapse:collapse}.rp-wrapt>thead>tr>td{height:22mm;padding:0 17mm;vertical-align:bottom}.rp-wrapt>tfoot>tr>td{height:20mm;padding:0 17mm;vertical-align:top}.rp-wrapt>tbody>tr>td{padding:0 17mm}
+.rp-hd{display:flex;justify-content:space-between;align-items:center;border-bottom:1.5pt solid #1F6FA3;padding-bottom:2mm}.rp-hd img{height:11mm}
+.rp-ft{border-top:.75pt solid #E3B505;margin-top:5mm;padding-top:2mm;font-size:8pt;color:#5B6B7B}
+.rp-h1{font-size:17pt;font-weight:800;color:#0B3C5D;border-bottom:1.5pt solid #1F6FA3;padding-bottom:2mm;margin:0 0 5mm;break-after:avoid}.rp-num{background:#1F6FA3;color:#fff;padding:.5mm 3mm;margin-right:5mm;font-size:15pt}
+.rp-h2{font-size:12.5pt;font-weight:800;color:#1F6FA3;margin:5mm 0 2mm;break-after:avoid}
+.rp-p{margin:0 0 2.5mm;text-align:justify}.rp-sm{font-size:9pt;color:#5B6B7B}.rp-it{font-style:italic}
+.rp-ul,.rp-ol{margin:0 0 3mm;padding-left:7mm}.rp-ul li,.rp-ol li{margin-bottom:1.5mm;text-align:justify}.rp-ul li::marker,.rp-ol li::marker{color:#1F6FA3;font-weight:700}
+.rp-toct{font-size:26pt;font-weight:800;letter-spacing:3pt;color:#0B3C5D;border-bottom:2.5pt solid #E3B505;padding-bottom:3mm;margin:4mm 0 8mm}.rp-toci{display:flex;gap:6mm;align-items:baseline;font-size:12.5pt;padding:2.2mm 0;border-bottom:.75pt dotted #C9D6E2}.rp-toci b{color:#1F6FA3;font-size:15pt;min-width:9mm}
+.rp-banner{background:#0B3C5D;color:#fff;text-align:center;padding:4mm;margin-bottom:4mm;border-bottom:2.2mm solid #E3B505}.rp-bt{font-size:17pt;font-weight:800;letter-spacing:1.5pt}.rp-bs{font-size:9pt;color:#F3D468;margin-top:1mm}
+.rp-t{border-collapse:collapse;margin:0 auto 4mm;font-size:9.5pt}.rp-ts{font-size:8.5pt}.rp-t th{background:#0B3C5D;color:#fff;padding:2mm 2.5mm;text-align:left}.rp-t td{padding:1.8mm 2.5mm;border:.5pt solid #C9D6E2;vertical-align:middle}.rp-t tr.z td{background:#EEF5FA}.rp-t td.lab{background:#DCEAF5;color:#0B3C5D;font-weight:700}.rp-t tr{break-inside:avoid}.rp-t thead{display:table-header-group}.rp-keep{break-inside:avoid}
+.rp-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:2mm;margin:0 0 5mm;break-inside:avoid}.rp-kpi{color:#fff;text-align:center;padding:3mm 2mm}.rp-kpi .v{font-size:26pt;font-weight:800;line-height:1.1}.rp-kpi .l{font-size:8.5pt;text-transform:uppercase;letter-spacing:.5pt}
+.rp-call{background:#EEF5FA;border-left:2mm solid #1F6FA3;padding:3.5mm 5mm;margin:0 0 5mm;break-inside:avoid}.rp-call .ct{font-weight:800;color:#0B3C5D;font-size:11.5pt;margin-bottom:2mm}.rp-call .cl{display:flex;gap:3mm;margin-bottom:1.5mm}.rp-call .cl span{color:#1F6FA3;font-weight:800}
+.rp-box{border:.75pt solid #C9D6E2;padding:3mm;margin:0 0 5mm;break-inside:avoid}
+.rp-fig{margin:2mm 0 5mm;text-align:center;break-inside:avoid}.rp-fig img{max-width:100%;height:auto}.rp-fig figcaption{font-size:8.5pt;font-style:italic;color:#5B6B7B}
+.rp-signt{font-size:12pt;font-weight:800;color:#1F6FA3;margin:6mm 0 2mm;break-after:avoid}.rp-sign{width:100%;border-collapse:collapse;table-layout:fixed;break-inside:avoid}.rp-sign th{background:#DCEAF5;color:#0B3C5D;font-size:9pt;padding:2.5mm;border:.5pt solid #C9D6E2}.rp-sign td{border:.5pt solid #C9D6E2;padding:2.5mm;font-size:9pt;color:#5B6B7B;vertical-align:top}.rp-sign tr.sg td{height:20mm}.rp-sign tr.nm td{height:10mm;color:#1B2A3A}
+.rp-h3{font-size:11pt;font-weight:800;color:#1F6FA3;margin:2mm 0 1.5mm;break-after:avoid}
+.rp-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:2mm;margin:0 0 5mm;break-inside:avoid}.rp-fact{background:#EEF5FA;border-left:1.2mm solid #1F6FA3;padding:2.2mm 3mm}.rp-fact .l{font-size:7.5pt;font-weight:800;letter-spacing:.8pt;text-transform:uppercase;color:#1F6FA3}.rp-fact .v{font-size:10.5pt;font-weight:800;color:#0B3C5D}
+.rp-steps{width:100%;border-collapse:collapse;margin:0 0 5mm;font-size:9.5pt}.rp-steps tr{break-inside:avoid}.rp-steps th{background:#0B3C5D;color:#fff;text-align:left;padding:1.6mm 3mm;font-size:8.5pt;letter-spacing:1pt;text-transform:uppercase;break-after:avoid}.rp-steps td.n{background:#1F6FA3;color:#fff;font-weight:800;font-size:12pt;text-align:center;width:11mm}.rp-steps td.t{padding:2mm 3mm;background:#fff;border-bottom:.5pt solid #DCEAF5}.rp-steps td.t.z{background:#EEF5FA}
+.rp-verdict{color:#fff;padding:4mm 6mm;margin:0 0 5mm;border-left:3.5mm solid #E3B505;break-inside:avoid}.rp-verdict .vt{font-size:18pt;font-weight:800;line-height:1.15}.rp-verdict .vx{font-size:10pt;margin-top:1mm;opacity:.95}
+.rp-pb{break-before:page;height:0}`;
+function docToHtml(D, blocks, A) {
+  const AA = { ...A, toc: blocks.map(tocLabel).filter(Boolean) };
+  let h = "";
+  const cv = blocks.find((b) => b.t === "cover");
+  if (cv) h += htmlCover(cv, AA);
+  const ftxt = (D.kind === "rapport" ? "Rapport d’inventaire" : "Fiche de clôture") + ` — Parc ${D.parc} — ${D.dt.long} · ${D.ref}`;
+  h += `<table class="rp-wrapt"><thead><tr><td><div class="rp-hd"><img src="${D.logoBC}"><img src="${D.logoDouane}"></div></td></tr></thead><tfoot><tr><td><div class="rp-ft">${hesc(ftxt)}</div></td></tr></tfoot><tbody><tr><td>${blocks.map((b) => htmlBlock(b, AA)).join("")}</td></tr></tbody></table>`;
+  return h;
+}
+function printHtmlDoc(html) {
+  const old = document.getElementById("rp-host");
+  if (old) old.remove();
+  const oldSt = document.getElementById("rp-print-style");
+  if (oldSt) oldSt.remove();
+  const host = document.createElement("div");
+  host.id = "rp-host";
+  host.innerHTML = `<style>${RP_CSS}</style>` + html;
+  document.body.appendChild(host);
+  const st = document.createElement("style");
+  st.id = "rp-print-style";
+  st.textContent = "#rp-host{display:none}@page{size:A4;margin:0}@page cover{margin:0}@media print{body.rp-printing #root{display:none!important}body.rp-printing #rp-host{display:block!important}}";
+  document.head.appendChild(st);
+  document.body.classList.add("rp-printing");
+  const cleanup = () => {
+    document.body.classList.remove("rp-printing");
+    const h2 = document.getElementById("rp-host");
+    if (h2) h2.remove();
+    const s2 = document.getElementById("rp-print-style");
+    if (s2) s2.remove();
+  };
+  window.addEventListener("afterprint", cleanup, { once: true });
+  setTimeout(() => window.print(), 300);
+}
+function defaultBlocks(D) {
+  return D.kind === "rapport" ? reportBlocks(D) : closureBlocks(D, true);
+}
+async function makeDocFile(D, blocksIn) {
+  const blocks = blocksIn || defaultBlocks(D);
+  return { blocks, ...await buildDocx(D, blocks) };
+}
+async function makeDocPrint(D, blocksIn) {
+  const blocks = blocksIn || defaultBlocks(D);
+  const A0 = await makeAssets(D, blocks);
+  const A = {};
+  Object.keys(A0).forEach((k) => {
+    A[k] = bytesToDataUrl(A0[k], k === "cover" ? "image/jpeg" : "image/png");
+  });
+  printHtmlDoc(docToHtml(D, blocks, A));
+}
+const BT_LABEL = { cover: "Page de garde", toc: "Sommaire", h1: "Titre de section", h2: "Sous-titre", p: "Paragraphe", ul: "Liste à puces", ol: "Liste numérotée", table: "Tableau", facts: "Fiche d'informations", steps: "Étapes", verdict: "Bandeau de résultat", kpis: "Chiffres clés", callout: "Encadré", box: "Cadre d'observations", img: "Graphique", sign: "Signatures", banner: "Bandeau de titre", pb: "Saut de page" };
+function blockPreview(b) {
+  const cut = (t) => {
+    const s = String(t || "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+    return s.length > 80 ? s.slice(0, 80) + "…" : s;
+  };
+  switch (b.t) {
+    case "cover":
+      return cut(b.title) + " — " + cut(b.parc);
+    case "h1":
+      return cut((b.num ? b.num + ". " : "") + b.text);
+    case "h2":
+    case "p":
+      return cut(b.text);
+    case "ul":
+    case "ol":
+      return `${b.items.length} point(s) — ${cut(b.items[0])}`;
+    case "table":
+      return `${b.rows.length} ligne(s) — ${cut((b.head || []).join(" · ") || b.rows[0] && b.rows[0].map((c) => cellVal(c).text).join(" · "))}`;
+    case "kpis":
+      return b.items.map((i) => `${i.value} ${i.label}`).join(" · ");
+    case "facts":
+      return b.items.map((i) => i.value).join(" · ");
+    case "steps":
+      return `${b.phases.length} phases — ${b.phases.reduce((a, p) => a + p.items.length, 0)} étapes`;
+    case "verdict":
+      return cut(b.title);
+    case "callout":
+      return cut(b.title);
+    case "img":
+      return cut(b.caption);
+    case "sign":
+      return b.parties.map((p) => p.name || "—").join(" · ");
+    case "banner":
+      return cut(b.title);
+    case "box":
+      return cut(b.text) || "à compléter à la main";
+    default:
+      return "";
+  }
+}
+function DocEditor({ blocks, setBlocks, onReset }) {
+  const [open, setOpen] = useState(-1);
+  const upd = (i, patch) => setBlocks((bs) => bs.map((b, k) => k === i ? { ...b, ...patch } : b));
+  const del = (i) => {
+    setBlocks((bs) => bs.filter((_, k) => k !== i));
+    setOpen(-1);
+  };
+  const mv = (i, d) => {
+    setBlocks((bs) => {
+      const a = [...bs], j = i + d;
+      if (j < 0 || j >= a.length) return bs;
+      [a[i], a[j]] = [a[j], a[i]];
+      return a;
+    });
+    setOpen(-1);
+  };
+  const ins = (i, blk) => {
+    setBlocks((bs) => {
+      const a = [...bs];
+      a.splice(i + 1, 0, blk);
+      return a;
+    });
+    setOpen(i + 1);
+  };
+  const fld = "w-full border-2 border-slate-200 rounded-lg px-2 py-1 text-sm bg-white";
+  const TA = ({ v, on, rows, tid }) => /* @__PURE__ */ React.createElement("textarea", { "data-testid": tid, rows: rows || 3, value: v == null ? "" : v, onChange: (e) => on(e.target.value), className: fld });
+  const IN = ({ v, on, tid, ph }) => /* @__PURE__ */ React.createElement("input", { "data-testid": tid, value: v == null ? "" : v, placeholder: ph || "", onChange: (e) => on(e.target.value), className: fld });
+  const Lbl = ({ children }) => /* @__PURE__ */ React.createElement("div", { className: "text-[11px] font-bold text-slate-500 mt-2 mb-0.5" }, children);
+  const setItem = (i, key, k, val) => upd(i, { [key]: blocks[i][key].map((x, n) => n === k ? val : x) });
+  const List = ({ i, field, label }) => /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Lbl, null, label), blocks[i][field].map((t, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "flex gap-1 mb-1" }, /* @__PURE__ */ React.createElement("textarea", { "data-testid": `ed-item-${i}-${k}`, rows: 2, value: t, onChange: (e) => setItem(i, field, k, e.target.value), className: fld }), /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-item-del-${i}-${k}`, title: "Supprimer ce point", onClick: () => upd(i, { [field]: blocks[i][field].filter((_, n) => n !== k) }), className: "px-2 text-rose-700 font-bold" }, "✕"))), /* @__PURE__ */ React.createElement("button", { onClick: () => upd(i, { [field]: [...blocks[i][field], "Nouveau point"] }), className: "text-xs font-bold text-blue-700" }, "+ Ajouter un point"));
+  const body = (b, i) => {
+    switch (b.t) {
+      case "p":
+      case "h1":
+      case "h2":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Texte (entourez de ** pour mettre en gras)"), /* @__PURE__ */ React.createElement(TA, { tid: `ed-text-${i}`, v: b.text, on: (v) => upd(i, { text: v }), rows: b.t === "p" ? 6 : 2 }));
+      case "ul":
+      case "ol":
+        return /* @__PURE__ */ React.createElement(List, { i, field: "items", label: "Points" });
+      case "callout":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Titre"), /* @__PURE__ */ React.createElement(IN, { v: b.title, on: (v) => upd(i, { title: v }) }), /* @__PURE__ */ React.createElement(List, { i, field: "lines", label: "Lignes" }));
+      case "box":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Texte (laisser vide pour un cadre à remplir à la main)"), /* @__PURE__ */ React.createElement(TA, { v: b.text, on: (v) => upd(i, { text: v }) }));
+      case "img":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Légende"), /* @__PURE__ */ React.createElement(IN, { v: b.caption, on: (v) => upd(i, { caption: v }) }));
+      case "banner":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Titre"), /* @__PURE__ */ React.createElement(IN, { v: b.title, on: (v) => upd(i, { title: v }) }), /* @__PURE__ */ React.createElement(Lbl, null, "Sous-titre"), /* @__PURE__ */ React.createElement(IN, { v: b.sub, on: (v) => upd(i, { sub: v }) }));
+      case "kpis":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, b.items.map((it, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "grid grid-cols-3 gap-1 mt-1" }, /* @__PURE__ */ React.createElement(IN, { v: it.value, on: (v) => setItem(i, "items", k, { ...it, value: v }) }), /* @__PURE__ */ React.createElement("div", { className: "col-span-2" }, /* @__PURE__ */ React.createElement(IN, { v: it.label, on: (v) => setItem(i, "items", k, { ...it, label: v }) })))));
+      case "sign":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, b.parties.map((p, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "mt-1" }, /* @__PURE__ */ React.createElement(IN, { v: p.title, on: (v) => setItem(i, "parties", k, { ...p, title: v }) }), /* @__PURE__ */ React.createElement(IN, { v: p.name, ph: "Nom du signataire", on: (v) => setItem(i, "parties", k, { ...p, name: v }) }))));
+      case "facts":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, b.title !== void 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Titre"), /* @__PURE__ */ React.createElement(IN, { v: b.title, on: (v) => upd(i, { title: v }) })), b.items.map((it, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "grid grid-cols-3 gap-1 mt-1" }, /* @__PURE__ */ React.createElement(IN, { v: it.label, on: (v) => setItem(i, "items", k, { ...it, label: v }) }), /* @__PURE__ */ React.createElement("div", { className: "col-span-2" }, /* @__PURE__ */ React.createElement(IN, { v: it.value, on: (v) => setItem(i, "items", k, { ...it, value: v }) })))));
+      case "verdict":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Titre"), /* @__PURE__ */ React.createElement(IN, { v: b.title, on: (v) => upd(i, { title: v }) }), /* @__PURE__ */ React.createElement(Lbl, null, "Texte"), /* @__PURE__ */ React.createElement(TA, { v: b.text, rows: 2, on: (v) => upd(i, { text: v }) }));
+      case "steps":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, b.phases.map((ph, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "mt-2" }, /* @__PURE__ */ React.createElement(IN, { v: ph.title, on: (v) => setItem(i, "phases", k, { ...ph, title: v }) }), ph.items.map((t, m) => /* @__PURE__ */ React.createElement("div", { key: m, className: "flex gap-1 mt-1" }, /* @__PURE__ */ React.createElement("textarea", { rows: 2, value: t, onChange: (e) => setItem(i, "phases", k, { ...ph, items: ph.items.map((x, n) => n === m ? e.target.value : x) }), className: fld }), /* @__PURE__ */ React.createElement("button", { title: "Supprimer cette étape", onClick: () => setItem(i, "phases", k, { ...ph, items: ph.items.filter((_, n) => n !== m) }), className: "px-2 text-rose-700 font-bold" }, "✕"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setItem(i, "phases", k, { ...ph, items: [...ph.items, "Nouvelle étape"] }), className: "text-xs font-bold text-blue-700 mt-1" }, "+ Ajouter une étape"))));
+      case "cover":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Bandeau supérieur"), /* @__PURE__ */ React.createElement(IN, { v: b.kicker, on: (v) => upd(i, { kicker: v }) }), /* @__PURE__ */ React.createElement(Lbl, null, "Titre (une ligne par rang)"), /* @__PURE__ */ React.createElement(TA, { v: b.title, rows: 2, on: (v) => upd(i, { title: v }) }), /* @__PURE__ */ React.createElement(Lbl, null, "Parc"), /* @__PURE__ */ React.createElement(IN, { v: b.parc, on: (v) => upd(i, { parc: v }) }), b.rows.map((r, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "grid grid-cols-3 gap-1 mt-1" }, /* @__PURE__ */ React.createElement(IN, { v: r[0], on: (v) => setItem(i, "rows", k, [v, r[1]]) }), /* @__PURE__ */ React.createElement("div", { className: "col-span-2" }, /* @__PURE__ */ React.createElement(IN, { v: r[1], on: (v) => setItem(i, "rows", k, [r[0], v]) })))), /* @__PURE__ */ React.createElement(Lbl, null, "Mois et année"), /* @__PURE__ */ React.createElement(IN, { v: b.mois, on: (v) => upd(i, { mois: v }) }), /* @__PURE__ */ React.createElement(Lbl, null, "Pied de page"), /* @__PURE__ */ React.createElement(IN, { v: b.org, on: (v) => upd(i, { org: v }) }));
+      case "table": {
+        const cap = 40;
+        const setCell = (r, c, v) => upd(i, { rows: b.rows.map((row, n) => n !== r ? row : row.map((cell, m) => m !== c ? cell : typeof cell === "object" && cell !== null ? { ...cell, text: v } : v)) });
+        return /* @__PURE__ */ React.createElement("div", { className: "overflow-x-auto" }, b.head && /* @__PURE__ */ React.createElement("div", { className: "flex gap-1 mt-1" }, b.head.map((h, c) => /* @__PURE__ */ React.createElement("input", { key: c, value: h, onChange: (e) => upd(i, { head: b.head.map((x, n) => n === c ? e.target.value : x) }), className: fld + " font-bold bg-slate-50" })), /* @__PURE__ */ React.createElement("span", { className: "w-6" })), b.rows.slice(0, cap).map((row, r) => /* @__PURE__ */ React.createElement("div", { key: r, className: "flex gap-1 mt-1 items-start" }, row.map((cell, c) => /* @__PURE__ */ React.createElement("textarea", { key: c, rows: 1, "data-testid": `ed-cell-${i}-${r}-${c}`, value: String(cellVal(cell).text == null ? "" : cellVal(cell).text), onChange: (e) => setCell(r, c, e.target.value), className: fld, style: { minWidth: 70 } })), /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-row-del-${i}-${r}`, title: "Supprimer cette ligne", onClick: () => upd(i, { rows: b.rows.filter((_, n) => n !== r) }), className: "w-6 text-rose-700 font-bold" }, "✕"))), b.rows.length > cap && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 mt-2" }, "… ", b.rows.length - cap, " autres lignes, modifiables ensuite directement dans Word."), /* @__PURE__ */ React.createElement("button", { onClick: () => upd(i, { rows: [...b.rows, (b.rows[0] || b.head || [""]).map(() => "")] }), className: "text-xs font-bold text-blue-700 mt-2" }, "+ Ajouter une ligne"));
+      }
+      default:
+        return /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 mt-1" }, b.t === "toc" ? "Le sommaire se met à jour tout seul d'après les titres conservés." : "");
+    }
+  };
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "doc-editor" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-700 mb-2" }, "Touchez un bloc pour le modifier. Vous pouvez aussi le déplacer (↑ ↓), le supprimer (✕) ou insérer un paragraphe ou un sous-titre après lui. Le Word obtenu reste entièrement modifiable."), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-1.5" }, blocks.map((b, i) => b.t === "pb" ? null : /* @__PURE__ */ React.createElement("div", { key: b._id || i, "data-testid": `ed-b-${i}`, className: "rounded-lg border-2 " + (open === i ? "border-blue-300 bg-blue-50/40" : "border-slate-200 bg-white") }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1 px-2 py-1.5" }, /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-open-${i}`, onClick: () => setOpen(open === i ? -1 : i), className: "flex-1 text-left min-w-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-extrabold uppercase tracking-wide text-blue-800" }, BT_LABEL[b.t] || b.t), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-slate-600 truncate" }, blockPreview(b))), /* @__PURE__ */ React.createElement("button", { title: "Monter", onClick: () => mv(i, -1), className: "px-1.5 text-slate-600" }, "↑"), /* @__PURE__ */ React.createElement("button", { title: "Descendre", onClick: () => mv(i, 1), className: "px-1.5 text-slate-600" }, "↓"), /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-del-${i}`, title: "Supprimer ce bloc", onClick: () => del(i), className: "px-1.5 text-rose-700 font-bold" }, "✕")), open === i && /* @__PURE__ */ React.createElement("div", { className: "px-2 pb-2" }, body(b, i), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-addp-${i}`, onClick: () => ins(i, { t: "p", text: "Nouveau paragraphe.", _id: "n" + Date.now() }), className: "text-xs font-bold text-blue-700" }, "+ Paragraphe après"), /* @__PURE__ */ React.createElement("button", { onClick: () => ins(i, { t: "h2", text: "Nouveau sous-titre", _id: "n" + Date.now() }), className: "text-xs font-bold text-blue-700" }, "+ Sous-titre après")))))), /* @__PURE__ */ React.createElement("button", { onClick: onReset, className: "mt-3 text-xs font-bold text-slate-600 underline" }, "Rétablir le contenu d'origine"));
+}
+function DocBuilder({ kind, base, locked, extras, parcsList, onDone, standalone }) {
+  const PREF = "mmte-doc-prefs", DRAFT = "mmte-doc-draft";
+  const readLS = (k) => {
+    try {
+      return JSON.parse(localStorage.getItem(k) || "null");
+    } catch (e) {
+      return null;
+    }
+  };
+  const writeLS = (k, v) => {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+    } catch (e) {
+    }
+  };
+  const [f, setF] = useState(() => {
+    const prefs = readLS(PREF) || {};
+    const draft = standalone ? readLS(DRAFT) || {} : {};
+    return {
+      parc: "",
+      invDate: todayISO(),
+      debut: "08H",
+      fin: "18H",
+      agents: "",
+      sDouane: "",
+      sBC: "",
+      sParc: "",
+      obs: "",
+      mmte: "",
+      found: "",
+      registered: "",
+      liste: "",
+      manus: "",
+      erron: "",
+      t6: "30%",
+      t8: "70%",
+      t10: "0%",
+      taux: true,
+      aM: true,
+      aH: true,
+      aD: true,
+      modele: "visuel",
+      ...prefs.t6 ? { t6: prefs.t6, t8: prefs.t8, t10: prefs.t10, taux: prefs.taux !== false } : {},
+      ...prefs.modele ? { modele: prefs.modele } : {},
+      ...draft,
+      ...base || {}
+    };
+  });
+  const [busy, setBusy] = useState("");
+  const [err, setErr] = useState("");
+  const [ed, setEd] = useState(null);
+  const set = (k, v) => setF((s) => {
+    const n = { ...s, [k]: v };
+    if (standalone) writeLS(DRAFT, n);
+    return n;
+  });
+  const num = (k) => k === "" || k == null ? 0 : parseInt(k, 10) || 0;
+  const digits = (e) => e.target.value.replace(/\D/g, "");
+  const mmte = num(f.mmte), found = num(f.found), registered = num(f.registered);
+  const missing = Math.max(0, mmte - found);
+  const problems = [];
+  if (!String(f.parc).trim()) problems.push("Indiquez le nom du parc.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.invDate)) problems.push("Indiquez la date de l'inventaire.");
+  const warn = found > mmte ? "Le nombre de véhicules retrouvés dépasse le nombre attendu sur MMTE : vérifiez les chiffres." : "";
+  const buildD = () => {
+    writeLS(PREF, { t6: f.t6, t8: f.t8, t10: f.t10, taux: f.taux, modele: f.modele });
+    return normDoc({
+      kind,
+      modele: f.modele,
+      parc: f.parc,
+      invDate: f.invDate,
+      heures: { debut: (f.debut || "08H").trim(), fin: (f.fin || "18H").trim() },
+      minutes: base && base.minutes,
+      mmte,
+      found,
+      registered,
+      missing,
+      agents: String(f.agents || "").split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean),
+      sign: { douane: f.sDouane.trim(), bc: f.sBC.trim(), parc: f.sParc.trim() },
+      observations: String(f.obs || "").trim(),
+      listeParc: String(f.liste).trim() !== "" ? num(f.liste) : null,
+      manuscrits: String(f.manus).trim() !== "" ? num(f.manus) : registered,
+      erronnes: String(f.erron).trim() !== "" ? num(f.erron) : null,
+      taux: [f.t6, f.t8, f.t10],
+      opts: { annexMissing: f.aM, annexHors: f.aH, annexDepot: f.aD, taux: f.taux },
+      extras: locked ? extras : null,
+      logoBC: LOGO_BC,
+      logoDouane: LOGO_DOUANES
+    });
+  };
+  const go = async (how) => {
+    setErr("");
+    if (problems.length) {
+      setErr(problems[0]);
+      return;
+    }
+    setBusy(how);
+    try {
+      const D = ed ? ed.D : buildD();
+      const blocks = ed ? ed.blocks : null;
+      if (how === "word") {
+        const { blob } = await makeDocFile(D, blocks);
+        downloadBlob(`${kind === "rapport" ? "Rapport_inventaire" : "Fiche_cloture"}_${slugify(D.parc)}_${D.invDate}.docx`, blob, blob.type);
+        if (onDone) onDone();
+      } else {
+        await makeDocPrint(D, blocks);
+        if (onDone) onDone();
+      }
+    } catch (e) {
+      console.warn("Document :", e && (e.message || e));
+      setErr("Le document n'a pas pu être généré (" + String(e && e.message || e).slice(0, 90) + ").");
+    }
+    setBusy("");
+  };
+  const openEditor = () => {
+    setErr("");
+    if (problems.length) {
+      setErr(problems[0]);
+      return;
+    }
+    const D = buildD();
+    setEd({ D, blocks: defaultBlocks(D).map((b, n) => ({ ...b, _id: "b" + n })) });
+  };
+  const resetEditor = () => setEd((s) => ({ ...s, blocks: defaultBlocks(s.D).map((b, n) => ({ ...b, _id: "b" + n })) }));
+  const setEdBlocks = (fn) => setEd((s) => ({ ...s, blocks: typeof fn === "function" ? fn(s.blocks) : fn }));
+  const buttons = /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-word", disabled: !!busy, onClick: () => go("word"), className: "py-3 rounded-lg text-white font-bold text-sm disabled:opacity-60", style: { background: BLUE_DEEP } }, busy === "word" ? "Préparation du fichier..." : kind === "rapport" ? "Télécharger le rapport Word (.docx)" : "Télécharger la fiche de clôture Word (.docx)"), /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-pdf", disabled: !!busy, onClick: () => go("pdf"), className: "py-3 rounded-lg border-2 font-bold text-sm disabled:opacity-60", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, busy === "pdf" ? "Préparation..." : "Générer le PDF (impression)"));
+  const errBox = err && /* @__PURE__ */ React.createElement("div", { className: "mb-3 text-sm rounded-lg bg-rose-50 border border-rose-200 text-rose-800 p-2", "data-testid": "df-err" }, err);
+  if (ed) {
+    return /* @__PURE__ */ React.createElement("div", { "data-testid": "doc-builder-edit" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "ed-back", onClick: () => setEd(null), className: "text-sm font-bold mb-3", style: { color: BLUE_DEEP } }, "← Retour aux informations"), /* @__PURE__ */ React.createElement(DocEditor, { blocks: ed.blocks, setBlocks: setEdBlocks, onReset: resetEditor }), /* @__PURE__ */ React.createElement("div", { className: "mt-4" }, errBox, buttons));
+  }
+  const inp = "mt-1 w-full border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm font-normal bg-white";
+  const lab = "text-xs font-bold text-slate-600";
+  const Num = ({ k, label, hint, ro }) => /* @__PURE__ */ React.createElement("label", { className: lab }, label, /* @__PURE__ */ React.createElement("input", { "data-testid": "df-" + k, inputMode: "numeric", readOnly: ro, value: f[k], onChange: (e) => set(k, digits(e)), placeholder: hint || "", className: inp + (ro ? " bg-slate-100" : "") }));
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "doc-builder" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 mb-3" }, /* @__PURE__ */ React.createElement("label", { className: "col-span-2 " + lab }, "Parc inventorié", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-parc", list: "df-parcs", readOnly: locked, value: f.parc, onChange: (e) => set("parc", e.target.value), className: inp + (locked ? " bg-slate-100" : "") }), /* @__PURE__ */ React.createElement("datalist", { id: "df-parcs" }, (parcsList || []).map((p) => /* @__PURE__ */ React.createElement("option", { key: p, value: p })))), /* @__PURE__ */ React.createElement("label", { className: lab }, "Date de l'inventaire", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-date", type: "date", readOnly: locked, value: f.invDate, onChange: (e) => set("invDate", e.target.value), className: inp + (locked ? " bg-slate-100" : "") })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement("label", { className: lab }, "Début", /* @__PURE__ */ React.createElement("input", { value: f.debut, onChange: (e) => set("debut", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Fin", /* @__PURE__ */ React.createElement("input", { value: f.fin, onChange: (e) => set("fin", e.target.value), className: inp })))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-slate-100 bg-slate-50 p-3 mb-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-500 uppercase tracking-wide mb-2" }, "Chiffres de l'inventaire", locked ? " (repris de l'application)" : ""), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2" }, /* @__PURE__ */ React.createElement(Num, { k: "mmte", label: "Attendus MMTE", ro: locked }), /* @__PURE__ */ React.createElement(Num, { k: "found", label: "Retrouvés", ro: locked }), /* @__PURE__ */ React.createElement(Num, { k: "registered", label: "Hors MMTE", ro: locked })), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-600 mt-2" }, "Total présent : ", /* @__PURE__ */ React.createElement("b", null, found + registered), " · Manquants : ", /* @__PURE__ */ React.createElement("b", null, missing), " · Taux de retrouvés : ", /* @__PURE__ */ React.createElement("b", null, mmte ? Math.round(found / mmte * 100) : 0, " %")), warn && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-amber-700 mt-1" }, warn)), /* @__PURE__ */ React.createElement("label", { className: "block mb-3 " + lab }, "Agents ayant participé ", standalone ? "(un par ligne ou séparés par des virgules)" : "", /* @__PURE__ */ React.createElement("textarea", { "data-testid": "df-agents", rows: 2, value: f.agents, onChange: (e) => set("agents", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ React.createElement("label", { className: lab }, "Agent Douane", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-sdouane", value: f.sDouane, onChange: (e) => set("sDouane", e.target.value), placeholder: "Nom", className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Agent Bénin Control", /* @__PURE__ */ React.createElement("input", { value: f.sBC, onChange: (e) => set("sBC", e.target.value), placeholder: "Nom", className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Représentant du parc", /* @__PURE__ */ React.createElement("input", { value: f.sParc, onChange: (e) => set("sParc", e.target.value), placeholder: "Nom", className: inp }))), /* @__PURE__ */ React.createElement("label", { className: "block mb-3 " + lab }, "Observations et constats à chaud (séance de clôture)", /* @__PURE__ */ React.createElement("textarea", { "data-testid": "df-obs", rows: 3, value: f.obs, onChange: (e) => set("obs", e.target.value), placeholder: "Facultatif — une ligne par constat", className: inp })), kind === "rapport" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "mb-3", "data-testid": "df-modeles" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600 mb-1" }, "Modèle de rapport"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 gap-2" }, [["visuel", "Visuel", "Cartes, tableaux colorés, étapes numérotées, recommandations classées par priorité. Textes raccourcis."], ["classique", "Classique", "Reprend le texte et la structure du rapport type (paragraphes complets, listes), avec la charte Bénin Control."], ["synthese", "Synthèse", "Version courte pour la hiérarchie : résultats, écarts, recommandations, fiche de clôture. Sans méthodologie ni tableau des taux."]].map(([k, t, d]) => /* @__PURE__ */ React.createElement("button", { key: k, type: "button", "data-testid": "df-modele-" + k, onClick: () => set("modele", k), className: "text-left rounded-xl border-2 px-3 py-2 " + (f.modele === k ? "border-[#1B4F8C] bg-blue-50" : "border-slate-200 bg-white") }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-extrabold", style: { color: BLUE_DEEP } }, f.modele === k ? "● " : "○ ", t), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-600" }, d))))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ React.createElement(Num, { k: "liste", label: "Liste remise par le parc", hint: "facultatif" }), /* @__PURE__ */ React.createElement(Num, { k: "manus", label: "Manuscrits", hint: String(registered) }), /* @__PURE__ */ React.createElement(Num, { k: "erron", label: "Châssis erronés", hint: "aucun" })), /* @__PURE__ */ React.createElement("details", { className: "mb-3" }, /* @__PURE__ */ React.createElement("summary", { className: "text-xs font-bold text-slate-600 cursor-pointer" }, "Tableau des taux d'utilisation de MMTE"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2 text-sm mt-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.taux, onChange: (e) => set("taux", e.target.checked) }), " Inclure ce tableau dans le rapport"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mt-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Constats d'enlèvement des parcs", /* @__PURE__ */ React.createElement("input", { value: f.t6, onChange: (e) => set("t6", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Mise à disposition des stocks", /* @__PURE__ */ React.createElement("input", { value: f.t8, onChange: (e) => set("t8", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Véhicules conteneurisés", /* @__PURE__ */ React.createElement("input", { value: f.t10, onChange: (e) => set("t10", e.target.value), className: inp })))), locked && extras && /* @__PURE__ */ React.createElement("div", { className: "mb-3 text-sm text-slate-700" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600 mb-1" }, "Annexes à joindre"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aM, onChange: (e) => set("aM", e.target.checked) }), " Véhicules manquants (", extras.manquants.length, ")"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aH, onChange: (e) => set("aH", e.target.checked) }), " Véhicules hors MMTE (", extras.horsMmte.length, ")"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aD, onChange: (e) => set("aD", e.target.checked) }), " Délai de séjour dépassé (", extras.depot.length, ")"))), errBox, /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-edit", onClick: openEditor, className: "w-full mb-2 py-2.5 rounded-lg border-2 border-dashed font-bold text-sm", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, "Aperçu et modification du contenu (facultatif)"), buttons);
+}
+function DocsScreen({ parcsList }) {
+  const [kind, setKind] = useState("fiche");
+  const tab = (k) => `flex-1 py-2.5 rounded-lg text-sm font-bold border-2 ${kind === k ? "text-white" : "bg-white text-slate-700 border-slate-200"}`;
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-4 py-5 no-print", "data-testid": "docs-screen" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-[0.2em] font-bold mb-1", style: { color: BLUE_LIGHT } }, "Documents"), /* @__PURE__ */ React.createElement("h1", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, "Fiches et rapports"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mb-4" }, "Éditez une fiche de clôture ou un rapport d'inventaire sans passer par un inventaire dans l'application : renseignez les informations demandées. Pour un inventaire fait avec l'application, utilisez plutôt son récapitulatif : les chiffres y sont repris automatiquement."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mb-4" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "docs-tab-fiche", onClick: () => setKind("fiche"), className: tab("fiche"), style: kind === "fiche" ? { background: BLUE_DEEP, borderColor: BLUE_DEEP } : void 0 }, "Fiche de clôture"), /* @__PURE__ */ React.createElement("button", { "data-testid": "docs-tab-rapport", onClick: () => setKind("rapport"), className: tab("rapport"), style: kind === "rapport" ? { background: BLUE_DEEP, borderColor: BLUE_DEEP } : void 0 }, "Rapport d'inventaire")), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5" }, /* @__PURE__ */ React.createElement(DocBuilder, { key: kind, kind, standalone: true, parcsList })));
+}
 function SummaryScreen({ readOnly, invMeta, onReopen, parcName, invDate, mmteSize, foundList, registeredList, totalList, missingList, contributors, exportCSVList, exportExcel, backToInventory, resetAll, closeInventory, isGuest }) {
   const [confirmClose, setConfirmClose] = useState(false);
   const [printTarget, setPrintTarget] = useState("report");
+  const [docOpen, setDocOpen] = useState(null);
+  const [docState, setDocState] = useState(null);
+  const openDoc = (kind) => {
+    const h = docHeures([...foundList, ...registeredList]);
+    setDocState({
+      extras: collectDocExtras(invDate, foundList, registeredList, missingList),
+      base: { parc: parcName, invDate, debut: h.debut, fin: h.fin, minutes: h.minutes, agents: contributors.join(", "), mmte: String(mmteSize), found: String(foundList.length), registered: String(registeredList.length), manus: String(registeredList.length) }
+    });
+    setDocOpen(kind);
+  };
   const loadPhoto = React.useContext(PhotoCtx);
   const [photoMap, setPhotoMap] = useState({});
   const [loadingPhotos, setLoadingPhotos] = useState(false);
@@ -3848,7 +5200,7 @@ function SummaryScreen({ readOnly, invMeta, onReopen, parcName, invDate, mmteSiz
     setTimeout(() => window.print(), 60);
   };
   const hideOnClosurePrint = printTarget !== "report" ? "no-print" : "";
-  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 py-8 print:py-0 print:px-0" }, /* @__PURE__ */ React.createElement("button", { onClick: backToInventory, className: "no-print flex items-center gap-1 text-sm font-bold text-slate-500 mb-4" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " ", readOnly ? "Retour aux archives" : "Retour au pointage"), /* @__PURE__ */ React.createElement("div", { className: hideOnClosurePrint }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-[0.2em] font-bold mb-1", style: { color: BLUE_LIGHT } }, "Récapitulatif d'inventaire"), /* @__PURE__ */ React.createElement("h1", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, parcName), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 mb-4 font-medium" }, invDate)), readOnly && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-4 rounded-xl border-2 border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900" }, /* @__PURE__ */ React.createElement("b", null, "Consultation seule."), " Les pointages ne peuvent plus être modifiés depuis les archives.", invMeta && invMeta.completedAt && /* @__PURE__ */ React.createElement("div", { className: "text-xs mt-1" }, "Clôturé le ", formatTimestamp(invMeta.completedAt), invMeta.completedByName ? ` par ${invMeta.completedByName}` : "", "."), onReopen && /* @__PURE__ */ React.createElement("button", { onClick: onReopen, className: "mt-2 px-3 py-1.5 rounded-lg bg-white border-2 border-sky-300 text-sky-900 text-xs font-bold" }, "Rouvrir pour continuer le pointage (administrateur)")), contributors.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-6 rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-500 uppercase tracking-wide mb-1" }, "Agents ayant participé"), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-700" }, contributors.join(", "))), /* @__PURE__ */ React.createElement("div", { className: `grid grid-cols-2 gap-3 mb-6 ${hideOnClosurePrint}` }, /* @__PURE__ */ React.createElement(SummaryCard, { label: "Attendus sur MMTE", value: mmteSize, tone: "navy" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Trouvés sur MMTE", value: foundList.length, tone: "emerald" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Enregistrés (hors MMTE)", value: registeredList.length, tone: "sky" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Total présent sur le parc", value: totalList.length, tone: "navy" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Manquants (sur MMTE, absents)", value: missingList.length, tone: "rose", full: true })), isGuest ? /* @__PURE__ */ React.createElement("div", { className: "no-print bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 text-sm text-amber-800" }, "Les exports (Excel, CSV, rapport imprimable) sont réservés aux agents MAD-MAE. Un agent peut se connecter pour générer les rapports officiels à partir de ces mêmes données.") : /* @__PURE__ */ React.createElement("div", { className: "no-print bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-1" }, "Exporter les résultats"), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Download, { size: 16 }), " Télécharger le classeur Excel complet (4 feuilles + résumé)"), /* @__PURE__ */ React.createElement("button", { onClick: () => triggerPrint("report"), className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " Imprimer / générer un PDF du rapport"), /* @__PURE__ */ React.createElement("button", { onClick: () => triggerPrint("closure"), className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }), " Télécharger la fiche de clôture (à signer)"), photoRows.length > 0 && /* @__PURE__ */ React.createElement("button", { onClick: printPhotos, disabled: loadingPhotos, className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " ", loadingPhotos ? "Chargement des photos..." : `Rapport photos des véhicules hors MMTE (${photoRows.length})`), /* @__PURE__ */ React.createElement("button", { onClick: mailSummary, className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, "Envoyer le résumé par e-mail"), /* @__PURE__ */ React.createElement("button", { onClick: () => exportCSVList("total"), className: "w-full py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700" }, "Télécharger un fichier CSV (total présent sur le parc)")), readOnly && /* @__PURE__ */ React.createElement("div", { className: "mt-6" }, /* @__PURE__ */ React.createElement(ReadOnlyLists, { totalList, foundList, registeredList, missingList })), !isGuest && !readOnly && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "no-print w-full mt-6 py-3 rounded-xl text-white font-extrabold flex items-center justify-center gap-2 shadow-md", style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 18 }), " Quitter sans clôturer (l'inventaire reste ouvert)"), !confirmClose ? /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 py-8 print:py-0 print:px-0" }, /* @__PURE__ */ React.createElement("button", { onClick: backToInventory, className: "no-print flex items-center gap-1 text-sm font-bold text-slate-500 mb-4" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " ", readOnly ? "Retour aux archives" : "Retour au pointage"), /* @__PURE__ */ React.createElement("div", { className: hideOnClosurePrint }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-[0.2em] font-bold mb-1", style: { color: BLUE_LIGHT } }, "Récapitulatif d'inventaire"), /* @__PURE__ */ React.createElement("h1", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, parcName), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 mb-4 font-medium" }, invDate)), readOnly && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-4 rounded-xl border-2 border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900" }, /* @__PURE__ */ React.createElement("b", null, "Consultation seule."), " Les pointages ne peuvent plus être modifiés depuis les archives.", invMeta && invMeta.completedAt && /* @__PURE__ */ React.createElement("div", { className: "text-xs mt-1" }, "Clôturé le ", formatTimestamp(invMeta.completedAt), invMeta.completedByName ? ` par ${invMeta.completedByName}` : "", "."), onReopen && /* @__PURE__ */ React.createElement("button", { onClick: onReopen, className: "mt-2 px-3 py-1.5 rounded-lg bg-white border-2 border-sky-300 text-sky-900 text-xs font-bold" }, "Rouvrir pour continuer le pointage (administrateur)")), contributors.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-6 rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-500 uppercase tracking-wide mb-1" }, "Agents ayant participé"), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-700" }, contributors.join(", "))), /* @__PURE__ */ React.createElement("div", { className: `grid grid-cols-2 gap-3 mb-6 ${hideOnClosurePrint}` }, /* @__PURE__ */ React.createElement(SummaryCard, { label: "Attendus sur MMTE", value: mmteSize, tone: "navy" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Trouvés sur MMTE", value: foundList.length, tone: "emerald" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Enregistrés (hors MMTE)", value: registeredList.length, tone: "sky" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Total présent sur le parc", value: totalList.length, tone: "navy" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Manquants (sur MMTE, absents)", value: missingList.length, tone: "rose", full: true })), isGuest ? /* @__PURE__ */ React.createElement("div", { className: "no-print bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 text-sm text-amber-800" }, "Les exports (Excel, CSV, rapport imprimable) sont réservés aux agents MAD-MAE. Un agent peut se connecter pour générer les rapports officiels à partir de ces mêmes données.") : /* @__PURE__ */ React.createElement("div", { className: "no-print bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-1" }, "Exporter les résultats"), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Download, { size: 16 }), " Télécharger le classeur Excel complet (4 feuilles + résumé)"), /* @__PURE__ */ React.createElement("button", { onClick: () => triggerPrint("report"), className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " Imprimer / générer un PDF du rapport"), /* @__PURE__ */ React.createElement("button", { "data-testid": "btn-fiche", onClick: () => openDoc("fiche"), className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }), " Fiche de clôture (Word / PDF, à signer)"), /* @__PURE__ */ React.createElement("button", { "data-testid": "btn-rapport", onClick: () => openDoc("rapport"), className: "w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2", style: { background: BLUE_LIGHT } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }), " Télécharger le rapport d'inventaire du parc ", parcName), photoRows.length > 0 && /* @__PURE__ */ React.createElement("button", { onClick: printPhotos, disabled: loadingPhotos, className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " ", loadingPhotos ? "Chargement des photos..." : `Rapport photos des véhicules hors MMTE (${photoRows.length})`), /* @__PURE__ */ React.createElement("button", { onClick: mailSummary, className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, "Envoyer le résumé par e-mail"), /* @__PURE__ */ React.createElement("button", { onClick: () => exportCSVList("total"), className: "w-full py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700" }, "Télécharger un fichier CSV (total présent sur le parc)")), readOnly && /* @__PURE__ */ React.createElement("div", { className: "mt-6" }, /* @__PURE__ */ React.createElement(ReadOnlyLists, { totalList, foundList, registeredList, missingList })), !isGuest && !readOnly && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "no-print w-full mt-6 py-3 rounded-xl text-white font-extrabold flex items-center justify-center gap-2 shadow-md", style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 18 }), " Quitter sans clôturer (l'inventaire reste ouvert)"), !confirmClose ? /* @__PURE__ */ React.createElement(
     "button",
     {
       onClick: () => setConfirmClose(true),
@@ -3856,19 +5208,7 @@ function SummaryScreen({ readOnly, invMeta, onReopen, parcName, invDate, mmteSiz
       style: { borderColor: "#FDA4AF", color: "#BE123C" }
     },
     "Clôturer définitivement cet inventaire"
-  ) : /* @__PURE__ */ React.createElement("div", { className: "no-print mt-3 rounded-xl border-2 border-rose-300 bg-rose-50 p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-rose-900" }, "Clôturer cet inventaire ?"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-700 mt-1" }, "Il disparaîtra de la liste « Rejoindre un inventaire en cours » pour tout le monde. Les données restent conservées et exportables, rien n'est supprimé."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-3" }, /* @__PURE__ */ React.createElement("button", { onClick: closeInventory, className: "px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm" }, "Oui, clôturer"), /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmClose(false), className: "px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm" }, "Annuler")))), printTarget === "report" && /* @__PURE__ */ React.createElement("div", { className: "print-only mt-8" }, /* @__PURE__ */ React.createElement("div", { className: "border-t-2 border-slate-300 pt-4 mb-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, "Rapport généré le ", (/* @__PURE__ */ new Date()).toLocaleString("fr-FR"))), /* @__PURE__ */ React.createElement(ReportTable, { title: "Trouvés sur MMTE", rows: foundList }), /* @__PURE__ */ React.createElement(ReportTable, { title: "Enregistrés sur le parc (hors MMTE)", rows: registeredList }), /* @__PURE__ */ React.createElement(ReportTable, { title: "Manquants (attendus sur MMTE, absents du parc)", rows: missingList })), printTarget === "photos" && /* @__PURE__ */ React.createElement("div", { className: "print-only" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("img", { src: LOGO_BC, alt: "Bénin Control", style: { height: 56, width: "auto" } }), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#123A66" } }, "RAPPORT PHOTOS — VÉHICULES HORS MMTE"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, marginTop: 2 } }, parcName, " — ", String(invDate || "").split("-").reverse().join("/"))), /* @__PURE__ */ React.createElement("img", { src: LOGO_DOUANES, alt: "Douanes Béninoises", style: { height: 56, width: "auto" } })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } }, photoRows.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.norm, style: { border: "1px solid #94A3B8", padding: 8, breakInside: "avoid" } }, photoMap[r.norm] ? /* @__PURE__ */ React.createElement("img", { src: photoMap[r.norm], alt: "Châssis", style: { width: "100%", maxHeight: 230, objectFit: "contain" } }) : /* @__PURE__ */ React.createElement("div", { style: { height: 80, color: "#94A3B8", fontSize: 12 } }, "Photo indisponible"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, marginTop: 6 } }, r.chassis), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12 } }, [r.vehicleName, r.vehicleModel].filter(Boolean).join(" ") || "—"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#475569" } }, VEHICLE_AGE_LABELS[r.vehicleAge] || "Âge non précisé", " · par ", r.agentName || "—"))))), printTarget === "closure" && /* @__PURE__ */ React.createElement(
-    ClosureCertificate,
-    {
-      parcName,
-      invDate,
-      contributors,
-      mmteSize,
-      foundCount: foundList.length,
-      registeredCount: registeredList.length,
-      totalCount: totalList.length,
-      missingCount: missingList.length
-    }
-  ));
+  ) : /* @__PURE__ */ React.createElement("div", { className: "no-print mt-3 rounded-xl border-2 border-rose-300 bg-rose-50 p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-rose-900" }, "Clôturer cet inventaire ?"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-700 mt-1" }, "Il disparaîtra de la liste « Rejoindre un inventaire en cours » pour tout le monde. Les données restent conservées et exportables, rien n'est supprimé."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-3" }, /* @__PURE__ */ React.createElement("button", { onClick: closeInventory, className: "px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm" }, "Oui, clôturer"), /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmClose(false), className: "px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm" }, "Annuler")))), printTarget === "report" && /* @__PURE__ */ React.createElement("div", { className: "print-only mt-8" }, /* @__PURE__ */ React.createElement("div", { className: "border-t-2 border-slate-300 pt-4 mb-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, "Rapport généré le ", (/* @__PURE__ */ new Date()).toLocaleString("fr-FR"))), /* @__PURE__ */ React.createElement(ReportTable, { title: "Trouvés sur MMTE", rows: foundList }), /* @__PURE__ */ React.createElement(ReportTable, { title: "Enregistrés sur le parc (hors MMTE)", rows: registeredList }), /* @__PURE__ */ React.createElement(ReportTable, { title: "Manquants (attendus sur MMTE, absents du parc)", rows: missingList })), docOpen && docState && /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-4 overflow-y-auto", "data-testid": "doc-dialog" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl p-5 w-full max-w-lg my-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-extrabold text-lg mb-1", style: { color: BLUE_DEEP } }, docOpen === "rapport" ? "Rapport d'inventaire" : "Fiche de clôture", " — ", parcName), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mb-3" }, "Les chiffres viennent de l'inventaire. Complétez ce qui manque : les champs laissés vides sont adaptés dans le texte."), /* @__PURE__ */ React.createElement(DocBuilder, { kind: docOpen, base: docState.base, locked: true, extras: docState.extras, onDone: () => setDocOpen(null) }), /* @__PURE__ */ React.createElement("button", { onClick: () => setDocOpen(null), className: "w-full mt-2 py-2 text-sm font-semibold text-slate-500" }, "Annuler"))), printTarget === "photos" && /* @__PURE__ */ React.createElement("div", { className: "print-only" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("img", { src: LOGO_BC, alt: "Bénin Control", style: { height: 56, width: "auto" } }), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#123A66" } }, "RAPPORT PHOTOS — VÉHICULES HORS MMTE"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, marginTop: 2 } }, parcName, " — ", String(invDate || "").split("-").reverse().join("/"))), /* @__PURE__ */ React.createElement("img", { src: LOGO_DOUANES, alt: "Douanes Béninoises", style: { height: 56, width: "auto" } })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } }, photoRows.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.norm, style: { border: "1px solid #94A3B8", padding: 8, breakInside: "avoid" } }, photoMap[r.norm] ? /* @__PURE__ */ React.createElement("img", { src: photoMap[r.norm], alt: "Châssis", style: { width: "100%", maxHeight: 230, objectFit: "contain" } }) : /* @__PURE__ */ React.createElement("div", { style: { height: 80, color: "#94A3B8", fontSize: 12 } }, "Photo indisponible"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, marginTop: 6 } }, r.chassis), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12 } }, [r.vehicleName, r.vehicleModel].filter(Boolean).join(" ") || "—"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#475569" } }, VEHICLE_AGE_LABELS[r.vehicleAge] || "Âge non précisé", " · par ", r.agentName || "—"))))));
 }
 function CompareScreen({ data, onBack, onExport }) {
   const [tab, setTab] = useState("new");
@@ -4454,14 +5794,6 @@ function ReadOnlyLists({ totalList, foundList, registeredList, missingList }) {
       }
     )
   ), /* @__PURE__ */ React.createElement(TruncationNote, { count: shown.length })));
-}
-function ClosureCertificate({ parcName, invDate, contributors, mmteSize, foundCount, registeredCount, totalCount, missingCount }) {
-  const cell = { border: "1px solid #94A3B8", padding: "8px 12px" };
-  const labelCell = { ...cell, fontWeight: 700, width: "30%", background: "#F4F8FC" };
-  const headCell = { ...cell, fontWeight: 700, background: "#123A66", color: "#fff", textAlign: "center" };
-  const numCell = { ...cell, textAlign: "center", fontWeight: 700, fontSize: 15 };
-  const signHead = { ...cell, fontWeight: 700, textAlign: "center", background: "#F4F8FC", fontSize: 13, padding: "10px 12px" };
-  return /* @__PURE__ */ React.createElement("div", { className: "print-only", style: { marginTop: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 } }, /* @__PURE__ */ React.createElement("img", { src: LOGO_BC, alt: "Bénin Control", style: { height: 60, width: "auto", flex: "0 0 auto" } }), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", flex: "0 0 auto", padding: "0 8px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 18, color: "#123A66", whiteSpace: "nowrap" } }, "FICHE DE CLÔTURE D'INVENTAIRE"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#2E7DC1", fontWeight: 700, letterSpacing: 1, marginTop: 2 } }, "BÉNIN CONTROL / MAD-MAE")), /* @__PURE__ */ React.createElement("img", { src: LOGO_DOUANES, alt: "Douanes Béninoises", style: { height: 60, width: "auto", flex: "0 0 auto" } })), /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", marginBottom: 20, fontSize: 13 } }, /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: labelCell }, "Parc inventorié"), /* @__PURE__ */ React.createElement("td", { style: cell }, parcName)), /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: labelCell }, "Date de l'inventaire"), /* @__PURE__ */ React.createElement("td", { style: cell }, invDate)), /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: labelCell }, "Date d'édition de la fiche"), /* @__PURE__ */ React.createElement("td", { style: cell }, (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR"))), /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: labelCell }, "Agents ayant participé"), /* @__PURE__ */ React.createElement("td", { style: cell }, contributors.length > 0 ? contributors.join(", ") : "—")))), /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", marginBottom: 32, fontSize: 13 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: headCell }, "Attendus MMTE"), /* @__PURE__ */ React.createElement("td", { style: headCell }, "Trouvés MMTE"), /* @__PURE__ */ React.createElement("td", { style: headCell }, "Enregistrés hors MMTE"), /* @__PURE__ */ React.createElement("td", { style: headCell }, "Total présent"), /* @__PURE__ */ React.createElement("td", { style: headCell }, "Manquants"))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: numCell }, mmteSize), /* @__PURE__ */ React.createElement("td", { style: numCell }, foundCount), /* @__PURE__ */ React.createElement("td", { style: numCell }, registeredCount), /* @__PURE__ */ React.createElement("td", { style: numCell }, totalCount), /* @__PURE__ */ React.createElement("td", { style: numCell }, missingCount)))), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, marginBottom: 12, color: "#123A66" } }, "Signatures"), /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12, tableLayout: "fixed" } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: signHead }, "Bénin Control"), /* @__PURE__ */ React.createElement("td", { style: signHead }, "Douane"), /* @__PURE__ */ React.createElement("td", { style: signHead }, "Parc inventorié"))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: { ...cell, height: 190, verticalAlign: "top", padding: "14px 12px" } }, "Signature :"), /* @__PURE__ */ React.createElement("td", { style: { ...cell, height: 190, verticalAlign: "top", padding: "14px 12px" } }, "Signature :"), /* @__PURE__ */ React.createElement("td", { style: { ...cell, height: 190, verticalAlign: "top", padding: "14px 12px" } }, "Signature :")), /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: { ...cell, height: 100, verticalAlign: "top", padding: "14px 12px" } }, "Nom : ______________________"), /* @__PURE__ */ React.createElement("td", { style: { ...cell, height: 100, verticalAlign: "top", padding: "14px 12px" } }, "Nom : ______________________"), /* @__PURE__ */ React.createElement("td", { style: { ...cell, height: 100, verticalAlign: "top", padding: "14px 12px" } }, "Nom : ______________________")))));
 }
 function ReportTable({ title, rows }) {
   if (rows.length === 0) return null;

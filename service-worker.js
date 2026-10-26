@@ -1,4 +1,4 @@
-const CACHE_NAME = "inventaire-mmte-v34";
+const CACHE_NAME = "inventaire-mmte-v41";
 // Moteur de lecture du texte (gros fichiers) : cache à part, conservé d'une version à l'autre.
 const OCR_CACHE = "inventaire-mmte-ocr-v1";
 const APP_SHELL = [
@@ -7,6 +7,7 @@ const APP_SHELL = [
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
+  "./lib/jszip.min.js",
 ];
 
 self.addEventListener("install", (event) => {
