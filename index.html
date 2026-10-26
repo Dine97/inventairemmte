@@ -74,7 +74,7 @@ const Home = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PU
 const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
 const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
 const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
-const APP_VERSION = "5.2.2";
+const APP_VERSION = "5.3.0";
 const firebaseConfig = {
   apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
   authDomain: "benin-control-mmte.firebaseapp.com",
@@ -779,6 +779,127 @@ function extractChassisFromScan(raw, knownMap) {
   if (vin) return vin[0];
   return text;
 }
+const OCR_CANON = { O: "0", Q: "0", D: "0", I: "1", L: "1", S: "5", B: "8", Z: "2", G: "6" };
+function ocrFold(s) {
+  let o = "";
+  for (const c of String(s)) o += OCR_CANON[c] || c;
+  return o;
+}
+const VIN_VALUES = { A: 1, B: 2, C: 3, D: 4, E: 5, F: 6, G: 7, H: 8, J: 1, K: 2, L: 3, M: 4, N: 5, P: 7, R: 9, S: 2, T: 3, U: 4, V: 5, W: 6, X: 7, Y: 8, Z: 9 };
+function vinCheckOk(v) {
+  if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(v)) return false;
+  const w = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2];
+  let sum = 0;
+  for (let i = 0; i < 17; i++) {
+    const c = v[i];
+    const val = /\d/.test(c) ? +c : VIN_VALUES[c];
+    sum += val * w[i];
+  }
+  const r = sum % 11;
+  return v[8] === (r === 10 ? "X" : String(r));
+}
+const ocrIndexCache = /* @__PURE__ */ new WeakMap();
+function ocrIndex(knownMap) {
+  let idx = ocrIndexCache.get(knownMap);
+  if (idx && idx.size === knownMap.size) return idx;
+  const keys = Array.from(knownMap.keys());
+  const bare = /* @__PURE__ */ new Map();
+  const folded = /* @__PURE__ */ new Map();
+  keys.forEach((k) => {
+    const b = k.replace(/[^A-Z0-9]/g, "");
+    if (!bare.has(b)) bare.set(b, k);
+    const f = ocrFold(b);
+    if (!folded.has(f)) folded.set(f, []);
+    folded.get(f).push(k);
+  });
+  idx = { size: knownMap.size, keys, bare, folded };
+  ocrIndexCache.set(knownMap, idx);
+  return idx;
+}
+function ocrAnalyse(lines, knownMap) {
+  const idx = knownMap && knownMap.size ? ocrIndex(knownMap) : null;
+  const exact = /* @__PURE__ */ new Set();
+  const subOnly = /* @__PURE__ */ new Set();
+  const near = /* @__PURE__ */ new Map();
+  const cands = /* @__PURE__ */ new Map();
+  const addCand = (value, kind, score) => {
+    const cur = cands.get(value);
+    if (!cur || cur.score < score) cands.set(value, { value, kind, score });
+  };
+  (lines || []).forEach((ln) => {
+    const up = String(ln.text || "").toUpperCase();
+    const compact = up.replace(/[^A-Z0-9]/g, "");
+    if (compact.length < 5) return;
+    const toks = new Set(up.split(/[^A-Z0-9\-]+/).filter(Boolean));
+    toks.add(compact);
+    if (idx) {
+      toks.forEach((t) => {
+        const b = t.replace(/[^A-Z0-9]/g, "");
+        if (b.length < 5) return;
+        if (knownMap.has(t)) exact.add(t);
+        else if (idx.bare.has(b)) exact.add(idx.bare.get(b));
+      });
+      idx.keys.forEach((k) => {
+        const b = k.replace(/[^A-Z0-9]/g, "");
+        if (b.length >= 7 && compact.includes(b) && !exact.has(k)) {
+          exact.add(k);
+          subOnly.add(k);
+        }
+      });
+    }
+    if (idx) {
+      toks.forEach((t) => {
+        const b = t.replace(/[^A-Z0-9]/g, "");
+        if (b.length < 8) return;
+        const hit = idx.folded.get(ocrFold(b));
+        if (hit) hit.forEach((k) => near.set(k, true));
+      });
+    }
+    const tokList = /GVWR|GAWR|PRESSURE|TIRE|KPA|PSI|\bKG\b|\bLBS?\b/.test(up) ? [] : Array.from(toks);
+    tokList.forEach((t) => {
+      const b = t.replace(/[^A-Z0-9]/g, "");
+      if (b.length < 6 || b.length > 20) return;
+      if (!/\d/.test(b)) return;
+      if (/^\d+(KG|LB|LBS|PSI|KPA|MM|CM|KW|CC)$/.test(b)) return;
+      if (/\d{3}\/?\d{2}R\d{2}/.test(b)) return;
+      if (/^\d+$/.test(b) && b.length < 8) return;
+      let score = 30;
+      let kind = "autre";
+      if (/-/.test(t) && /^[A-Z]{1,5}\d{0,3}[A-Z]?-\d{5,8}$/.test(t)) {
+        score = 65;
+        kind = "cadre japonais";
+      } else if (b.length >= 9 && b.length <= 12 && /^[A-Z]{1,5}\d{0,3}[A-Z]?\d{5,8}$/.test(b) && /[A-Z]/.test(b)) {
+        score = 45;
+        kind = "numéro de série";
+      } else if (/^[A-Z]{2,3}[0-9]{2}[A-Z0-9]{1,6}$/.test(b) && b.length <= 9) {
+        score = 15;
+        kind = "code modèle";
+      }
+      if (b.length < 8) score -= 10;
+      addCand(kind === "cadre japonais" ? t : b, kind, score);
+    });
+    for (let i = 0; i + 17 <= compact.length; i++) {
+      const w = compact.slice(i, i + 17);
+      const wf = w.replace(/[OQ]/g, "0").replace(/I/g, "1");
+      if (vinCheckOk(w)) {
+        addCand(w, "VIN (clé de contrôle valide)", 100);
+      } else if (wf !== w && vinCheckOk(wf)) {
+        addCand(wf, "VIN (corrigé, clé valide)", 95);
+      } else if (compact.length === 17 && /^[A-HJ-NPR-Z0-9]{17}$/.test(w) && /\d/.test(w) && /[A-Z]/.test(w)) addCand(w, "VIN 17 signes (clé non valide)", 60);
+    }
+  });
+  const vins = Array.from(cands.values()).filter((c) => c.score >= 95).map((c) => c.value);
+  const list = Array.from(cands.values()).filter((c) => !(c.score < 95 && vins.some((v) => v !== c.value && (v.includes(c.value) || c.value.includes(v)))));
+  list.sort((a, b) => b.score - a.score || b.value.length - a.value.length);
+  for (let i = list.length - 1; i >= 0; i--) {
+    const bi = list[i].value.replace(/-/g, "");
+    if (list.some((o, j) => j < i && o.value.replace(/-/g, "") === bi)) list.splice(i, 1);
+  }
+  subOnly.forEach((k) => {
+    if (vins.some((v) => v !== k && v.includes(k))) exact.delete(k);
+  });
+  return { exact: Array.from(exact), near: Array.from(near.keys()), cands: list.slice(0, 6) };
+}
 const ZXING_URL = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
 function loadZXing() {
   if (window.ZXing) return Promise.resolve(window.ZXing);
@@ -799,7 +920,11 @@ function CameraScanner({ onDetect, onClose, knownMap }) {
   const videoRef = useRef(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState("code");
   useEffect(() => {
+    if (mode !== "code") return void 0;
+    setErr("");
+    setLoading(true);
     let stream = null;
     let timer = null;
     let reader = null;
@@ -893,8 +1018,136 @@ function CameraScanner({ onDetect, onClose, knownMap }) {
         }
       }
     };
-  }, []);
-  return /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4" }, /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1" }, "Visez le code-barres ou le QR code du châssis"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3" }, "Les deux types de codes sont lus automatiquement."), err ? /* @__PURE__ */ React.createElement("div", { className: "max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full max-w-md rounded-xl bg-black" }), loading && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2" }, "Démarrage de la caméra...")), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "mt-4 px-6 py-3 rounded-xl bg-white font-bold", style: { color: BLUE_DEEP } }, "Fermer"));
+  }, [mode]);
+  const tabCls = (m) => `flex-1 px-3 py-2 rounded-lg text-sm font-bold ${mode === m ? "bg-white" : "bg-white/15 text-white"}`;
+  return /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-start sm:justify-center p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 w-full max-w-md mb-3" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-code", onClick: () => setMode("code"), className: tabCls("code"), style: mode === "code" ? { color: BLUE_DEEP } : void 0 }, "Code-barres / QR"), /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-text", onClick: () => setMode("text"), className: tabCls("text"), style: mode === "text" ? { color: BLUE_DEEP } : void 0 }, "Texte du châssis")), mode === "text" ? /* @__PURE__ */ React.createElement(TextScanner, { knownMap, onDetect, onSwitchCode: () => setMode("code") }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1" }, "Visez le code-barres ou le QR code du châssis"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3" }, "Les deux types de codes sont lus automatiquement."), err ? /* @__PURE__ */ React.createElement("div", { className: "max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full max-w-md rounded-xl bg-black" }), loading && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2" }, "Démarrage de la caméra..."))), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "mt-4 px-6 py-3 rounded-xl bg-white font-bold", style: { color: BLUE_DEEP } }, "Fermer"));
+}
+let ocrEnginePromise = null;
+function loadOcrEngine(onStage) {
+  if (window.__mmteOcrEngine) return Promise.resolve(window.__mmteOcrEngine);
+  if (!ocrEnginePromise) {
+    const dynImport = new Function("u", "return import(u)");
+    ocrEnginePromise = dynImport(new URL("ocr/ocr.mjs", document.baseURI).href).then((m) => m.createEngine("ocr/", onStage)).then((e) => {
+      window.__mmteOcrEngine = e;
+      return e;
+    }).catch((e) => {
+      ocrEnginePromise = null;
+      throw e;
+    });
+  }
+  return ocrEnginePromise;
+}
+function TextScanner({ knownMap, onDetect, onSwitchCode }) {
+  const videoRef = useRef(null);
+  const [stage, setStage] = useState("Préparation de la caméra...");
+  const [err, setErr] = useState("");
+  const [cands, setCands] = useState([]);
+  const [nearList, setNearList] = useState([]);
+  const [wide, setWide] = useState(false);
+  const [manual, setManual] = useState("");
+  const [reads, setReads] = useState(0);
+  const [retry, setRetry] = useState(0);
+  const wideRef = useRef(false);
+  wideRef.current = wide;
+  useEffect(() => {
+    let stopped = false;
+    let stream = null;
+    let timer = null;
+    const store = /* @__PURE__ */ new Map();
+    const nearStore = /* @__PURE__ */ new Map();
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } }, audio: false });
+        if (stopped) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        const v = videoRef.current;
+        if (!v) return;
+        v.srcObject = stream;
+        await v.play();
+        setStage("Chargement du lecteur de texte (première fois : quelques secondes)...");
+        const engine = await loadOcrEngine((st) => !stopped && setStage("Chargement du lecteur de texte (" + st + ")..."));
+        if (stopped) return;
+        setStage("");
+        const canvas = document.createElement("canvas");
+        const loop = async () => {
+          if (stopped) return;
+          try {
+            if (document.hidden || !v.videoWidth) {
+              timer = setTimeout(loop, 400);
+              return;
+            }
+            const vw = v.videoWidth, vh = v.videoHeight;
+            const fw = Math.round(vw * 0.94);
+            const fh = Math.round(Math.min(vh * 0.9, wideRef.current ? fw * 0.62 : fw * 0.24));
+            const sx = Math.round((vw - fw) / 2), sy = Math.round((vh - fh) / 2);
+            const k = Math.min(1, 960 / fw);
+            canvas.width = Math.round(fw * k);
+            canvas.height = Math.round(fh * k);
+            canvas.getContext("2d").drawImage(v, sx, sy, fw, fh, 0, 0, canvas.width, canvas.height);
+            const lines = await engine.read(canvas);
+            if (stopped) return;
+            setReads((n) => n + 1);
+            const a = ocrAnalyse(lines, knownMap);
+            if (a.exact.length === 1) {
+              stopped = true;
+              onDetect(a.exact[0]);
+              return;
+            }
+            const now = Date.now();
+            if (a.exact.length > 1) a.exact.forEach((c) => store.set(c, { cand: { value: c, kind: "dans la liste MMTE", score: 200 }, ts: now }));
+            a.cands.forEach((c) => store.set(c.value, { cand: c, ts: now }));
+            a.near.forEach((c) => nearStore.set(c, now));
+            for (const [key, e] of store) if (now - e.ts > 6e3) store.delete(key);
+            for (const [key, ts] of nearStore) if (now - ts > 6e3) nearStore.delete(key);
+            setCands(Array.from(store.values()).map((e) => e.cand).sort((x, y) => y.score - x.score).slice(0, 6));
+            setNearList(Array.from(nearStore.keys()).slice(0, 3));
+          } catch (e) {
+            console.warn("Lecture du texte :", e && (e.message || e));
+          }
+          timer = setTimeout(loop, 150);
+        };
+        loop();
+      } catch (e) {
+        console.warn("Lecteur de texte :", e && (e.message || e));
+        if (stopped) return;
+        setStage("");
+        setErr(
+          /Permission|NotAllowed|NotFound|camera/i.test(String(e && e.name + e.message)) ? "Impossible d'utiliser la caméra. Autorisez son accès dans le navigateur, puis réessayez." : "Le lecteur de texte n'a pas pu démarrer (réseau nécessaire la première fois). Réessayez, utilisez le code-barres ou tapez le numéro."
+        );
+      }
+    })();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      const v = videoRef.current;
+      if (v && v.srcObject) {
+        try {
+          v.srcObject.getTracks().forEach((t) => t.stop());
+        } catch (e) {
+        }
+      }
+    };
+  }, [retry]);
+  const pick = (v) => {
+    if (v && v.trim()) onDetect(v.trim());
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-md flex flex-col items-stretch", "data-testid": "text-scanner" }, /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1 text-center" }, "Placez le numéro de châssis dans le cadre"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3 text-center" }, "Lecture automatique : dès qu'un numéro correspond à la liste MMTE, il est pointé."), err ? /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err, /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex gap-2 justify-center" }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    setErr("");
+    setStage("Préparation de la caméra...");
+    setRetry((n) => n + 1);
+  }, className: "px-4 py-2 rounded-lg text-white font-bold", style: { background: BLUE_DEEP } }, "Réessayer"), /* @__PURE__ */ React.createElement("button", { onClick: onSwitchCode, className: "px-4 py-2 rounded-lg border border-slate-300 font-bold" }, "Code-barres"))) : /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full rounded-xl bg-black" }), /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center pointer-events-none" }, /* @__PURE__ */ React.createElement("div", { className: `w-[94%] ${wide ? "h-[62%]" : "h-[24%]"} rounded-lg border-2 border-emerald-400`, style: { boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)" } }))), stage && !err && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2 text-center", "data-testid": "ocr-stage" }, stage), !err && !stage && /* @__PURE__ */ React.createElement("div", { className: "text-white/60 text-xs mt-2 text-center", "data-testid": "ocr-reading" }, "Lecture en cours... (", reads, ")"), !err && /* @__PURE__ */ React.createElement("label", { className: "mt-2 flex items-center justify-center gap-2 text-white/80 text-xs" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: wide, onChange: (e) => setWide(e.target.checked) }), "Cadre large (plaquette de portière avec plusieurs lignes)"), (cands.length > 0 || nearList.length > 0) && /* @__PURE__ */ React.createElement("div", { className: "mt-3 rounded-xl bg-white p-3", "data-testid": "ocr-cands" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-slate-800 mb-2" }, cands.length + nearList.length > 1 ? "Plusieurs numéros lus — lequel est le châssis ?" : "Numéro lu — est-ce le châssis ?"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2" }, nearList.map((c) => /* @__PURE__ */ React.createElement("button", { key: "n" + c, "data-testid": "ocr-near", onClick: () => pick(c), className: "text-left px-3 py-2 rounded-lg border-2 border-amber-300 bg-amber-50" }, /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold" }, c), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-amber-800" }, "Proche d'un châssis de la liste MMTE — à confirmer"))), cands.map((c) => /* @__PURE__ */ React.createElement("button", { key: c.value, "data-testid": "ocr-cand", onClick: () => pick(c.value), className: "text-left px-3 py-2 rounded-lg border border-slate-300" }, /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold" }, c.value), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-slate-500" }, c.kind))))), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex gap-2" }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      "data-testid": "ocr-manual",
+      value: manual,
+      onChange: (e) => setManual(e.target.value.toUpperCase()),
+      placeholder: "Corriger ou taper le numéro",
+      className: "flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-300 font-mono text-sm bg-white"
+    }
+  ), /* @__PURE__ */ React.createElement("button", { "data-testid": "ocr-manual-ok", disabled: !manual.trim(), onClick: () => pick(manual), className: "px-4 py-2 rounded-lg text-white font-bold disabled:opacity-40", style: { background: BLUE_DEEP } }, "Valider")), /* @__PURE__ */ React.createElement("div", { className: "text-white/50 text-[11px] mt-2 text-center" }, "Si la lecture hésite : rapprochez-vous, évitez les reflets, ou touchez la ligne voulue."));
 }
 function todayISO() {
   const d = /* @__PURE__ */ new Date();
