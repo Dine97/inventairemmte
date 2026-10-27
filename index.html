@@ -71,10 +71,12 @@ const ShieldCheck = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /
 const Archive = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "2", y: "3", width: "20", height: "5", rx: "1" }), /* @__PURE__ */ React.createElement("path", { d: "M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" }), /* @__PURE__ */ React.createElement("path", { d: "M10 12h4" }));
 const Columns = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("path", { d: "M12 3v18" }));
 const Home = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" }), /* @__PURE__ */ React.createElement("polyline", { points: "9 22 9 12 15 12 15 22" }));
+const HelpCircle = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "17", x2: "12.01", y2: "17" }));
+const Globe = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "2", y1: "12", x2: "22", y2: "12" }), /* @__PURE__ */ React.createElement("path", { d: "M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" }));
 const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
 const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
 const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
-const APP_VERSION = "5.6.0";
+const APP_VERSION = "5.7.0";
 const firebaseConfig = {
   apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
   authDomain: "benin-control-mmte.firebaseapp.com",
@@ -757,6 +759,1022 @@ function suggestChassis(norm, mmteMap, foundSet, limit = 3) {
   });
   return out;
 }
+const HELP_SECTIONS = [
+  {
+    id: "start",
+    fr: { t: "1. Démarrer", p: [
+      "Connectez-vous avec votre compte agent (approuvé par l'administrateur) ou, si on vous l'a communiqué, avec le code d'accès invité.",
+      "Pour un nouvel inventaire : indiquez le parc, chargez la liste MMTE (fichier Excel/CSV, ou liste collée) puis touchez « Démarrer ».",
+      "Pour continuer un inventaire déjà commencé par un collègue : choisissez-le dans « Rejoindre un inventaire en cours » ; tout le monde pointe sur la même liste en temps réel."
+    ] },
+    en: { t: "1. Getting started", p: [
+      "Sign in with your agent account (approved by the administrator) or, if you were given one, with the guest access code.",
+      "For a new inventory: enter the park, load the MMTE list (Excel/CSV file, or pasted list) then tap “Start”.",
+      "To continue an inventory already started by a colleague: pick it under “Join an ongoing inventory”; everyone checks vehicles on the same list in real time."
+    ] }
+  },
+  {
+    id: "scan",
+    fr: { t: "2. Pointer les véhicules", p: [
+      "Saisissez le châssis (ou une partie : marque, modèle) puis validez, ou scannez le code-barres / QR avec la caméra.",
+      "Dans la caméra : la lampe torche (si l'appareil en a une) et le zoom aident dans les parcs sombres ou pour les châssis éloignés.",
+      "La lecture automatique (OCR) permet de photographier la plaque du châssis ; vérifiez toujours le texte lu avant de valider.",
+      "Résultat « Trouvé » : le véhicule est sur la liste MMTE. Résultat « Hors MMTE » : enregistrez-le avec marque, modèle, ancienneté et photo si besoin.",
+      "Un châssis déjà pointé est refusé (pas de doublon). Une erreur se corrige en supprimant la ligne : elle peut être restaurée."
+    ] },
+    en: { t: "2. Checking vehicles", p: [
+      "Type the chassis number (or part of it: make, model) and confirm, or scan the barcode / QR code with the camera.",
+      "In the camera view: the torch (if the device has one) and the zoom help in dark parks or for distant chassis plates.",
+      "Automatic reading (OCR) lets you photograph the chassis plate; always check the text read before confirming.",
+      "“Found” means the vehicle is on the MMTE list. “Not on MMTE” means you must register it with make, model, age and a photo if needed.",
+      "A chassis already checked is refused (no duplicates). A mistake is fixed by deleting the line: it can be restored."
+    ] }
+  },
+  {
+    id: "offline",
+    fr: { t: "3. Sans réseau et synchronisation", p: [
+      "Sans connexion, continuez normalement : les pointages sont gardés sur l'appareil et envoyés dès le retour du réseau.",
+      "La pastille en bas à gauche indique l'état : « Synchronisé » (vert), « Envoi en cours » (bleu) ou « Hors connexion » (orange) avec le nombre de pointages en attente.",
+      "Ne fermez pas l'application tant que des pointages sont « en attente » et que vous êtes hors connexion."
+    ] },
+    en: { t: "3. No network and synchronisation", p: [
+      "Without a connection, keep working normally: checks are kept on the device and sent as soon as the network is back.",
+      "The badge at the bottom left shows the state: “Synchronised” (green), “Sending” (blue) or “Offline” (orange) with the number of pending checks.",
+      "Do not close the app while checks are “pending” and you are offline."
+    ] }
+  },
+  {
+    id: "end",
+    fr: { t: "4. Terminer et clôturer", p: [
+      "« Terminer et voir le récapitulatif » affiche : attendus MMTE, trouvés, hors MMTE, total présent et manquants.",
+      "Exports disponibles : classeur Excel complet, CSV, rapport imprimable (PDF) et rapport photos des véhicules hors MMTE.",
+      "« Quitter sans clôturer » laisse l'inventaire ouvert. « Clôturer définitivement » le retire de la liste des inventaires en cours ; les données sont conservées et consultables dans les archives."
+    ] },
+    en: { t: "4. Finishing and closing", p: [
+      "“Finish and view the summary” shows: expected on MMTE, found, not on MMTE, total present and missing.",
+      "Available exports: full Excel workbook, CSV, printable report (PDF) and photo report of vehicles not on MMTE.",
+      "“Leave without closing” keeps the inventory open. “Close permanently” removes it from the ongoing list; the data is kept and can be viewed in the archives."
+    ] }
+  },
+  {
+    id: "followup",
+    fr: { t: "5. Suivi des manquants", p: [
+      "Après l'inventaire, un véhicule manquant peut être retrouvé ou régularisé dans MMTE (sorti, transféré…).",
+      "Dans le récapitulatif (y compris depuis les archives), ouvrez « Suivi des manquants », touchez « Marquer », choisissez « Retrouvé » ou « Régularisé » et ajoutez une observation.",
+      "Les compteurs sont mis à jour. Régénérez ensuite la fiche et le rapport : ils intègrent ces chiffres et une annexe « Suivi des manquants ». « Annuler » remet le véhicule parmi les manquants."
+    ] },
+    en: { t: "5. Follow-up of missing vehicles", p: [
+      "After the inventory, a missing vehicle may be found or settled in MMTE (exited, transferred…).",
+      "In the summary (also from the archives), open “Follow-up of missing vehicles”, tap “Mark”, choose “Found” or “Settled” and add a remark.",
+      "The counters are updated. Then regenerate the closing sheet and the report: they include these figures and a “Follow-up of missing vehicles” annex. “Cancel” puts the vehicle back among the missing."
+    ] }
+  },
+  {
+    id: "docs",
+    fr: { t: "6. Fiche de clôture et rapport", p: [
+      "Depuis le récapitulatif ou « Fiches et rapports », générez la fiche de clôture (à signer) et le rapport d'inventaire, en Word ou PDF.",
+      "Trois modèles au choix : Visuel (graphiques), Classique (administratif), Synthèse (court). Le contenu reste modifiable (« Aperçu et modification »).",
+      "Signatures : la méthode papier reste possible ; vous pouvez aussi signer directement sur l'écran (facultatif).",
+      "Le bouton « Partager » envoie le document par WhatsApp, e-mail ou toute autre application du téléphone. Les documents officiels sont toujours rédigés en français."
+    ] },
+    en: { t: "6. Closing sheet and report", p: [
+      "From the summary or “Sheets and reports”, generate the closing sheet (to be signed) and the inventory report, as Word or PDF.",
+      "Three templates: Visual (charts), Classic (administrative), Summary (short). The content can be edited (“Preview and edit”).",
+      "Signatures: the paper method is still possible; you can also sign directly on the screen (optional).",
+      "The “Share” button sends the document through WhatsApp, e-mail or any other app on the phone. Official documents are always written in French."
+    ] }
+  },
+  {
+    id: "archives",
+    fr: { t: "7. Archives et tableau de bord", p: [
+      "« Mes données / Archives » liste tous les inventaires : ouvrez-en un pour revoir les listes, refaire les exports et suivre les manquants.",
+      "L'onglet « Tableau de bord » montre la campagne : parcs clôturés, en cours, à faire, taux global et situation par parc.",
+      "Vous pouvez comparer deux inventaires du même parc. Un administrateur peut rouvrir un inventaire clôturé ou le mettre à la corbeille."
+    ] },
+    en: { t: "7. Archives and dashboard", p: [
+      "“My data / Archives” lists all inventories: open one to review the lists, redo exports and follow up missing vehicles.",
+      "The “Dashboard” tab shows the campaign: parks closed, in progress, to do, overall rate and situation per park.",
+      "You can compare two inventories of the same park. An administrator can reopen a closed inventory or move it to the trash."
+    ] }
+  },
+  {
+    id: "stock",
+    fr: { t: "8. Comparer deux stocks", p: [
+      "« Comparer deux stocks » prend deux exports MMTE et indique les châssis communs, ceux présents seulement dans le premier et ceux présents seulement dans le second. Rien n'est enregistré."
+    ] },
+    en: { t: "8. Comparing two stocks", p: [
+      "“Compare two stocks” takes two MMTE exports and shows the chassis common to both, those only in the first and those only in the second. Nothing is saved."
+    ] }
+  },
+  {
+    id: "admin",
+    fr: { t: "9. Administration", p: [
+      "Réservé aux administrateurs : approbation des comptes, accès invité (code, durée), liste des parcs, journal des actions et suivi de la consommation Firestore (quotas).",
+      "Le compteur de quotas est une estimation ; la console Firebase fait foi."
+    ] },
+    en: { t: "9. Administration", p: [
+      "For administrators only: account approval, guest access (code, duration), list of parks, action log and Firestore usage (quotas).",
+      "The quota meter is an estimate; the Firebase console is the reference."
+    ] }
+  },
+  {
+    id: "faq",
+    fr: { t: "10. Dépannage", p: [
+      "Un châssis connu n'est pas trouvé : vérifiez les zéros/lettres (O/0, I/1) ou cherchez par marque et modèle.",
+      "« Accès refusé » : votre compte n'est pas encore approuvé, ou l'accès invité a expiré. Contactez l'administrateur.",
+      "L'application ne se met pas à jour : fermez-la complètement puis rouvrez-la avec du réseau.",
+      "Les chiffres de quotas restent à zéro : l'administrateur doit publier les règles Firestore."
+    ] },
+    en: { t: "10. Troubleshooting", p: [
+      "A known chassis is not found: check zeros/letters (O/0, I/1) or search by make and model.",
+      "“Access denied”: your account is not yet approved, or guest access has expired. Contact the administrator.",
+      "The app does not update: close it completely then reopen it with network access.",
+      "Quota figures stay at zero: the administrator must publish the Firestore rules."
+    ] }
+  }
+];
+function HelpScreen({ onBack }) {
+  const l = useLang();
+  const [open, setOpen] = useState("start");
+  const T = l === "en" ? { back: "Back to home", title: "User guide", intro: "Everything you need to run an inventory, from loading the list to the signed report.", print: "Print the guide", all: "Show all sections" } : { back: "Retour à l'accueil", title: "Guide d'utilisation", intro: "Tout ce qu'il faut pour mener un inventaire, du chargement de la liste au rapport signé.", print: "Imprimer le guide", all: "Tout déplier" };
+  const [all, setAll] = useState(false);
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "help-screen", "data-i18n-skip": true, className: "max-w-2xl mx-auto px-5 py-8" }, /* @__PURE__ */ React.createElement("button", { onClick: onBack, className: "no-print flex items-center gap-1 text-sm font-bold text-slate-500 mb-4" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " ", T.back), /* @__PURE__ */ React.createElement("h2", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, T.title), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mb-4" }, T.intro), /* @__PURE__ */ React.createElement("div", { className: "no-print grid grid-cols-2 gap-2 mb-4" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setAll(!all), className: "py-2.5 rounded-lg border-2 text-sm font-bold", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, T.all), /* @__PURE__ */ React.createElement("button", { "data-testid": "help-print", onClick: () => window.print(), className: "py-2.5 rounded-lg text-white text-sm font-bold flex items-center justify-center gap-2", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 15 }), " ", T.print)), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, HELP_SECTIONS.map((sec) => {
+    const c = sec[l] || sec.fr;
+    const isOpen = all || open === sec.id;
+    return /* @__PURE__ */ React.createElement("div", { key: sec.id, "data-testid": "help-" + sec.id, className: "rounded-xl border-2 border-slate-100 bg-white" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setOpen(isOpen && !all ? "" : sec.id), className: "w-full text-left px-4 py-3 font-bold flex items-center justify-between", style: { color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement("span", null, c.t), /* @__PURE__ */ React.createElement("span", { className: "no-print text-slate-400 text-xs" }, isOpen ? "–" : "+")), /* @__PURE__ */ React.createElement("div", { className: isOpen ? "px-4 pb-3 space-y-2" : "hidden print:block px-4 pb-3 space-y-2" }, c.p.map((x, i) => /* @__PURE__ */ React.createElement("p", { key: i, className: "text-sm text-slate-700 leading-relaxed" }, x))));
+  })));
+}
+const LANG_KEY = "mmte-lang";
+let LANG = (() => {
+  try {
+    return localStorage.getItem(LANG_KEY) === "en" ? "en" : "fr";
+  } catch (e) {
+    return "fr";
+  }
+})();
+const langListeners = /* @__PURE__ */ new Set();
+const EN_DICT = {};
+Object.assign(EN_DICT, {
+  "Inventaire physique annuel": "Annual physical inventory",
+  "Pointez les véhicules de chaque parc, rapprochez-les du stock MMTE et suivez l'avancement en temps réel.": "Check the vehicles of each park, match them against the MMTE stock and follow progress in real time.",
+  "et codes-barres": "and barcodes",
+  "Hors-ligne": "Offline",
+  "sur le terrain": "in the field",
+  "Temps réel": "Real time",
+  "entre agents": "between agents",
+  "Connexion agent": "Agent sign-in",
+  "Réservé aux agents du département MAD-MAE.": "Reserved for agents of the MAD-MAE department.",
+  "E-mail": "E-mail",
+  "Mot de passe": "Password",
+  "Mot de passe oublié ?": "Forgot your password?",
+  "Mot de passe oublié": "Forgot password",
+  "Se connecter": "Sign in",
+  "Pas encore de compte ?": "No account yet?",
+  "Créer un compte": "Create an account",
+  "ou": "or",
+  "Utiliser sans compte (accès temporaire)": "Use without an account (temporary access)",
+  "Pour les personnes hors MAD-MAE disposant d'un code d'accès ponctuel.": "For people outside MAD-MAE with a one-time access code.",
+  "Pour les personnes hors MAD-MAE disposant d'un code d'accès ponctuel": "For people outside MAD-MAE with a one-time access code",
+  "Douanes Béninoises": "Beninese Customs",
+  "Afficher le mot de passe": "Show password",
+  "Masquer le mot de passe": "Hide password",
+  "Votre compte devra être validé par un administrateur.": "Your account will have to be approved by an administrator.",
+  "Nom complet": "Full name",
+  "Confirmer le mot de passe": "Confirm password",
+  "Créer mon compte": "Create my account",
+  "Retour à la connexion": "Back to sign-in",
+  "Ex : Jean KOSSOU": "E.g. Jean KOSSOU",
+  "Prénom NOM": "First name LAST NAME",
+  "Votre nom": "Your name",
+  "Recevez un lien pour réinitialiser votre mot de passe.": "Receive a link to reset your password.",
+  "Envoyer le lien": "Send the link",
+  "Réservé aux personnes disposant d'un code d'accès temporaire.": "Reserved for people with a temporary access code.",
+  "Accéder à l'application": "Enter the app",
+  "Code communiqué par le service": "Code provided by the department",
+  "Utilisé pour vous identifier dans les rapports, comme pour les agents MAD-MAE.": "Used to identify you in reports, as for MAD-MAE agents.",
+  "Merci de renseigner l'e-mail et le mot de passe.": "Please enter your e-mail and password.",
+  "Merci de renseigner votre e-mail.": "Please enter your e-mail.",
+  "Merci de renseigner votre nom.": "Please enter your name.",
+  "Merci de saisir le code d'accès.": "Please enter the access code.",
+  "Le mot de passe doit contenir au moins 6 caractères.": "The password must contain at least 6 characters.",
+  "Les deux mots de passe ne correspondent pas.": "The two passwords do not match.",
+  "Mot de passe incorrect.": "Incorrect password.",
+  "Aucun compte ne correspond à cet e-mail.": "No account matches this e-mail.",
+  "Un compte existe déjà avec cet e-mail.": "An account already exists with this e-mail.",
+  "Trop de tentatives. Réessayez dans quelques minutes.": "Too many attempts. Try again in a few minutes.",
+  "Une erreur est survenue. Réessayez.": "An error occurred. Try again.",
+  "Une erreur est survenue. Veuillez réessayer.": "An error occurred. Please try again.",
+  "Un e-mail de réinitialisation a été envoyé si ce compte existe.": "A reset e-mail has been sent if this account exists.",
+  "Impossible d'envoyer le lien (adresse inconnue ou réseau).": "Unable to send the link (unknown address or network).",
+  "Ce compte a été désactivé. Contactez un administrateur.": "This account has been deactivated. Contact an administrator.",
+  "Ce site n'est pas autorisé à utiliser cette connexion (contactez l'administrateur).": "This site is not allowed to use this sign-in (contact the administrator).",
+  "Erreur de connexion au serveur. Réessayez.": "Server connection error. Try again.",
+  "Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.": "Server connection error. Check your internet connection and try again.",
+  "Code d'accès incorrect, ou accès temporaire pas encore configuré : un administrateur doit ouvrir l'application une fois avec son compte.": "Incorrect access code, or temporary access not configured yet: an administrator must open the app once with their account.",
+  "L'accès temporaire n'est pas activé sur le serveur : l'administrateur doit activer la méthode « Anonyme » dans Firebase > Authentication > Méthode de connexion.": "Temporary access is not enabled on the server: the administrator must enable the “Anonymous” method in Firebase > Authentication > Sign-in method.",
+  "Les règles de sécurité du serveur n'autorisent pas encore l'accès temporaire : l'administrateur doit publier le fichier firestore.rules dans Firebase.": "The server security rules do not allow temporary access yet: the administrator must publish the firestore.rules file in Firebase.",
+  "Un administrateur doit approuver votre compte avant que vous puissiez accéder à l'application. Contactez le service MAD-MAE si l'attente se prolonge.": "An administrator must approve your account before you can use the app. Contact the MAD-MAE department if the wait is long.",
+  "Votre compte a été désactivé par un administrateur. Contactez le service MAD-MAE pour le réactiver.": "Your account has been deactivated by an administrator. Contact the MAD-MAE department to reactivate it.",
+  "Votre demande de compte agent n'a pas été approuvée. Contactez un administrateur MAD-MAE si vous pensez qu'il s'agit d'une erreur.": "Your agent account request was not approved. Contact a MAD-MAE administrator if you think this is a mistake.",
+  "Compte en attente de validation": "Account awaiting approval",
+  "Compte désactivé": "Account deactivated",
+  "Compte refusé": "Account refused",
+  "Accès refusé": "Access denied",
+  "Vérification de l'accès invité...": "Checking guest access...",
+  "Chargement du profil...": "Loading profile...",
+  "Chargement...": "Loading...",
+  "Se déconnecter": "Sign out",
+  "Inventaire": "Inventory",
+  "Bénin Control / MAD-MAE": "Bénin Control / MAD-MAE",
+  "Navigation": "Navigation",
+  "Mes données / Archives": "My data / Archives",
+  "Comparer deux stocks": "Compare two stocks",
+  "Fiches et rapports": "Sheets and reports",
+  "Aide et guide d'utilisation": "Help and user guide",
+  "Panneau admin": "Admin panel",
+  "Fermer le panneau admin": "Close the admin panel",
+  "Déconnexion": "Sign out",
+  "Administrateur": "Administrator",
+  "Agent": "Agent",
+  "Invité": "Guest",
+  "Bienvenue,": "Welcome,",
+  "Bonsoir": "Good evening",
+  "Bonjour": "Good morning",
+  "Bon après-midi": "Good afternoon",
+  "Rejoindre un inventaire en cours": "Join an ongoing inventory",
+  "Aucune liste à charger : vous récupérez directement les données d'un collègue et vos pointages se synchronisent en temps réel.": "No list to load: you pick up a colleague's data directly and your checks synchronise in real time.",
+  "Aucun inventaire en cours pour le moment.": "No ongoing inventory at the moment.",
+  "Aucun inventaire disponible à rejoindre pour l'instant. Contactez un agent MAD-MAE pour qu'il en démarre un.": "No inventory available to join for now. Contact a MAD-MAE agent to start one.",
+  "Démarrer un nouvel inventaire": "Start a new inventory",
+  "Nom du parc": "Park name",
+  "Date de l'inventaire": "Inventory date",
+  "Liste des châssis MMTE pour ce parc": "List of MMTE chassis numbers for this park",
+  "Fichier": "File",
+  "Coller": "Paste",
+  "Fichier CSV ou Excel (.csv, .xlsx, .xls)": "CSV or Excel file (.csv, .xlsx, .xls)",
+  "CSV ou Excel (.csv, .xlsx, .xls)": "CSV or Excel (.csv, .xlsx, .xls)",
+  "Choisir un fichier": "Choose a file",
+  "Choisir le fichier": "Choose the file",
+  "Démarrer ce nouvel inventaire": "Start this new inventory",
+  "Comparer deux fichiers de stock": "Compare two stock files",
+  "Fiche de clôture ou rapport sans inventaire": "Closing sheet or report without an inventory",
+  "Synchronisé": "Synchronised",
+  "Ex : ZF, HOVAS, GTS...": "E.g. ZF, HOVAS, GTS...",
+  "Charger la liste collée": "Load the pasted list",
+  "Collez la liste des châssis, un par ligne": "Paste the list of chassis numbers, one per line",
+  "châssis chargés depuis MMTE": "chassis loaded from MMTE",
+  "Synchronisé avec le serveur.": "Synchronised with the server.",
+  "Nouveau parc": "New park",
+  "Merci d'importer la liste des châssis MMTE avant de démarrer.": "Please import the MMTE chassis list before starting.",
+  "Indiquez le nom du parc.": "Enter the park name.",
+  "Indiquez la date de l'inventaire.": "Enter the inventory date.",
+  "Aucun numéro de châssis détecté. Vérifiez le fichier ou le texte collé.": "No chassis number detected. Check the file or the pasted text.",
+  "Impossible de lire ce fichier. Formats acceptés : CSV, XLS, XLSX.": "Unable to read this file. Accepted formats: CSV, XLS, XLSX.",
+  "Échec de la lecture du fichier.": "Failed to read the file.",
+  "Lecture du fichier...": "Reading the file...",
+  "Préparation du fichier...": "Preparing the file...",
+  "Chaque châssis n'est compté qu'une seule fois : les doublons sont retirés automatiquement (la dernière ligne est conservée).": "Each chassis is counted only once: duplicates are removed automatically (the last line is kept).",
+  "Un inventaire pour ce parc et cette date existe déjà et est en cours. Utilisez « Rejoindre un inventaire en cours » ci-dessus.": "An inventory for this park and date already exists and is ongoing. Use “Join an ongoing inventory” above.",
+  "Un inventaire clôturé existe déjà pour ce parc à cette date": "A closed inventory already exists for this park on this date",
+  "Rouvrir cet inventaire (garder son ancienne liste MMTE et ses pointages)": "Reopen this inventory (keep its previous MMTE list and checks)",
+  "Remplacer par la liste que je viens de charger ci-dessus (efface l'ancienne liste et les anciens pointages)": "Replace with the list I just loaded above (erases the old list and previous checks)",
+  "Chargez d'abord un fichier ou collez une liste ci-dessus pour pouvoir remplacer.": "First load a file or paste a list above to be able to replace.",
+  "Inventaire partagé rejoint — vous voyez les pointages de toute l'équipe en temps réel.": "Shared inventory joined — you see the whole team's checks in real time.",
+  "Cet inventaire n'est pas encore prêt (création en cours par son créateur) ou a été clôturé. Réessayez dans un instant.": "This inventory is not ready yet (being created by its author) or has been closed. Try again in a moment.",
+  "Cet inventaire n'est plus disponible (peut-être déjà clôturé).": "This inventory is no longer available (it may already be closed).",
+  "Cet inventaire est dans la corbeille des archives. Demandez à l'administrateur de le restaurer ou de le supprimer définitivement.": "This inventory is in the archive trash. Ask the administrator to restore or permanently delete it.",
+  "Impossible d'ouvrir cet inventaire. Réessayez.": "Unable to open this inventory. Try again.",
+  "Quitter cet inventaire et repartir sur un nouveau parc ?": "Leave this inventory and start over on a new park?",
+  "Oui, changer de parc": "Yes, change park",
+  "Terminer et tout remettre à zéro": "Finish and reset everything",
+  "Durée de session :": "Session duration:",
+  "Progression MMTE": "MMTE progress",
+  "Attendus MMTE": "Expected on MMTE",
+  "Trouvés MMTE": "Found on MMTE",
+  "Enregistrés": "Registered",
+  "Total présent": "Total present",
+  "Manquants": "Missing",
+  "Numéro de châssis": "Chassis number",
+  "Valider": "Confirm",
+  "Scanner avec la caméra": "Scan with the camera",
+  "Aucun véhicule pointé pour l'instant.": "No vehicle checked yet.",
+  "Terminer et voir le récapitulatif": "Finish and view the summary",
+  "Couper le son": "Mute sound",
+  "Activer le son": "Turn sound on",
+  "Châssis, ou marque / modèle (ex : TOYOTA COROLLA)": "Chassis, or make / model (e.g. TOYOTA COROLLA)",
+  "Filtrer : châssis, marque, modèle… (combinables)": "Filter: chassis, make, model… (combinable)",
+  "Trouvé sur MMTE.": "Found on MMTE.",
+  "Trouvé MMTE": "Found on MMTE",
+  "Par": "By",
+  "Déjà pointé comme trouvé sur MMTE.": "Already checked as found on MMTE.",
+  "Déjà enregistré comme présent sur le parc (hors MMTE).": "Already registered as present in the park (not on MMTE).",
+  "Introuvable sur la liste MMTE.": "Not found on the MMTE list.",
+  "Informations facultatives sur le véhicule": "Optional vehicle information",
+  "Âge du véhicule": "Vehicle age",
+  "Moins d'un an": "Under one year",
+  "Plus d'un an": "Over one year",
+  "moins d'un an": "under one year",
+  "plus d'un an": "over one year",
+  "Âge non précisé": "Age not specified",
+  "Joindre / prendre la photo du châssis (facultatif)": "Attach / take a photo of the chassis (optional)",
+  "Changer la photo du châssis": "Change the chassis photo",
+  "Retirer la photo": "Remove the photo",
+  "Photo du châssis": "Chassis photo",
+  "Enregistrer présent sur le parc": "Register as present in the park",
+  "Annuler": "Cancel",
+  "Marque du véhicule — facultatif": "Vehicle make — optional",
+  "Modèle du véhicule — facultatif": "Vehicle model — optional",
+  "Enregistré": "Registered",
+  "Enregistré comme présent sur le parc.": "Registered as present in the park.",
+  "Parc": "Park",
+  "Absent": "Absent",
+  "Code-barres / QR": "Barcode / QR",
+  "Texte du châssis": "Chassis text",
+  "Visez le code-barres ou le QR code du châssis": "Aim at the chassis barcode or QR code",
+  "Les deux types de codes sont lus automatiquement.": "Both types of code are read automatically.",
+  "Impossible de lancer la lecture (réseau nécessaire la première fois, ou accès à la caméra refusé). Réessayez, ou tapez le numéro.": "Unable to start reading (network needed the first time, or camera access denied). Try again, or type the number.",
+  "Impossible d'utiliser la caméra. Autorisez son accès dans le navigateur, puis réessayez.": "Unable to use the camera. Allow access in the browser, then try again.",
+  "Démarrage de la caméra...": "Starting the camera...",
+  "Préparation de la caméra...": "Preparing the camera...",
+  "Fermer": "Close",
+  "Allumer la lampe": "Turn the torch on",
+  "Éteindre la lampe": "Turn the torch off",
+  "Placez le numéro de châssis dans le cadre": "Place the chassis number inside the frame",
+  "Lecture automatique : dès qu'un numéro correspond à la liste MMTE, il est pointé.": "Automatic reading: as soon as a number matches the MMTE list, it is checked.",
+  "Si la lecture hésite : rapprochez-vous, évitez les reflets, ou touchez la ligne voulue.": "If reading hesitates: move closer, avoid reflections, or tap the right line.",
+  "Chargement du lecteur de texte (première fois : quelques secondes)...": "Loading the text reader (first time: a few seconds)...",
+  "Le lecteur de texte n'a pas pu démarrer (réseau nécessaire la première fois). Réessayez, utilisez le code-barres ou tapez le numéro.": "The text reader could not start (network needed the first time). Try again, use the barcode or type the number.",
+  "Lecteur de codes :": "Code reader:",
+  "Lecteur de texte :": "Text reader:",
+  "Lecture du texte :": "Reading text:",
+  "Numéro lu — est-ce le châssis ?": "Number read — is it the chassis?",
+  "Plusieurs numéros lus — lequel est le châssis ?": "Several numbers read — which one is the chassis?",
+  "Proche d'un châssis de la liste MMTE — à confirmer": "Close to a chassis on the MMTE list — to be confirmed",
+  "Vouliez-vous dire :": "Did you mean:",
+  "Corriger ou taper le numéro": "Correct or type the number",
+  "Ou continuez en saisissant le nom vous-même.": "Or continue by typing the name yourself.",
+  "Touchez un véhicule pour le pointer.": "Tap a vehicle to check it.",
+  "Photo illisible, essayez une autre image.": "Unreadable photo, try another image.",
+  "Traitement de la photo...": "Processing the photo...",
+  "Chargement de la photo...": "Loading the photo...",
+  "Chargement des photos...": "Loading the photos...",
+  "détecté": "detected",
+  "VIN (clé de contrôle valide)": "VIN (valid check digit)",
+  "VIN (corrigé, clé valide)": "VIN (corrected, valid check digit)",
+  "VIN 17 signes (clé non valide)": "17-character VIN (invalid check digit)",
+  "code modèle": "model code",
+  "numéro de série": "serial number",
+  "châssis": "chassis",
+  "dans la liste MMTE": "in the MMTE list",
+  "Total": "Total",
+  "Trouvés": "Found",
+  "Retrouvés": "Found again",
+  "Aucun châssis enregistré hors MMTE pour l'instant.": "No chassis registered outside MMTE yet.",
+  "Aucun châssis trouvé sur MMTE pour l'instant.": "No chassis found on MMTE yet.",
+  "Tous les châssis MMTE ont été retrouvés sur le parc.": "All MMTE chassis were found in the park.",
+  "Refusé : ce châssis vient d'être pointé par un autre agent, ou vos droits ont expiré.": "Refused: this chassis was just checked by another agent, or your rights have expired.",
+  "Erreur d'enregistrement, réessayez.": "Saving error, try again.",
+  "Hors connexion": "Offline",
+  "Envoi en cours": "Sending",
+  "Hors connexion — vos pointages sont gardés sur la tablette et seront envoyés au retour du réseau.": "Offline — your checks are kept on the tablet and will be sent when the network returns.",
+  "Les données déjà enregistrées restent sauvegardées dans le système partagé.": "Data already saved remains stored in the shared system.",
+  "Un problème est survenu": "A problem occurred",
+  "Réessayer": "Try again",
+  "L'application a rencontré une erreur. Vos pointages déjà envoyés sont conservés. Rechargez la page ; si le problème continue, signalez-le à l'administrateur en indiquant le message ci-dessous.": "The app encountered an error. Your checks already sent are kept. Reload the page; if the problem continues, report it to the administrator with the message below.",
+  "Retour au pointage": "Back to checking",
+  "Retour aux archives": "Back to archives",
+  "Récapitulatif d'inventaire": "Inventory summary",
+  "Consultation seule.": "View only.",
+  "Les pointages ne peuvent plus être modifiés depuis les archives.": "Checks can no longer be modified from the archives.",
+  "Clôturé le": "Closed on",
+  "par": "by",
+  "Rouvrir pour continuer le pointage (administrateur)": "Reopen to continue checking (administrator)",
+  "Agents ayant participé": "Agents who took part",
+  "Attendus sur MMTE": "Expected on MMTE",
+  "Trouvés sur MMTE": "Found on MMTE",
+  "Enregistrés (hors MMTE)": "Registered (not on MMTE)",
+  "Total présent sur le parc": "Total present in the park",
+  "Manquants (sur MMTE, absents)": "Missing (on MMTE, absent)",
+  "Les exports (Excel, CSV, rapport imprimable) sont réservés aux agents MAD-MAE. Un agent peut se connecter pour générer les rapports officiels à partir de ces mêmes données.": "Exports (Excel, CSV, printable report) are reserved for MAD-MAE agents. An agent can sign in to generate the official reports from this same data.",
+  "Exporter les résultats": "Export the results",
+  "Télécharger le classeur Excel complet (4 feuilles + résumé)": "Download the full Excel workbook (4 sheets + summary)",
+  "Imprimer / générer un PDF du rapport": "Print / generate a PDF of the report",
+  "Fiche de clôture (Word / PDF, à signer)": "Closing sheet (Word / PDF, to sign)",
+  "Télécharger le rapport d'inventaire du parc": "Download the inventory report of park",
+  "Envoyer le résumé par e-mail": "Send the summary by e-mail",
+  "Télécharger un fichier CSV (total présent sur le parc)": "Download a CSV file (total present in the park)",
+  "Quitter sans clôturer (l'inventaire reste ouvert)": "Leave without closing (the inventory stays open)",
+  "Clôturer définitivement cet inventaire": "Close this inventory permanently",
+  "Clôturer cet inventaire ?": "Close this inventory?",
+  "Il disparaîtra de la liste « Rejoindre un inventaire en cours » pour tout le monde. Les données restent conservées et exportables, rien n'est supprimé.": "It will disappear from the “Join an ongoing inventory” list for everyone. The data is kept and can be exported; nothing is deleted.",
+  "Oui, clôturer": "Yes, close",
+  "Rapport généré le": "Report generated on",
+  "Enregistrés sur le parc (hors MMTE)": "Registered in the park (not on MMTE)",
+  "Manquants (attendus sur MMTE, absents du parc)": "Missing (expected on MMTE, absent from the park)",
+  "Manquants (sur MMTE, absents du parc)": "Missing (on MMTE, absent from the park)",
+  "Détails de l'inventaire": "Inventory details",
+  "Suivi des manquants": "Follow-up of missing vehicles",
+  "régularisé": "settled",
+  "régularisés": "settled",
+  "sur": "out of",
+  "encore manquant": "still missing",
+  "encore manquants": "still missing",
+  "s": "",
+  "Ouvrir": "Open",
+  "Masquer": "Hide",
+  "Un véhicule manquant a été retrouvé ou régularisé dans MMTE après l'inventaire ? Marquez-le ici, puis régénérez la fiche et le rapport : les chiffres sont mis à jour.": "A missing vehicle was found or settled in MMTE after the inventory? Mark it here, then regenerate the sheet and the report: the figures are updated.",
+  "Marquer": "Mark",
+  "Retrouvé sur le parc": "Found in the park",
+  "Régularisé dans MMTE": "Settled in MMTE",
+  "Régularisé dans MMTE (sorti, transféré…)": "Settled in MMTE (exited, transferred…)",
+  "Filtrer par châssis, description…": "Filter by chassis, description…",
+  "Observation (facultatif)": "Remark (optional)",
+  "Annuler le suivi": "Cancel follow-up",
+  "Documents": "Documents",
+  "Éditez une fiche de clôture ou un rapport d'inventaire sans passer par un inventaire dans l'application : renseignez les informations demandées. Pour un inventaire fait avec l'application, utilisez plutôt son récapitulatif : les chiffres y sont repris automatiquement.": "Edit a closing sheet or an inventory report without going through an inventory in the app: fill in the requested information. For an inventory done with the app, use its summary instead: the figures are taken over automatically.",
+  "Fiche de clôture": "Closing sheet",
+  "Rapport d'inventaire": "Inventory report",
+  "Parc inventorié": "Inventoried park",
+  "Début": "Start",
+  "Fin": "End",
+  "Chiffres de l'inventaire": "Inventory figures",
+  "(repris de l'application)": "(taken from the app)",
+  "Total présent :": "Total present:",
+  "· Manquants :": "· Missing:",
+  "· Taux de retrouvés :": "· Found rate:",
+  "· Régularisés après l'inventaire :": "· Settled after the inventory:",
+  "(un par ligne ou séparés par des virgules)": "(one per line or separated by commas)",
+  "Agent Douane": "Customs agent",
+  "Agent Bénin Control": "Bénin Control agent",
+  "Représentant du parc": "Park representative",
+  "Signer à l'écran (facultatif)": "Sign on screen (optional)",
+  "Sans signature saisie ici, le document garde son cadre vierge à signer à la main.": "Without a signature entered here, the document keeps its blank box to sign by hand.",
+  "Observations et constats à chaud (séance de clôture)": "Observations and on-the-spot findings (closing session)",
+  "Facultatif — une ligne par constat": "Optional — one line per finding",
+  "Aperçu et modification du contenu (facultatif)": "Preview and edit the content (optional)",
+  "Télécharger la fiche de clôture Word (.docx)": "Download the closing sheet as Word (.docx)",
+  "Télécharger le rapport Word (.docx)": "Download the report as Word (.docx)",
+  "Générer le PDF (impression)": "Generate the PDF (print)",
+  "Partager par WhatsApp ou e-mail": "Share by WhatsApp or e-mail",
+  "Nom": "Name",
+  "Nom du signataire": "Signatory name",
+  "Effacer": "Clear",
+  "Les chiffres viennent de l'inventaire. Complétez ce qui manque : les champs laissés vides sont adaptés dans le texte.": "The figures come from the inventory. Fill in what is missing: empty fields are adapted in the text.",
+  "← Retour aux informations": "← Back to information",
+  "Touchez un bloc pour le modifier. Vous pouvez aussi le déplacer (↑ ↓), le supprimer (✕) ou insérer un paragraphe ou un sous-titre après lui. Le Word obtenu reste entièrement modifiable.": "Tap a block to edit it. You can also move it (↑ ↓), delete it (✕) or insert a paragraph or subtitle after it. The resulting Word file remains fully editable.",
+  "Bandeau de titre": "Title banner",
+  "Bandeau supérieur": "Top banner",
+  "Bandeau de résultat": "Result banner",
+  "Tableau": "Table",
+  "Sous-titre": "Subtitle",
+  "Chiffres clés": "Key figures",
+  "Cadre d'observations": "Observations box",
+  "à compléter à la main": "to be completed by hand",
+  "Paragraphe": "Paragraph",
+  "Signatures": "Signatures",
+  "Rétablir le contenu d'origine": "Restore the original content",
+  "Monter": "Move up",
+  "Descendre": "Move down",
+  "Supprimer ce bloc": "Delete this block",
+  "+ Ajouter un point": "+ Add a point",
+  "+ Ajouter une ligne": "+ Add a line",
+  "+ Ajouter une étape": "+ Add a step",
+  "+ Paragraphe après": "+ Paragraph after",
+  "+ Sous-titre après": "+ Subtitle after",
+  "Annexes à joindre": "Annexes to attach",
+  "Modèle de rapport": "Report template",
+  "Visuel": "Visual",
+  "Classique": "Classic",
+  "Synthèse": "Summary",
+  "Cartes, tableaux colorés, étapes numérotées, recommandations classées par priorité. Textes raccourcis.": "Cards, coloured tables, numbered steps, recommendations ranked by priority. Shortened texts.",
+  "Reprend le texte et la structure du rapport type (paragraphes complets, listes), avec la charte Bénin Control.": "Takes over the text and structure of the standard report (full paragraphs, lists), with the Bénin Control branding.",
+  "Version courte pour la hiérarchie : résultats, écarts, recommandations, fiche de clôture. Sans méthodologie ni tableau des taux.": "Short version for management: results, gaps, recommendations, closing sheet. No methodology or rates table.",
+  "Le nombre de véhicules retrouvés dépasse le nombre attendu sur MMTE : vérifiez les chiffres.": "The number of vehicles found exceeds the number expected on MMTE: check the figures.",
+  "Le document n'a pas pu être généré (": "The document could not be generated (",
+  "Fiche supprimée": "Sheet deleted",
+  "Fiche supprimée.": "Sheet deleted.",
+  "Inclure ce tableau dans le rapport": "Include this table in the report",
+  "Le sommaire se met à jour tout seul d'après les titres conservés.": "The table of contents updates itself from the titles kept.",
+  "Page de garde": "Cover page",
+  "Pied de page": "Footer",
+  "Saut de page": "Page break",
+  "Liste numérotée": "Numbered list",
+  "Liste à puces": "Bulleted list",
+  "Légende": "Caption",
+  "Encadré": "Callout",
+  "Étapes": "Steps",
+  "Nouvelle étape": "New step",
+  "Résumé": "Summary",
+  "Titre de section": "Section title",
+  "Texte (entourez de ** pour mettre en gras)": "Text (wrap in ** for bold)",
+  "Texte (laisser vide pour un cadre à remplir à la main)": "Text (leave empty for a box to fill in by hand)",
+  "Titre (une ligne par rang)": "Title (one line per row)",
+  "Nombre de lignes": "Number of lines",
+  "Supprimer ce point": "Delete this point",
+  "Supprimer cette ligne": "Delete this line",
+  "Supprimer cette étape": "Delete this step",
+  "Mois et année": "Month and year",
+  "Cadre large (plaquette de portière avec plusieurs lignes)": "Large box (door plate with several lines)",
+  "Signature": "Signature",
+  "Partager": "Share",
+  "Retour à l'accueil": "Back to home",
+  "Archives des inventaires": "Inventory archives",
+  "Tous les inventaires réalisés. Ouvrez-en un pour revoir les listes et télécharger à nouveau les rapports — sans pouvoir modifier les pointages.": "All inventories done. Open one to review the lists and download the reports again — without being able to change the checks.",
+  "Liste": "List",
+  "Tableau de bord": "Dashboard",
+  "Corbeille": "Trash",
+  "Inventaire(s)": "Inventories",
+  "Véhicules présents": "Vehicles present",
+  "Manquants cumulés": "Cumulative missing",
+  "Tous les statuts": "All statuses",
+  "Clôturés": "Closed",
+  "Clôturé": "Closed",
+  "En cours": "In progress",
+  "Toutes les années": "All years",
+  "Actualiser": "Refresh",
+  "Exporter la liste (Excel)": "Export the list (Excel)",
+  "Aucun inventaire ne correspond à votre recherche.": "No inventory matches your search.",
+  "Aucun inventaire.": "No inventory.",
+  "Rechercher un parc...": "Search for a park...",
+  "Impossible de charger les archives. Vérifiez votre connexion et réessayez.": "Unable to load the archives. Check your connection and try again.",
+  "SYNTHÈSE DE CAMPAGNE D'INVENTAIRE": "INVENTORY CAMPAIGN SUMMARY",
+  "BÉNIN CONTROL / MAD-MAE": "BÉNIN CONTROL / MAD-MAE",
+  "Parcs inventoriés :": "Parks inventoried:",
+  "Parcs inventoriés": "Parks inventoried",
+  "— édité le": "— issued on",
+  "Dernier inventaire": "Latest inventory",
+  "Attendus": "Expected",
+  "Hors MMTE": "Not on MMTE",
+  "Taux": "Rate",
+  "Parcs sans inventaire (": "Parks without inventory (",
+  "Parcs sans inventaire": "Parks without inventory",
+  "Imprimer la synthèse de campagne (PDF)": "Print the campaign summary (PDF)",
+  "Parcs clôturés": "Parks closed",
+  "À faire": "To do",
+  "Taux global": "Overall rate",
+  "Situation par parc (du taux le plus faible au plus élevé)": "Situation per park (from lowest to highest rate)",
+  "Dernier :": "Latest:",
+  "inventaire(s)": "inventory(ies)",
+  "La corbeille est vide.": "The trash is empty.",
+  "Aucun inventaire de plus de 30 jours.": "No inventory older than 30 days.",
+  "Inventaire du": "Inventory of",
+  "Clôturé par": "Closed by",
+  "Créé par": "Created by",
+  "% des véhicules attendus retrouvés": "% of expected vehicles found",
+  "Sélectionner pour comparer": "Select to compare",
+  "Ouvrir (lecture seule)": "Open (read only)",
+  "Rouvrir": "Reopen",
+  "Restaurer": "Restore",
+  "Supprimer définitivement": "Delete permanently",
+  "Comparer ces deux inventaires": "Compare these two inventories",
+  "Les deux inventaires doivent concerner le même parc.": "Both inventories must concern the same park.",
+  "Impossible de comparer ces inventaires. Réessayez.": "Unable to compare these inventories. Try again.",
+  "Impossible de rouvrir cet inventaire. Réessayez.": "Unable to reopen this inventory. Try again.",
+  "Impossible de restaurer cet inventaire.": "Unable to restore this inventory.",
+  "Impossible de déplacer cet inventaire dans la corbeille (droits ou connexion).": "Unable to move this inventory to the trash (rights or connection).",
+  "La suppression définitive a échoué (droits ou connexion). Rouvrez la corbeille pour vérifier l'état.": "Permanent deletion failed (rights or connection). Reopen the trash to check the state.",
+  "Suppression impossible (droits insuffisants ou connexion). Réessayez.": "Deletion impossible (insufficient rights or connection). Try again.",
+  "La clôture n'a pas pu être enregistrée (connexion ou droits). L'inventaire reste ouvert : réessayez dans un instant.": "The closing could not be saved (connection or rights). The inventory stays open: try again in a moment.",
+  "La liste MMTE, les pointages, les photos et le journal seront effacés sans retour possible. Tapez": "The MMTE list, checks, photos and log will be erased with no way back. Type",
+  "pour confirmer.": "to confirm.",
+  "Lecture seule": "Read only",
+  "Détails": "Details",
+  "INVENTAIRE MMTE — Comparaison de deux inventaires": "MMTE INVENTORY — Comparison of two inventories",
+  "Inventaire récent": "Recent inventory",
+  "Présents au récent inventaire": "Present at the recent inventory",
+  "Présents à l'ancien inventaire": "Present at the old inventory",
+  "Présents aux deux dates": "Present on both dates",
+  "Nouveaux (absents avant, présents maintenant)": "New (absent before, present now)",
+  "Sortis (présents avant, absents maintenant)": "Exited (present before, absent now)",
+  "Nouveaux véhicules": "New vehicles",
+  "Véhicules sortis": "Vehicles exited",
+  "Véhicules conteneurisés": "Containerised vehicles",
+  "COMPARAISON DE DEUX FICHIERS DE STOCK": "COMPARISON OF TWO STOCK FILES",
+  "INVENTAIRE MMTE — Comparaison de deux fichiers de stock": "MMTE INVENTORY — Comparison of two stock files",
+  "INVENTAIRE MMTE — Bénin Control / MAD-MAE": "MMTE INVENTORY — Bénin Control / MAD-MAE",
+  "Comparaison": "Comparison",
+  "Choisissez deux exports de stock : l'application indique les châssis présents dans les deux fichiers, ceux présents seulement dans le premier et ceux présents seulement dans le second. Cette comparaison est indépendante des inventaires et rien n'est enregistré.": "Choose two stock exports: the app shows the chassis present in both files, those only in the first and those only in the second. This comparison is independent of inventories and nothing is saved.",
+  "Valider et lancer la comparaison": "Confirm and run the comparison",
+  "Modifier les fichiers ou les noms": "Change the files or the names",
+  "Valider le nom": "Confirm the name",
+  "Inverser les deux fichiers": "Swap the two files",
+  "Tout réinitialiser": "Reset everything",
+  "Tout remettre à zéro ? Les deux fichiers, les noms et les résultats seront effacés de cet écran (vos fichiers d'origine ne sont pas touchés). Pensez à avoir fait vos exports.": "Reset everything? Both files, the names and the results will be erased from this screen (your original files are not touched). Remember to make your exports first.",
+  "Présents dans les deux fichiers (communs)": "Present in both files (common)",
+  "Communs aux deux": "Common to both",
+  "Communs aux deux fichiers": "Common to both files",
+  "Communs dont les informations diffèrent": "Common, with different information",
+  "Informations différentes entre les deux fichiers": "Information that differs between the two files",
+  "Différences": "Differences",
+  "Châssis distincts au total": "Distinct chassis in total",
+  "Total des châssis distincts (réunion des deux fichiers)": "Total distinct chassis (union of both files)",
+  "Lignes différentes entre elles": "Lines that differ from each other",
+  "· lignes différentes": "· different lines",
+  "Voir les doublons": "See duplicates",
+  "Masquer les doublons": "Hide duplicates",
+  "Télécharger la comparaison (Excel)": "Download the comparison (Excel)",
+  "Télécharger la liste des doublons (Excel)": "Download the duplicate list (Excel)",
+  "Télécharger la liste sans doublons": "Download the list without duplicates",
+  "Remplacer le fichier": "Replace the file",
+  "Châssis": "Chassis",
+  "Châssis erronés": "Faulty chassis",
+  "Châssis attendus (MMTE)": "Expected chassis (MMTE)",
+  "Véhicule": "Vehicle",
+  "Modèle": "Model",
+  "Date d'entrée": "Entry date",
+  "Date d'entrée en dépôt": "Depot entry date",
+  "Poids du véhicule": "Vehicle weight",
+  "Date de clôture": "Closing date",
+  "Constats d'enlèvement des parcs": "Park removal reports",
+  "Mise à disposition des stocks": "Stock made available",
+  "Inscrit le": "Registered on",
+  "Édité le": "Issued on",
+  "Modifié": "Modified",
+  "Nombre": "Number",
+  "Administration": "Administration",
+  "Retour": "Back",
+  "Comptes actifs": "Active accounts",
+  "En attente": "Pending",
+  "Invités connectés": "Connected guests",
+  "Inventaires en cours": "Ongoing inventories",
+  "Comptes": "Accounts",
+  "Invités": "Guests",
+  "Parcs": "Parks",
+  "Administrateurs": "Administrators",
+  "Quotas": "Quotas",
+  "Journal": "Log",
+  "Actifs": "Active",
+  "Désactivés": "Deactivated",
+  "Refusés": "Refused",
+  "Exporter (Excel)": "Export (Excel)",
+  "Dernière connexion :": "Last sign-in:",
+  "Dernière connexion": "Last sign-in",
+  "Approuver": "Approve",
+  "Refuser": "Refuse",
+  "Passer administrateur": "Make administrator",
+  "Passer agent": "Make agent",
+  "Renommer": "Rename",
+  "Ajouter un nom": "Add a name",
+  "Réinitialiser le mot de passe": "Reset password",
+  "Supprimer": "Delete",
+  "Actif": "Active",
+  "Désactiver": "Deactivate",
+  "Réactiver": "Reactivate",
+  "Désactivé": "Deactivated",
+  "Administrateur principal (protégé)": "Main administrator (protected)",
+  "Un compte désactivé ne peut plus lire ni pointer. Pour effacer définitivement un compte de connexion :": "A deactivated account can no longer read or check. To permanently erase a sign-in account:",
+  "console Firebase ↗": "Firebase console ↗",
+  "Rechercher un nom ou un e-mail…": "Search for a name or e-mail…",
+  "Aucun compte à afficher.": "No account to display.",
+  "Accès invité (sans compte)": "Guest access (no account)",
+  "Accès invité": "Guest access",
+  "Actif : un code et un nom suffisent pour rejoindre un inventaire en cours.": "Active: a code and a name are enough to join an ongoing inventory.",
+  "Désactivé : personne ne peut entrer avec le code.": "Deactivated: nobody can enter with the code.",
+  "Le code a expiré : personne ne peut entrer.": "The code has expired: nobody can enter.",
+  "Code d'accès": "Access code",
+  "Code d'accès invité": "Guest access code",
+  "Générer": "Generate",
+  "Valable jusqu'au (facultatif)": "Valid until (optional)",
+  "Date de fin de validité": "Expiry date",
+  "Enregistrer le code": "Save the code",
+  "Invités connectés (": "Connected guests (",
+  "Tout révoquer": "Revoke all",
+  "Révoquer": "Revoke",
+  "Visiteur": "Visitor",
+  "Connecté le": "Signed in on",
+  "Activer l'accès invité": "Enable guest access",
+  "Aucun invité connecté.": "No guest connected.",
+  "Agent connecté": "Connected agent",
+  "Accès invité activé": "Guest access enabled",
+  "Accès invité activé.": "Guest access enabled.",
+  "Accès invité désactivé": "Guest access disabled",
+  "Accès invité désactivé.": "Guest access disabled.",
+  "Code d'accès invité enregistré.": "Guest access code saved.",
+  "Code d'accès invité modifié": "Guest access code changed",
+  "Le code doit contenir au moins 4 caractères.": "The code must contain at least 4 characters.",
+  "Désactiver l'accès invité ? Plus personne ne pourra entrer avec le code, et les invités connectés seront déconnectés.": "Disable guest access? Nobody will be able to enter with the code, and connected guests will be signed out.",
+  "Invité déconnecté.": "Guest signed out.",
+  "Invité révoqué": "Guest revoked",
+  "Tous les invités révoqués": "All guests revoked",
+  "Ajouter": "Add",
+  "Ajouter ces parcs": "Add these parks",
+  "Ajouter plusieurs parcs à la fois": "Add several parks at once",
+  "Liste de parcs à ajouter": "List of parks to add",
+  "Un parc par ligne": "One park per line",
+  "Nom du nouveau parc": "Name of the new park",
+  "Nouveau nom du parc": "New park name",
+  "Un parc désactivé n'est plus proposé lors de la création d'un inventaire. Les inventaires déjà réalisés ne changent jamais.": "A deactivated park is no longer offered when creating an inventory. Inventories already done never change.",
+  "Ce parc existe déjà (ou le nom est vide).": "This park already exists (or the name is empty).",
+  "Un parc porte déjà ce nom.": "A park already has this name.",
+  "Gardez au moins un parc actif.": "Keep at least one active park.",
+  "Parc activé": "Park enabled",
+  "Parc désactivé": "Park disabled",
+  "Parc renommé": "Park renamed",
+  "Parc renommé (les anciens inventaires gardent l'ancien nom).": "Park renamed (old inventories keep the old name).",
+  "Parc supprimé": "Park deleted",
+  "Parc supprimé.": "Park deleted.",
+  "Parc(s) ajouté(s)": "Park(s) added",
+  "Liste des administrateurs mise à jour.": "Administrator list updated.",
+  "La liste fait autorité dans l'application et dans les règles de sécurité. L'administrateur principal et votre propre adresse ne peuvent pas être désactivés ni retirés.": "The list is authoritative in the app and in the security rules. The main administrator and your own address cannot be deactivated or removed.",
+  "Cette adresse est déjà administrateur.": "This address is already an administrator.",
+  "Administrateur ajouté": "Administrator added",
+  "Administrateur retiré": "Administrator removed",
+  "Administrateur désactivé": "Administrator deactivated",
+  "Administrateur réactivé": "Administrator reactivated",
+  "Rôle administrateur accordé": "Administrator role granted",
+  "Rôle administrateur retiré": "Administrator role removed",
+  "Réinitialisation du mot de passe envoyée": "Password reset sent",
+  "Compte approuvé": "Account approved",
+  "approuvé": "approved",
+  "Compte renommé": "Account renamed",
+  "Compte réactivé": "Account reactivated",
+  "Nom ajouté": "Name added",
+  "Nom enregistré.": "Name saved.",
+  "Aucun nom enregistré : «": "No name saved: “",
+  "» sera utilisé.": "” will be used.",
+  "Le nom ne peut pas être vide.": "The name cannot be empty.",
+  "Nom de la personne": "Person's name",
+  "Aucun historique pour le moment.": "No history yet.",
+  "Aucune action enregistrée pour le moment.": "No action recorded yet.",
+  "Aucune donnée pour le moment.": "No data yet.",
+  "Aucune entrée.": "No entry.",
+  "Dernières actions (50)": "Latest actions (50)",
+  "Derniers jours": "Last days",
+  "Par personne (aujourd'hui)": "Per person (today)",
+  "Lectures": "Reads",
+  "Écritures": "Writes",
+  "Consommation du jour (estimation)": "Today's usage (estimate)",
+  "Jour Firebase du": "Firebase day of",
+  "lectures et": "reads and",
+  "écritures par jour.": "writes per day.",
+  "Plan gratuit :": "Free plan:",
+  "État du compteur sur cet appareil": "Meter state on this device",
+  "En attente d'envoi :": "Waiting to be sent:",
+  "lect. ·": "reads ·",
+  "écr. · Dernier envoi réussi :": "writes · Last successful send:",
+  "jamais": "never",
+  "Envoyer maintenant": "Send now",
+  "Voir l'usage réel (console Firebase) ↗": "See real usage (Firebase console) ↗",
+  "Facturation et plan Blaze ↗": "Billing and Blaze plan ↗",
+  "Attention au quota Firebase du jour": "Mind today's Firebase quota",
+  "Passez au plan Blaze maintenant pour éviter un blocage.": "Switch to the Blaze plan now to avoid a block.",
+  "Évitez les rechargements et les comparaisons d'archives pendant le terrain.": "Avoid reloading and archive comparisons while in the field.",
+  "Action refusée par le serveur : publiez la dernière version du fichier firestore.rules dans Firebase.": "Action refused by the server: publish the latest version of the firestore.rules file in Firebase.",
+  "Envoi refusé par Firestore : publiez le fichier firestore.rules (console Firebase → Firestore → Règles → Publier), puis touchez « Envoyer maintenant ».": "Send refused by Firestore: publish the firestore.rules file (Firebase console → Firestore → Rules → Publish), then tap “Send now”.",
+  "Détail par personne": "Detail per person",
+  "Rechercher": "Search",
+  "Mois": "Month",
+  "Délai de séjour dépassé": "Stay limit exceeded",
+  "Statut": "Status",
+  "Description": "Description",
+  "Marque": "Make",
+  "Âge": "Age",
+  "Photo": "Photo",
+  "Heure": "Time",
+  "Oui": "Yes",
+  "Non": "No",
+  "Retirer": "Remove",
+  "Confirmer": "Confirm",
+  "Enregistrer": "Save",
+  "Modifier": "Edit",
+  "Supprimer ce pointage": "Delete this check",
+  "Restaurer ce pointage": "Restore this check",
+  "Terminer": "Finish",
+  "Suivant": "Next",
+  "Précédent": "Previous",
+  "Réessayez": "Try again",
+  "à l'instant": "just now",
+  "(Joindre le classeur Excel téléchargé depuis l'application.)": "(Attach the Excel workbook downloaded from the app.)",
+  "Attendus MMTE :": "Expected on MMTE:",
+  "Aide": "Help",
+  "Enregistrés (présents sur le parc, absents MMTE)": "Registered (present in the park, absent from MMTE)",
+  "Enregistrés Parc": "Registered in park",
+  "Enregistrés hors MMTE": "Registered, not on MMTE",
+  "Refusé": "Refused",
+  "Préparation...": "Preparing...",
+  "PDF : quantités": "PDF: quantities",
+  "PDF : quantités + listes": "PDF: quantities + lists",
+  "Taux de retrouvés (%)": "Found rate (%)",
+  "Tableau des taux d'utilisation de MMTE": "MMTE usage rates table",
+  "Lundi": "Monday",
+  "Observation": "Remark",
+  "Annexe": "Annex",
+  "· créé par": "· created by"
+});
+const EN_PATTERNS = [
+  ["Supprimer le pointage du châssis {*} ?\n\nCette action reste tracée (auteur + heure) mais retire l'entrée des listes de l'inventaire.", "Delete the check of chassis {*}?\n\nThis action stays traced (author + time) but removes the entry from the inventory lists."],
+  ["Hors connexion · {n} en attente", "Offline · {n} pending"],
+  ["Envoi en cours · {n}", "Sending · {n}"],
+  ["Hors connexion — {n} pointage(s) gardé(s) sur la tablette, envoi dès le retour du réseau.", "Offline — {n} check(s) kept on the tablet, sent as soon as the network returns."],
+  ["Synchronisation en cours ({n} en attente)...", "Synchronising ({n} pending)..."],
+  ["Télécharger le classeur Excel complet ({n} feuilles + résumé)", "Download the full Excel workbook ({n} sheets + summary)"],
+  ["Rapport photos des véhicules hors MMTE ({*})", "Photo report of vehicles not on MMTE ({*})"],
+  ["Nom court du {*}", "Short name of the {*}"],
+  ["Corbeille ({n})", "Trash ({n})"],
+  ["Les inventaires supprimés restent récupérables pendant {n} jours. Passé ce délai, vous pouvez les purger définitivement.", "Deleted inventories can be recovered for {n} days. After that, you can purge them permanently."],
+  ["Purger les éléments de plus de {n} jours", "Purge items older than {n} days"],
+  ["· créé par {*}", "· created by {*}"],
+  ["Comparaison : {n}/{n} inventaire(s) sélectionné(s)", "Comparison: {n}/{n} inventory(ies) selected"],
+  ["Déplacer « {*} » ({*}) dans la corbeille ?\n\nIl restera récupérable pendant 30 jours.", "Move “{*}” ({*}) to the trash?\n\nIt will remain recoverable for 30 days."],
+  ["Rouvrir l'inventaire « {*} » du {*} ?\n\nIl redeviendra « en cours » et les agents pourront de nouveau pointer.", "Reopen the inventory “{*}” of {*}?\n\nIt will become “in progress” again and agents will be able to check vehicles again."],
+  ["{n} inventaire(s) purgé(s).", "{n} inventory(ies) purged."],
+  ["Fichier {n}", "File {n}"],
+  ["Uniquement dans « {*} »", "Only in “{*}”"],
+  ["Châssis dans « {*} »", "Chassis in “{*}”"],
+  ["Doublons ignorés dans « {*} »", "Duplicates ignored in “{*}”"],
+  ["Part de « {*} » retrouvée dans « {*} »", "Share of “{*}” found in “{*}”"],
+  ["Part de « {*} » déjà présente dans « {*} »", "Share of “{*}” already present in “{*}”"],
+  ["« {*} » : chaque châssis n'est compté qu'une seule fois dans la comparaison (la dernière ligne est conservée).", "“{*}”: each chassis is counted only once in the comparison (the last line is kept)."],
+  ["Pour {*} d'entre eux, les lignes ne sont pas identiques : vérifiez le fichier source.", "For {*} of them, the lines are not identical: check the source file."],
+  ["· {*} doublon(s) ignoré(s)", "· {*} duplicate(s) ignored"],
+  ["Vide = pas de date de fin. Chaque session invité dure {n} h au maximum.", "Empty = no end date. Each guest session lasts {n} h at most."],
+  ["Rechercher parmi {n} parcs…", "Search among {n} parks…"],
+  ["{n} parc(s) ajouté(s).", "{n} park(s) added."],
+  ["{*} : {*}.", "{*}: {*}."],
+  ["Supprimer le parc « {*} » de la liste ? Les inventaires déjà réalisés restent intacts.", "Delete the park “{*}” from the list? Inventories already done remain intact."],
+  ["{*} est maintenant administrateur.", "{*} is now an administrator."],
+  ["{*} est maintenant agent.", "{*} is now an agent."],
+  ["Donner le rôle administrateur à {*} ?", "Give the administrator role to {*}?"],
+  ["Retirer le rôle administrateur à {*} ?", "Remove the administrator role from {*}?"],
+  ["Retirer {*} de la liste des administrateurs ?", "Remove {*} from the administrator list?"],
+  ["Envoyer un lien de réinitialisation du mot de passe à {*} ?", "Send a password reset link to {*}?"],
+  ["Lien de réinitialisation envoyé à {*}.", "Reset link sent to {*}."],
+  ["Supprimer la fiche de {*} ? La personne perdra son accès (elle pourra refaire une demande). Son compte de connexion reste dans la console Firebase.", "Delete the record of {*}? The person will lose access (they can make a new request). Their sign-in account remains in the Firebase console."],
+  ["Nom enregistré : « {*} »", "Name saved: “{*}”"],
+  ["Dernières actions ({n})", "Latest actions ({n})"],
+  ["Chiffres estimés d'après ce que mesurent les appareils de l'application (mise à jour toutes les {n} minutes environ). Ils peuvent être en dessous de la réalité si un appareil est hors-ligne ou fermé, et ne comptent pas les autres applications du même projet. La console Firebase fait foi.", "Figures estimated from what the app's devices measure (updated about every {n} minutes). They can be below reality if a device is offline or closed, and do not count other apps of the same project. The Firebase console is the reference."],
+  ["Dernier essai en échec ({*}). Les chiffres reviendront dès que la connexion le permettra.", "Last attempt failed ({*}). The figures will return as soon as the connection allows."],
+  ["Dépassé de {*} j", "Overdue by {*} d"],
+  ["Total ({n})", "Total ({n})"],
+  ["Trouvés ({n})", "Found ({n})"],
+  ["Trouvés MMTE ({n})", "Found on MMTE ({n})"],
+  ["Enregistrés ({n})", "Registered ({n})"],
+  ["Manquants ({n})", "Missing ({n})"],
+  ["Enregistrés hors MMTE : {n}", "Registered, not on MMTE: {n}"],
+  ["Trouvés sur MMTE : {n}", "Found on MMTE: {n}"],
+  ["Total présent sur le parc : {n}", "Total present in the park: {n}"],
+  [": remise à zéro vers {n} h ou {n} h, heure du Bénin. Plan gratuit :", ": reset at about {n} h or {n} h, Benin time. Free plan:"],
+  ["{n} ligne(s) — {*}", "{n} row(s) — {*}"],
+  ["{n} phases — {n} étapes", "{n} phases — {n} steps"],
+  ["Date de l'inventaire : {*}", "Inventory date: {*}"],
+  ["{*} (Invité)", "{*} (Guest)"],
+  ["Impossible de lire « {*} ». Formats acceptés : CSV, XLS, XLSX, avec une colonne « chassis ».", "Unable to read “{*}”. Accepted formats: CSV, XLS, XLSX, with a “chassis” column."],
+  ["{n} ligne(s)", "{n} row(s)"],
+  ["{n}%", "{n}% "],
+  ["{n} régularisé sur {n} · {n} encore manquant", "{n} settled out of {n} · {n} still missing"],
+  ["{n} régularisé sur {n} · {n} encore manquants", "{n} settled out of {n} · {n} still missing"],
+  ["{n} régularisés sur {n} · {n} encore manquant", "{n} settled out of {n} · {n} still missing"],
+  ["{n} régularisés sur {n} · {n} encore manquants", "{n} settled out of {n} · {n} still missing"],
+  ["par {*}", "by {*}"],
+  ["Clôturé le {*} par {*}", "Closed on {*} by {*}"]
+].map(([k, v]) => {
+  const toks = [];
+  const re = new RegExp("^" + k.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\{n\}|\{\*\}/g, (t) => {
+    toks.push(t);
+    return t === "{n}" ? "(\\d+(?:[.,]\\d+)?)" : "([\\s\\S]+?)";
+  }) + "$");
+  return [re, v];
+});
+const FR_MONTHS = [["janvier", "January"], ["février", "February"], ["mars", "March"], ["avril", "April"], ["mai", "May"], ["juin", "June"], ["juillet", "July"], ["août", "August"], ["septembre", "September"], ["octobre", "October"], ["novembre", "November"], ["décembre", "December"], ["lundi", "Monday"], ["mardi", "Tuesday"], ["mercredi", "Wednesday"], ["jeudi", "Thursday"], ["vendredi", "Friday"], ["samedi", "Saturday"], ["dimanche", "Sunday"]];
+function trEN(fr) {
+  const lead = fr.match(/^\s*/)[0], trail = fr.match(/\s*$/)[0];
+  const core = fr.trim();
+  if (!core) return fr;
+  let r = Object.prototype.hasOwnProperty.call(EN_DICT, core) ? EN_DICT[core] : null;
+  if (r == null) {
+    for (let k = 0; k < EN_PATTERNS.length; k++) {
+      const m = core.match(EN_PATTERNS[k][0]);
+      if (m) {
+        let i = 1;
+        r = EN_PATTERNS[k][1].replace(/\{n\}|\{\*\}/g, () => m[i++]);
+        break;
+      }
+    }
+  }
+  if (r == null && /(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)/i.test(core)) {
+    r = core;
+    FR_MONTHS.forEach(([f, e]) => {
+      r = r.replace(new RegExp("\\b" + f + "\\b", "gi"), e);
+    });
+    r = r.replace(/\b(\d{1,2}) (January|February|March|April|May|June|July|August|September|October|November|December)\b/g, "$2 $1").replace(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) (\w+ \d+)/, "$1, $2").replace(/([A-Z][a-z]+ \d{1,2}) (\d{4})/, "$1, $2");
+  }
+  return r == null ? fr : lead + r + trail;
+}
+const I18N_ATTRS = ["placeholder", "title", "aria-label", "alt"];
+const i18nText = /* @__PURE__ */ new Map();
+const i18nAttr = /* @__PURE__ */ new Map();
+let i18nObs = null;
+function i18nNode(n) {
+  if (!n) return;
+  if (n.nodeType === 3) {
+    const p = n.parentElement;
+    if (!p || /^(SCRIPT|STYLE|TEXTAREA)$/.test(p.tagName) || p.closest("[data-i18n-skip]")) return;
+    const e = i18nText.get(n);
+    if (e && n.nodeValue === e.en) return;
+    const fr = n.nodeValue, en = trEN(fr);
+    i18nText.set(n, { fr, en });
+    if (en !== fr) n.nodeValue = en;
+  } else if (n.nodeType === 1) {
+    if (/^(SCRIPT|STYLE|SVG|svg)$/.test(n.tagName) || n.closest("[data-i18n-skip]")) return;
+    I18N_ATTRS.forEach((a) => {
+      const v = n.getAttribute && n.getAttribute(a);
+      if (!v) return;
+      const m = i18nAttr.get(n) || {};
+      if (m[a] && v === m[a].en) return;
+      const en = trEN(v);
+      m[a] = { fr: v, en };
+      i18nAttr.set(n, m);
+      if (en !== v) n.setAttribute(a, en);
+    });
+    n.childNodes.forEach(i18nNode);
+  }
+}
+function i18nStart() {
+  if (i18nObs || typeof MutationObserver === "undefined") return;
+  i18nNode(document.body);
+  i18nObs = new MutationObserver((muts) => {
+    if (LANG !== "en") return;
+    muts.forEach((m) => {
+      if (m.type === "childList") m.addedNodes.forEach(i18nNode);
+      else if (m.type === "characterData") i18nNode(m.target);
+      else if (m.type === "attributes") i18nNode(m.target.nodeType === 1 ? m.target : null);
+    });
+  });
+  i18nObs.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: I18N_ATTRS });
+}
+function i18nStop() {
+  if (i18nObs) {
+    i18nObs.disconnect();
+    i18nObs = null;
+  }
+  i18nText.forEach((e, n) => {
+    if (n.isConnected && n.nodeValue === e.en) n.nodeValue = e.fr;
+  });
+  i18nAttr.forEach((m, el) => {
+    Object.keys(m).forEach((a) => {
+      if (el.isConnected && el.getAttribute(a) === m[a].en) el.setAttribute(a, m[a].fr);
+    });
+  });
+  i18nText.clear();
+  i18nAttr.clear();
+}
+function setLangPref(l) {
+  LANG = l === "en" ? "en" : "fr";
+  try {
+    localStorage.setItem(LANG_KEY, LANG);
+  } catch (e) {
+  }
+  try {
+    document.documentElement.lang = LANG;
+  } catch (e) {
+  }
+  if (LANG === "en") i18nStart();
+  else i18nStop();
+  langListeners.forEach((f) => f(LANG));
+}
+function confirmT(m) {
+  return window.confirm(LANG === "en" ? trEN(m) : m);
+}
+function alertT(m) {
+  return window.alert(LANG === "en" ? trEN(m) : m);
+}
+function useLang() {
+  const [l, setL] = useState(LANG);
+  useEffect(() => {
+    langListeners.add(setL);
+    return () => langListeners.delete(setL);
+  }, []);
+  return l;
+}
+function LangToggle() {
+  const l = useLang();
+  useEffect(() => {
+    try {
+      document.documentElement.lang = LANG;
+    } catch (e) {
+    }
+    if (LANG === "en") i18nStart();
+  }, []);
+  return /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      "data-testid": "lang-toggle",
+      "data-i18n-skip": true,
+      onClick: () => setLangPref(l === "fr" ? "en" : "fr"),
+      "aria-label": "Language",
+      className: "no-print fixed right-3 bottom-3 z-40 rounded-full px-3 py-1.5 text-[11px] font-bold shadow bg-white border-2 flex items-center gap-1",
+      style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP }
+    },
+    /* @__PURE__ */ React.createElement(Globe, { size: 13 }),
+    " ",
+    l === "fr" ? "English" : "Français"
+  );
+}
+function SyncChip({ online, pending }) {
+  const tone = !online ? "bg-amber-500 text-white" : pending > 0 ? "bg-sky-600 text-white" : "bg-emerald-600 text-white";
+  const text = !online ? pending ? `Hors connexion · ${pending} en attente` : "Hors connexion" : pending > 0 ? `Envoi en cours · ${pending}` : "Synchronisé";
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "sync-chip", className: `no-print fixed left-3 bottom-3 z-40 rounded-full px-3 py-1 text-[11px] font-bold shadow ${tone}`, role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "inline-block w-2 h-2 rounded-full bg-white/90 mr-1.5 align-middle" }), text);
+}
 function SyncBadge({ online, pending }) {
   let tone, text;
   if (!online) {
@@ -946,6 +1964,58 @@ function loadZXing() {
   });
   return window.__zxingPromise;
 }
+function CamTools({ videoRef }) {
+  const [caps, setCaps] = useState(null);
+  const [torch, setTorch] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const trackOf = () => {
+    const v = videoRef.current;
+    const st = v && v.srcObject;
+    return st && st.getVideoTracks ? st.getVideoTracks()[0] : null;
+  };
+  useEffect(() => {
+    let n = 0;
+    const iv = setInterval(() => {
+      n++;
+      const t = trackOf();
+      if (t && t.getCapabilities) {
+        let c = null;
+        try {
+          c = t.getCapabilities();
+        } catch (e) {
+          c = null;
+        }
+        if (c) {
+          setCaps({ torch: !!c.torch, zoom: c.zoom && c.zoom.max > c.zoom.min ? { min: c.zoom.min, max: c.zoom.max, step: c.zoom.step || 0.1 } : null });
+          if (c.zoom) setZoom(c.zoom.min || 1);
+          clearInterval(iv);
+          return;
+        }
+      }
+      if (n > 20) clearInterval(iv);
+    }, 400);
+    return () => clearInterval(iv);
+  }, []);
+  const apply = async (adv) => {
+    const t = trackOf();
+    if (!t || !t.applyConstraints) return false;
+    try {
+      await t.applyConstraints({ advanced: [adv] });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+  if (!caps || !caps.torch && !caps.zoom) return null;
+  return /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-md mt-2 flex items-center gap-3 rounded-xl bg-white/10 px-3 py-2", "data-testid": "cam-tools" }, caps.torch && /* @__PURE__ */ React.createElement("button", { "data-testid": "cam-torch", onClick: async () => {
+    const nx = !torch;
+    if (await apply({ torch: nx })) setTorch(nx);
+  }, className: "px-3 py-1.5 rounded-lg text-sm font-bold " + (torch ? "bg-amber-300 text-slate-900" : "bg-white text-slate-800") }, torch ? "Éteindre la lampe" : "Allumer la lampe"), caps.zoom && /* @__PURE__ */ React.createElement("label", { className: "flex-1 flex items-center gap-2 text-white text-xs font-bold" }, "Zoom", /* @__PURE__ */ React.createElement("input", { "data-testid": "cam-zoom", type: "range", min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step, value: zoom, onChange: async (e) => {
+    const z = parseFloat(e.target.value);
+    setZoom(z);
+    await apply({ zoom: z });
+  }, className: "flex-1" })));
+}
 function CameraScanner({ onDetect, onClose, knownMap }) {
   const videoRef = useRef(null);
   const [err, setErr] = useState("");
@@ -1050,7 +2120,7 @@ function CameraScanner({ onDetect, onClose, knownMap }) {
     };
   }, [mode]);
   const tabCls = (m) => `flex-1 px-3 py-2 rounded-lg text-sm font-bold ${mode === m ? "bg-white" : "bg-white/15 text-white"}`;
-  return /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-start sm:justify-center p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 w-full max-w-md mb-3" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-code", onClick: () => setMode("code"), className: tabCls("code"), style: mode === "code" ? { color: BLUE_DEEP } : void 0 }, "Code-barres / QR"), /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-text", onClick: () => setMode("text"), className: tabCls("text"), style: mode === "text" ? { color: BLUE_DEEP } : void 0 }, "Texte du châssis")), mode === "text" ? /* @__PURE__ */ React.createElement(TextScanner, { knownMap, onDetect, onSwitchCode: () => setMode("code") }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1" }, "Visez le code-barres ou le QR code du châssis"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3" }, "Les deux types de codes sont lus automatiquement."), err ? /* @__PURE__ */ React.createElement("div", { className: "max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full max-w-md rounded-xl bg-black" }), loading && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2" }, "Démarrage de la caméra..."))), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "mt-4 px-6 py-3 rounded-xl bg-white font-bold", style: { color: BLUE_DEEP } }, "Fermer"));
+  return /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-start sm:justify-center p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 w-full max-w-md mb-3" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-code", onClick: () => setMode("code"), className: tabCls("code"), style: mode === "code" ? { color: BLUE_DEEP } : void 0 }, "Code-barres / QR"), /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-text", onClick: () => setMode("text"), className: tabCls("text"), style: mode === "text" ? { color: BLUE_DEEP } : void 0 }, "Texte du châssis")), mode === "text" ? /* @__PURE__ */ React.createElement(TextScanner, { knownMap, onDetect, onSwitchCode: () => setMode("code") }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1" }, "Visez le code-barres ou le QR code du châssis"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3" }, "Les deux types de codes sont lus automatiquement."), err ? /* @__PURE__ */ React.createElement("div", { className: "max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full max-w-md rounded-xl bg-black" }), loading && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2" }, "Démarrage de la caméra..."), !loading && /* @__PURE__ */ React.createElement(CamTools, { videoRef }))), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "mt-4 px-6 py-3 rounded-xl bg-white font-bold", style: { color: BLUE_DEEP } }, "Fermer"));
 }
 let ocrEnginePromise = null;
 function loadOcrEngine(onStage) {
@@ -1175,7 +2245,7 @@ function TextScanner({ knownMap, onDetect, onSwitchCode }) {
     setErr("");
     setStage("Préparation de la caméra...");
     setRetry((n) => n + 1);
-  }, className: "px-4 py-2 rounded-lg text-white font-bold", style: { background: BLUE_DEEP } }, "Réessayer"), /* @__PURE__ */ React.createElement("button", { onClick: onSwitchCode, className: "px-4 py-2 rounded-lg border border-slate-300 font-bold" }, "Code-barres"))) : /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full rounded-xl bg-black" }), /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center pointer-events-none" }, /* @__PURE__ */ React.createElement("div", { className: `w-[94%] ${wide ? "h-[62%]" : "h-[24%]"} rounded-lg border-2 border-emerald-400`, style: { boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)" } }))), stage && !err && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2 text-center", "data-testid": "ocr-stage" }, stage), !err && !stage && /* @__PURE__ */ React.createElement("div", { className: "text-white/60 text-xs mt-2 text-center", "data-testid": "ocr-reading" }, "Lecture en cours... (", reads, ")"), !err && /* @__PURE__ */ React.createElement("label", { className: "mt-2 flex items-center justify-center gap-2 text-white/80 text-xs" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: wide, onChange: (e) => setWide(e.target.checked) }), "Cadre large (plaquette de portière avec plusieurs lignes)"), (cands.length > 0 || nearList.length > 0) && /* @__PURE__ */ React.createElement("div", { className: "mt-3 rounded-xl bg-white p-3", "data-testid": "ocr-cands" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-slate-800 mb-2" }, cands.length + nearList.length > 1 ? "Plusieurs numéros lus — lequel est le châssis ?" : "Numéro lu — est-ce le châssis ?"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2" }, nearList.map((c) => /* @__PURE__ */ React.createElement("button", { key: "n" + c, "data-testid": "ocr-near", onClick: () => pick(c), className: "text-left px-3 py-2 rounded-lg border-2 border-amber-300 bg-amber-50" }, /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold" }, c), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-amber-800" }, "Proche d'un châssis de la liste MMTE — à confirmer"))), cands.map((c) => /* @__PURE__ */ React.createElement("button", { key: c.value, "data-testid": "ocr-cand", onClick: () => pick(c.value), className: "text-left px-3 py-2 rounded-lg border border-slate-300" }, /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold" }, c.value), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-slate-500" }, c.kind))))), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex gap-2" }, /* @__PURE__ */ React.createElement(
+  }, className: "px-4 py-2 rounded-lg text-white font-bold", style: { background: BLUE_DEEP } }, "Réessayer"), /* @__PURE__ */ React.createElement("button", { onClick: onSwitchCode, className: "px-4 py-2 rounded-lg border border-slate-300 font-bold" }, "Code-barres"))) : /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full rounded-xl bg-black" }), /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center pointer-events-none" }, /* @__PURE__ */ React.createElement("div", { className: `w-[94%] ${wide ? "h-[62%]" : "h-[24%]"} rounded-lg border-2 border-emerald-400`, style: { boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)" } }))), stage && !err && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2 text-center", "data-testid": "ocr-stage" }, stage), !err && !stage && /* @__PURE__ */ React.createElement("div", { className: "text-white/60 text-xs mt-2 text-center", "data-testid": "ocr-reading" }, "Lecture en cours... (", reads, ")"), !err && !stage && /* @__PURE__ */ React.createElement(CamTools, { videoRef }), !err && /* @__PURE__ */ React.createElement("label", { className: "mt-2 flex items-center justify-center gap-2 text-white/80 text-xs" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: wide, onChange: (e) => setWide(e.target.checked) }), "Cadre large (plaquette de portière avec plusieurs lignes)"), (cands.length > 0 || nearList.length > 0) && /* @__PURE__ */ React.createElement("div", { className: "mt-3 rounded-xl bg-white p-3", "data-testid": "ocr-cands" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-slate-800 mb-2" }, cands.length + nearList.length > 1 ? "Plusieurs numéros lus — lequel est le châssis ?" : "Numéro lu — est-ce le châssis ?"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2" }, nearList.map((c) => /* @__PURE__ */ React.createElement("button", { key: "n" + c, "data-testid": "ocr-near", onClick: () => pick(c), className: "text-left px-3 py-2 rounded-lg border-2 border-amber-300 bg-amber-50" }, /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold" }, c), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-amber-800" }, "Proche d'un châssis de la liste MMTE — à confirmer"))), cands.map((c) => /* @__PURE__ */ React.createElement("button", { key: c.value, "data-testid": "ocr-cand", onClick: () => pick(c.value), className: "text-left px-3 py-2 rounded-lg border border-slate-300" }, /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold" }, c.value), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-slate-500" }, c.kind))))), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex gap-2" }, /* @__PURE__ */ React.createElement(
     "input",
     {
       "data-testid": "ocr-manual",
@@ -1473,6 +2543,7 @@ function InventaireMMTEApp() {
   const [invMeta, setInvMeta] = useState(null);
   const [mmteMap, setMmteMap] = useState(/* @__PURE__ */ new Map());
   const [scans, setScans] = useState([]);
+  const [followups, setFollowups] = useState([]);
   const [startedAt, setStartedAt] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [inputVal, setInputVal] = useState("");
@@ -1500,6 +2571,33 @@ function InventaireMMTEApp() {
     });
     return unsub;
   }, [invId]);
+  useEffect(() => {
+    if (!invId || isGuest) {
+      setFollowups([]);
+      return;
+    }
+    const unsub = db.collection("inventories").doc(invId).collection("followups").onSnapshot((snap) => setFollowups(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setFollowups([]));
+    return unsub;
+  }, [invId, isGuest]);
+  const followMissing = (norm, chassis, status, note) => {
+    if (!invId || !authUser) return;
+    db.collection("inventories").doc(invId).collection("followups").doc(norm).set({
+      norm,
+      chassis,
+      status,
+      note: note || "",
+      byUid: authUser.uid,
+      byName: currentAgent ? currentAgent.name : "",
+      at: FieldValue.serverTimestamp()
+    }).catch(() => {
+    });
+    logAuditFor(invId, "followup", { norm, chassis });
+  };
+  const unfollowMissing = (norm) => {
+    if (!invId) return;
+    db.collection("inventories").doc(invId).collection("followups").doc(norm).delete().catch(() => {
+    });
+  };
   const activeScans = useMemo(() => scans.filter((s) => !s.deleted), [scans]);
   const foundList = useMemo(() => activeScans.filter((s) => s.source === "mmte"), [activeScans]);
   const registeredList = useMemo(() => activeScans.filter((s) => s.source === "parc"), [activeScans]);
@@ -2014,7 +3112,7 @@ function InventaireMMTEApp() {
       });
       logAuditFor(invId, "close", { found: foundList.length, registered: registeredList.length, missing: missingList.length });
     } catch (e) {
-      window.alert("La clôture n'a pas pu être enregistrée (connexion ou droits). L'inventaire reste ouvert : réessayez dans un instant.");
+      alertT("La clôture n'a pas pu être enregistrée (connexion ou droits). L'inventaire reste ouvert : réessayez dans un instant.");
       return;
     }
     resetAll();
@@ -2044,6 +3142,11 @@ function InventaireMMTEApp() {
     leaveSetupSafely();
     setShowAdmin(false);
     setPhase("stockcompare");
+  };
+  const openHelp = () => {
+    leaveSetupSafely();
+    setShowAdmin(false);
+    setPhase("help");
   };
   const openDocs = () => {
     leaveSetupSafely();
@@ -2128,7 +3231,7 @@ function InventaireMMTEApp() {
     return expired.length;
   };
   const reopenArchived = async (inv) => {
-    if (!window.confirm(`Rouvrir l'inventaire « ${inv.parcName} » du ${String(inv.invDate || "").split("-").reverse().join("/")} ?
+    if (!confirmT(`Rouvrir l'inventaire « ${inv.parcName} » du ${String(inv.invDate || "").split("-").reverse().join("/")} ?
 
 Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) return;
     setArchiveLoading(true);
@@ -2370,9 +3473,10 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       onOpenArchives: authUser && isApproved && !isGuest ? openArchives : null,
       onOpenStockCompare: authUser && isApproved && !isGuest ? openStockCompare : null,
       onOpenDocs: authUser && isApproved && !isGuest ? openDocs : null,
+      onOpenHelp: authUser && isApproved ? openHelp : null,
       onHome: () => {
         setShowAdmin(false);
-        if (phase === "stockcompare" || phase === "archives" || phase === "compare" || phase === "docs") setPhase("setup");
+        if (phase === "stockcompare" || phase === "archives" || phase === "compare" || phase === "docs" || phase === "help") setPhase("setup");
       },
       phase,
       withNav: !!(authUser && isApproved && currentAgent)
@@ -2485,11 +3589,14 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       onReopen: reopenArchived,
       onCompare: compareInventories
     }
-  ), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "stockcompare" && /* @__PURE__ */ React.createElement(StockCompareScreen, { onBack: () => setPhase("setup") }), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "docs" && /* @__PURE__ */ React.createElement(DocsScreen, { parcsList: PARCS_LIST }), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "compare" && compareData && /* @__PURE__ */ React.createElement(CompareScreen, { data: compareData, onBack: () => {
+  ), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "stockcompare" && /* @__PURE__ */ React.createElement(StockCompareScreen, { onBack: () => setPhase("setup") }), authUser && isApproved && !(isAdmin && showAdmin) && phase === "help" && /* @__PURE__ */ React.createElement(HelpScreen, { onBack: () => setPhase("setup") }), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "docs" && /* @__PURE__ */ React.createElement(DocsScreen, { parcsList: PARCS_LIST }), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "compare" && compareData && /* @__PURE__ */ React.createElement(CompareScreen, { data: compareData, onBack: () => {
     setPhase("archives");
   }, onExport: exportComparison }), authUser && isApproved && !(isAdmin && showAdmin) && phase === "summary" && /* @__PURE__ */ React.createElement(
     SummaryScreen,
     {
+      followups,
+      onFollow: isApproved ? followMissing : null,
+      onUnfollow: unfollowMissing,
       readOnly,
       invMeta,
       onReopen: isAdmin && readOnly && invMeta && invMeta.status === "completed" ? () => reopenArchived({ ...invMeta, id: invId }) : null,
@@ -2508,7 +3615,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       closeInventory,
       isGuest
     }
-  ), /* @__PURE__ */ React.createElement(AppFooter, null)));
+  ), /* @__PURE__ */ React.createElement(LangToggle, null), currentAgent && /* @__PURE__ */ React.createElement(SyncChip, { online: isOnline, pending: pendingCount }), /* @__PURE__ */ React.createElement(AppFooter, null)));
 }
 function InventaireMMTE() {
   return /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(InventaireMMTEApp, null));
@@ -2733,17 +3840,19 @@ function WelcomeBar({ uid, name }) {
   if (!name) return null;
   return /* @__PURE__ */ React.createElement(React.Fragment, null, toast && /* @__PURE__ */ React.createElement("div", { className: "mmte-toast no-print", role: "status" }, "Bienvenue, ", name), /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 pt-6 no-print" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-hi" }, greetingWord(now), ", ", name), /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-date" }, formatDateFr(now))))));
 }
-function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin, onOpenArchives, onOpenStockCompare, onOpenDocs, onHome, phase, withNav }) {
+function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin, onOpenArchives, onOpenStockCompare, onOpenDocs, onOpenHelp, onHome, phase, withNav }) {
   const now = useNow();
   const inArchives = phase === "archives" || phase === "compare";
   const inStock = phase === "stockcompare";
   const inDocs = phase === "docs";
+  const inHelp = phase === "help";
   const nav = [];
   if (currentAgent && withNav) {
-    nav.push({ key: "home", label: "Inventaire", Icon: Home, onClick: onHome, active: !showAdmin && !inArchives && !inStock && !inDocs });
+    nav.push({ key: "home", label: "Inventaire", Icon: Home, onClick: onHome, active: !showAdmin && !inArchives && !inStock && !inDocs && !inHelp });
     if (onOpenArchives) nav.push({ key: "arch", label: "Mes données / Archives", Icon: Archive, onClick: onOpenArchives, active: !showAdmin && inArchives });
     if (onOpenStockCompare) nav.push({ key: "cmp", label: "Comparer deux stocks", Icon: Columns, onClick: onOpenStockCompare, active: !showAdmin && inStock });
     if (onOpenDocs) nav.push({ key: "docs", label: "Fiches et rapports", Icon: FileSpreadsheet, onClick: onOpenDocs, active: !showAdmin && inDocs });
+    if (onOpenHelp) nav.push({ key: "help", label: "Aide et guide d'utilisation", Icon: HelpCircle, onClick: onOpenHelp, active: !showAdmin && inHelp });
     if (isAdmin) nav.push({ key: "adm", label: showAdmin ? "Fermer le panneau admin" : "Panneau admin", Icon: ShieldCheck, onClick: () => setShowAdmin((x) => !x), active: showAdmin });
   }
   const initial = currentAgent && currentAgent.name ? String(currentAgent.name).trim().charAt(0).toUpperCase() : "";
@@ -2823,7 +3932,7 @@ function AdminPanel({ onClose, parcsList, currentUserEmail, currentUid, activeIn
     }
   };
   const resetPassword = async (u) => {
-    if (!u.email || !window.confirm(`Envoyer un lien de réinitialisation du mot de passe à ${u.email} ?`)) return;
+    if (!u.email || !confirmT(`Envoyer un lien de réinitialisation du mot de passe à ${u.email} ?`)) return;
     try {
       await auth.sendPasswordResetEmail(u.email);
       log("Réinitialisation du mot de passe envoyée", u.email);
@@ -2839,7 +3948,7 @@ function AdminPanel({ onClose, parcsList, currentUserEmail, currentUid, activeIn
     const email = String(u.email || "").toLowerCase();
     const makeAdmin = !adminSet.has(email);
     if (isProtected(email)) return;
-    if (!window.confirm(makeAdmin ? `Donner le rôle administrateur à ${u.email} ?` : `Retirer le rôle administrateur à ${u.email} ?`)) return;
+    if (!confirmT(makeAdmin ? `Donner le rôle administrateur à ${u.email} ?` : `Retirer le rôle administrateur à ${u.email} ?`)) return;
     try {
       const emails = adminsDoc.emails.map((e) => String(e).toLowerCase()).filter((e) => e !== email);
       const disabled = adminsDoc.disabledEmails.map((e) => String(e).toLowerCase()).filter((e) => e !== email);
@@ -2868,7 +3977,7 @@ function AdminPanel({ onClose, parcsList, currentUserEmail, currentUid, activeIn
   };
   const deleteUser = async (u) => {
     if (isProtected(u.email)) return;
-    if (!window.confirm(`Supprimer la fiche de ${u.email} ? La personne perdra son accès (elle pourra refaire une demande). Son compte de connexion reste dans la console Firebase.`)) return;
+    if (!confirmT(`Supprimer la fiche de ${u.email} ? La personne perdra son accès (elle pourra refaire une demande). Son compte de connexion reste dans la console Firebase.`)) return;
     try {
       await db.collection("users").doc(u.id).delete();
       log("Fiche supprimée", u.email);
@@ -2923,7 +4032,7 @@ function AdminPanel({ onClose, parcsList, currentUserEmail, currentUid, activeIn
     }
   };
   const setGuestEnabled = async (on) => {
-    if (!on && !window.confirm("Désactiver l'accès invité ? Plus personne ne pourra entrer avec le code, et les invités connectés seront déconnectés.")) return;
+    if (!on && !confirmT("Désactiver l'accès invité ? Plus personne ne pourra entrer avec le code, et les invités connectés seront déconnectés.")) return;
     try {
       await db.collection("config").doc("guest").set({ code: guestCfg && guestCfg.code || codeInput || DEFAULT_GUEST_ACCESS_CODE, enabled: on }, { merge: true });
       if (!on) await revokeAll(true);
@@ -2986,7 +4095,7 @@ function AdminPanel({ onClose, parcsList, currentUserEmail, currentUid, activeIn
     if (await writeParcs(act, dis, p.active ? "Parc désactivé" : "Parc activé", p.name)) flash(`${p.name} : ${p.active ? "désactivé" : "activé"}.`);
   };
   const deleteParc = async (p) => {
-    if (!window.confirm(`Supprimer le parc « ${p.name} » de la liste ? Les inventaires déjà réalisés restent intacts.`)) return;
+    if (!confirmT(`Supprimer le parc « ${p.name} » de la liste ? Les inventaires déjà réalisés restent intacts.`)) return;
     const act = activeParcs.filter((n) => n !== p.name);
     const dis = disabledParcs.filter((n) => n !== p.name);
     if (await writeParcs(act, dis, "Parc supprimé", p.name)) flash("Parc supprimé.");
@@ -3031,7 +4140,7 @@ function AdminPanel({ onClose, parcsList, currentUserEmail, currentUid, activeIn
   };
   const removeAdminRow = async (r) => {
     if (isProtected(r.email)) return;
-    if (!window.confirm(`Retirer ${r.email} de la liste des administrateurs ?`)) return;
+    if (!confirmT(`Retirer ${r.email} de la liste des administrateurs ?`)) return;
     await saveAdminsFrom(adminRows.filter((x) => x.email !== r.email), "Administrateur retiré", r.email);
   };
   const counts = useMemo(() => ({
@@ -3832,7 +4941,7 @@ function ListRow({ chassis, agent, scannedAt, onRemove, badge, badgeTone, detail
   const tones = { emerald: "bg-emerald-100 text-emerald-700", sky: "bg-blue-100 text-[#1B4F8C]", rose: "bg-rose-100 text-rose-700" };
   const [expanded, setExpanded] = useState(false);
   const handleRemoveClick = () => {
-    if (window.confirm(`Supprimer le pointage du châssis ${chassis} ?
+    if (confirmT(`Supprimer le pointage du châssis ${chassis} ?
 
 Cette action reste tracée (auteur + heure) mais retire l'entrée des listes de l'inventaire.`)) {
       onRemove();
@@ -3941,7 +5050,13 @@ function docRef(D) {
   const slug = String(D.parc || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 10) || "PARC";
   return `INV-${slug}-${String(D.invDate || "").replace(/-/g, "")}`;
 }
-function collectDocExtras(invDate, foundList, registeredList, missingList) {
+function collectDocExtras(invDate, foundList, registeredList, missingListAll, followups) {
+  const fuMap = new Map((followups || []).map((f) => [f.norm, f]));
+  const missingList = missingListAll.filter((r) => !fuMap.has(r.norm));
+  const retros = missingListAll.filter((r) => fuMap.has(r.norm)).map((r) => {
+    const f = fuMap.get(r.norm), i = r.info || r;
+    return { chassis: r.chassis, description: i.description || "", statut: f.status === "regularise" ? "Régularisé dans MMTE" : "Retrouvé sur le parc", note: f.note || "", par: f.byName || "", date: f.at && f.at.toMillis ? formatTimestamp(f.at) : "" };
+  });
   const ref = parseDepot(invDate) || /* @__PURE__ */ new Date();
   const age = { over1: 0, under1: 0, nd: 0 };
   registeredList.forEach((r) => {
@@ -3974,7 +5089,7 @@ function collectDocExtras(invDate, foundList, registeredList, missingList) {
     byAgent.set(k, (byAgent.get(k) || 0) + 1);
   });
   const agentStats = Array.from(byAgent.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-  return { hasDetails: true, age, horsMmte, manquants, depot, depotFound: depot.filter((x) => x.statut === "Présent").length, depotMissing: depot.filter((x) => x.statut === "Manquant").length, agentStats };
+  return { hasDetails: true, retros, age, horsMmte, manquants, depot, depotFound: depot.filter((x) => x.statut === "Présent").length, depotMissing: depot.filter((x) => x.statut === "Manquant").length, agentStats };
 }
 const SANS = 'Calibri, Carlito, "Segoe UI", Arial, sans-serif';
 function canvasPng(c, jpeg) {
@@ -4214,9 +5329,10 @@ function normDoc(R) {
   D.mmte = +D.mmte || 0;
   D.found = +D.found || 0;
   D.registered = +D.registered || 0;
+  D.retro = +D.retro || 0;
   D.total = D.found + D.registered;
-  D.missing = D.missing != null ? +D.missing : Math.max(0, D.mmte - D.found);
-  D.pct = D.mmte > 0 ? Math.round(D.found / D.mmte * 100) : 0;
+  D.missing = D.missing != null ? +D.missing : Math.max(0, D.mmte - D.found - D.retro);
+  D.pct = D.mmte > 0 ? Math.round((D.found + D.retro) / D.mmte * 100) : 0;
   D.dt = docDates(D.invDate);
   D.heures = D.heures || { debut: "08H", fin: "18H" };
   if (!D.minutes) {
@@ -4229,9 +5345,10 @@ function normDoc(R) {
   }
   D.agents = (D.agents || []).filter(Boolean);
   D.sign = { douane: "", bc: "", parc: "", ...D.sign || {} };
+  D.sigImg = D.sigImg || {};
   D.taux = D.taux || ["30%", "70%", "0%"];
   D.opts = { annexMissing: true, annexHors: true, annexDepot: true, taux: true, ...D.opts || {} };
-  D.x = D.extras || { hasDetails: false, age: { over1: 0, under1: 0, nd: 0 }, horsMmte: [], manquants: [], depot: [], depotFound: 0, depotMissing: 0, agentStats: [] };
+  D.x = D.extras || { hasDetails: false, retros: [], age: { over1: 0, under1: 0, nd: 0 }, horsMmte: [], manquants: [], depot: [], depotFound: 0, depotMissing: 0, agentStats: [] };
   D.modele = D.modele === "classique" || D.modele === "synthese" ? D.modele : "visuel";
   D.ref = docRef(D);
   D.hash = ctrlHash(D);
@@ -4240,11 +5357,12 @@ function normDoc(R) {
 const H1 = (num, text, pb) => ({ t: "h1", num, text, pb: !!pb });
 const Pp = (text, o) => ({ t: "p", text, ...o || {} });
 function figuresTable(D, closure) {
-  const rows = [["Attendus sur MMTE (liste du parc)", D.mmte], ["Véhicules retrouvés (pointés)", D.found], ["Véhicules présents hors MMTE (enregistrés)", D.registered], ["Total présent sur le parc", D.total], ["Véhicules manquants", D.missing], ["Taux de véhicules retrouvés", D.pct + " %"]];
+  const rows = [["Attendus sur MMTE (liste du parc)", D.mmte], ["Véhicules retrouvés (pointés)", D.found], ["Véhicules présents hors MMTE (enregistrés)", D.registered], ["Total présent sur le parc", D.total], ...D.retro > 0 ? [["Régularisés après l’inventaire (suivi)", D.retro]] : [], ["Véhicules manquants", D.missing], ["Taux de véhicules retrouvés", D.pct + " %"]];
   return { t: "table", widths: [0.72, 0.28], head: closure ? null : ["Indicateur", "Valeur"], rows: rows.map((r) => [r[0], { text: String(r[1]), bold: true, align: "center" }]), zebra: true, wFrac: 0.8 };
 }
 function signBlock(D, withDate) {
-  return { t: "sign", withDate, parties: [{ title: "Bénin Control", name: D.sign.bc }, { title: "Douane — Recette des Véhicules Automobiles / DGD", name: D.sign.douane }, { title: `Gestionnaire du parc ${D.parc}`, name: D.sign.parc }] };
+  const sg = D.sigImg || {};
+  return { t: "sign", withDate, parties: [{ title: "Bénin Control", name: D.sign.bc, sig: sg.bc || "" }, { title: "Douane — Recette des Véhicules Automobiles / DGD", name: D.sign.douane, sig: sg.douane || "" }, { title: `Gestionnaire du parc ${D.parc}`, name: D.sign.parc, sig: sg.parc || "" }] };
 }
 function closureBlocks(D, standalone) {
   const b = [];
@@ -4254,7 +5372,6 @@ function closureBlocks(D, standalone) {
     ["Date de l'inventaire", D.dt.longJour],
     ["Horaires", `${D.heures.debut} – ${D.heures.fin}`],
     ["Agents ayant participé", D.agents.length ? D.agents.join(", ") : "—"],
-    ["Référence", D.ref],
     ["Date d'édition de la fiche", (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")]
   ], labelCol: true });
   b.push({ t: "h2", text: "Résultats de l'inventaire" });
@@ -4277,9 +5394,8 @@ function reportBlocks(D) {
   const M = D.modele === "classique" || D.modele === "synthese" ? D.modele : "visuel";
   const x = D.x;
   const dt = D.dt;
-  b.push({ t: "cover", kicker: "INVENTAIRE PHYSIQUE DES VÉHICULES SOUS DOUANE", title: "RAPPORT\nD’INVENTAIRE", parc: "PARC " + D.parc, rows: [["Date", dt.longJour], ["Lieu", "Parc " + D.parc], ["Horaires", `${D.heures.debut} – ${D.heures.fin}`], ["Responsables", "Recette Véhicules Automobiles / DGD  ·  MAD – MAE / BC"], ["Référence", D.ref]], mois: dt.moisAnnee.toUpperCase(), org: "Bénin Control SA  ·  MAD-MAE  ·  Douanes Béninoises" });
+  b.push({ t: "cover", kicker: "INVENTAIRE PHYSIQUE DES VÉHICULES SOUS DOUANE", title: "RAPPORT\nD’INVENTAIRE", parc: "PARC " + D.parc, rows: [["Date", dt.longJour], ["Lieu", "Parc " + D.parc], ["Horaires", `${D.heures.debut} – ${D.heures.fin}`], ["Responsables", "Recette Véhicules Automobiles / DGD  ·  MAD – MAE / BC"]], mois: dt.moisAnnee.toUpperCase(), org: "Bénin Control SA  ·  MAD-MAE  ·  Douanes Béninoises" });
   b.push({ t: "toc" });
-  b.push({ t: "callout", title: "Identification du document", lines: [`Référence : **${D.ref}**`, `Parc : **${D.parc}** — inventaire du **${dt.longJour}**`, `Édité le ${(/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")} avec l’application INVENTAIRE MMTE`] });
   b.push(H1("", "Synthèse de l'inventaire", true));
   if (M !== "classique") b.push({ t: "verdict", tone: D.pct >= 95 ? "emerald" : D.pct >= 80 ? "blue" : "rose", title: `${D.pct} % des véhicules attendus ont été retrouvés`, text: `Parc ${D.parc} · inventaire du ${dt.long} · ${D.total} ${plural(D.total, "véhicule présent", "véhicules présents")}, ${D.missing} ${plural(D.missing, "manquant", "manquants")}.` });
   b.push({ t: "kpis", items: [
@@ -4292,6 +5408,7 @@ function reportBlocks(D) {
   ] });
   const key = [];
   key.push(`**${D.found}** ${plural(D.found, "véhicule", "véhicules")} sur **${D.mmte}** attendus ${plural(D.found, "a été retrouvé", "ont été retrouvés")} sur le parc, soit **${D.pct} %** de la liste MMTE.`);
+  if (D.retro > 0) key.push(`**${D.retro}** ${plural(D.retro, "véhicule initialement manquant a été retrouvé ou régularisé", "véhicules initialement manquants ont été retrouvés ou régularisés")} après l'inventaire (voir l'annexe de suivi).`);
   if (D.missing > 0) key.push(`**${D.missing}** ${plural(D.missing, "véhicule attendu n'a pas été retrouvé", "véhicules attendus n'ont pas été retrouvés")} : ${plural(D.missing, "il est", "ils sont")} à régulariser dans MMTE (constats d'enlèvement ou de sortie).`);
   if (D.registered > 0) key.push(`**${D.registered}** ${plural(D.registered, "véhicule présent sur le parc ne figurait", "véhicules présents sur le parc ne figuraient")} pas dans l'extraction MMTE${x.hasDetails && x.age.over1 ? `, dont ${x.age.over1} de plus d'un an` : ""}.`);
   if (x.hasDetails && x.depot.length) key.push(`**${x.depot.length}** ${plural(x.depot.length, "véhicule de la liste a dépassé", "véhicules de la liste ont dépassé")} le délai de séjour (${x.depotFound} ${plural(x.depotFound, "présent", "présents")}, ${x.depotMissing} ${plural(x.depotMissing, "manquant", "manquants")}).`);
@@ -4548,6 +5665,11 @@ function reportBlocks(D) {
       b.push(Pp(`Véhicules attendus sur MMTE et non retrouvés sur le parc ${D.parc}.`, { small: true }));
       b.push({ t: "table", widths: [0.07, 0.3, 0.43, 0.2], head: ["N°", "Châssis", "Description", "Entrée en dépôt"], small: true, zebra: true, repeat: true, rows: x.manquants.map((r, i) => [String(i + 1), r.chassis, r.description, r.depot]) });
     }
+    if (D.opts.annexMissing && x.retros && x.retros.length) {
+      b.push(H1("", `Annexe 1 bis — Suivi des manquants (${x.retros.length})`, true));
+      b.push(Pp(`Véhicules initialement manquants, retrouvés ou régularisés après l’inventaire du parc ${D.parc}.`, { small: true }));
+      b.push({ t: "table", widths: [0.06, 0.24, 0.26, 0.2, 0.24], head: ["N°", "Châssis", "Description", "Statut", "Observation"], small: true, zebra: true, repeat: true, rows: x.retros.map((r, i) => [String(i + 1), r.chassis, r.description, r.statut, [r.note, r.par, r.date].filter(Boolean).join(" · ")]) });
+    }
     if (D.opts.annexHors && x.horsMmte.length) {
       b.push(H1("", `Annexe 2 — Véhicules présents hors MMTE (${x.horsMmte.length})`, true));
       b.push(Pp(`Véhicules retrouvés sur le parc ${D.parc} mais absents de l’extraction MMTE.`, { small: true }));
@@ -4565,6 +5687,7 @@ function annexTitles(D) {
   const x = D.x, out = [];
   if (x.hasDetails) {
     if (D.opts.annexMissing && x.manquants.length) out.push("Annexe 1 — Véhicules manquants");
+    if (D.opts.annexMissing && x.retros && x.retros.length) out.push("Annexe 1 bis — Suivi des manquants");
     if (D.opts.annexHors && x.horsMmte.length) out.push("Annexe 2 — Véhicules hors MMTE");
     if (D.opts.annexDepot && x.depot.length) out.push("Annexe 3 — Délai de séjour dépassé");
   }
@@ -4648,7 +5771,7 @@ function docxBlock(b, ctx) {
     case "sign": {
       const cw = Math.floor(W / 3), ws = [cw, cw, W - 2 * cw];
       const head = wtr(b.parties.map((p, i) => wtc(wp(wr(p.title, { b: 1, sz: 18, color: DC.navy }), { jc: "center", after: 0, keepNext: 1 }), { w: ws[i], fill: DC.pale, va: "center" })), { h: 400 });
-      const sig = wtr(b.parties.map((p, i) => wtc(wp(wr(b.withDate ? "Signature et cachet :" : "Signature :", { sz: 18, color: DC.grey }), { after: 0, keepNext: 1 }), { w: ws[i] })), { h: b.withDate ? 1e3 : 1150 });
+      const sig = wtr(b.parties.map((p, i) => wtc(wp(wr(b.withDate ? "Signature et cachet :" : "Signature :", { sz: 18, color: DC.grey }), { after: 0, keepNext: 1 }) + (p.sig ? wp(wImgRun(ctx.addSig(p.sig), ctx.nextId(), 1280160, 426720), { after: 0, keepNext: 1, jc: "center" }) : ""), { w: ws[i] })), { h: b.withDate ? 1e3 : 1150 });
       const nm = wtr(b.parties.map((p, i) => wtc(wp(wr("Nom : ", { sz: 18, color: DC.grey }) + (p.name ? wr(p.name, { b: 1, sz: 19 }) : wr("______________", { sz: 18, color: DC.grey })), { after: 0 }), { w: ws[i] })), { h: 520 });
       return wp("", { after: 60, keepNext: 1 }) + wp(wr("Signatures", { b: 1, sz: 24, color: DC.blue }), { keepNext: 1, after: 80 }) + wtbl([head, sig, nm], ws);
     }
@@ -4714,7 +5837,11 @@ async function buildDocx(D, blocks, assets) {
   const W = 9638;
   let idc = 100;
   const A = assets || await makeAssets(D, blocks);
-  const ctx = { W, imgs: { dash: { rid: "rIdDash" }, comp: { rid: "rIdComp" } }, nextId: () => ++idc, toc: blocks.map(tocLabel).filter(Boolean) };
+  const sigFiles = [];
+  const ctx = { W, imgs: { dash: { rid: "rIdDash" }, comp: { rid: "rIdComp" } }, nextId: () => ++idc, toc: blocks.map(tocLabel).filter(Boolean), addSig: (url) => {
+    sigFiles.push(url);
+    return "rIdSig" + sigFiles.length;
+  } };
   let body = "";
   blocks.forEach((b) => {
     body += b.t === "cover" ? coverXml(b, { bg: "rIdCover" }, ctx) : docxBlock(b, ctx);
@@ -4728,17 +5855,18 @@ async function buildDocx(D, blocks, assets) {
   zip.file("word/header1.xml", XML_HEAD + `<w:hdr ${DOCX_NS}>${wp(logo(D.logoBC, "rIdLogoBC", 701, 38e4) + "<w:r><w:tab/></w:r>" + logo(D.logoDouane, "rIdLogoDG", 702, 38e4), { tabs: '<w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs>', bdrBottom: { color: DC.blue, sz: 8 }, after: 0 })}</w:hdr>`);
   const fld = (instr) => `<w:fldSimple w:instr="${instr}"><w:r><w:rPr>${WFONT}<w:b/><w:color w:val="${DC.blue}"/><w:sz w:val="17"/></w:rPr><w:t>1</w:t></w:r></w:fldSimple>`;
   const ftxt = D.kind === "rapport" ? `Rapport d’inventaire — Parc ${D.parc} — ${D.dt.long}` : `Fiche de clôture — Parc ${D.parc} — ${D.dt.long}`;
-  zip.file("word/footer1.xml", XML_HEAD + `<w:ftr ${DOCX_NS}>${wp(wr(ftxt + "  ·  " + D.ref, { sz: 16, color: DC.grey }) + "<w:r><w:tab/></w:r>" + wr("Page ", { sz: 16, color: DC.grey }) + fld("PAGE") + wr(" / ", { sz: 16, color: DC.grey }) + fld("NUMPAGES"), { tabs: '<w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs>', bdrTop: DC.gold, after: 0 })}</w:ftr>`);
+  zip.file("word/footer1.xml", XML_HEAD + `<w:ftr ${DOCX_NS}>${wp(wr(ftxt, { sz: 16, color: DC.grey }) + "<w:r><w:tab/></w:r>" + wr("Page ", { sz: 16, color: DC.grey }) + fld("PAGE") + wr(" / ", { sz: 16, color: DC.grey }) + fld("NUMPAGES"), { tabs: '<w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs>', bdrTop: DC.gold, after: 0 })}</w:ftr>`);
   zip.file("word/styles.xml", XML_HEAD + `<w:styles xmlns:w="${NS_W}"><w:docDefaults><w:rPrDefault><w:rPr>${WFONT}<w:sz w:val="21"/><w:szCs w:val="21"/><w:lang w:val="fr-FR" w:eastAsia="fr-FR" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:outlineLvl w:val="0"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:outlineLvl w:val="1"/></w:pPr></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`);
   zip.file("word/settings.xml", XML_HEAD + `<w:settings xmlns:w="${NS_W}"><w:defaultTabStop w:val="708"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`);
   const rel = (id, type, target) => `<Relationship Id="${id}" Type="${NS_R}/${type}" Target="${target}"/>`;
-  zip.file("word/_rels/document.xml.rels", XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel("rIdSty", "styles", "styles.xml")}${rel("rIdSet", "settings", "settings.xml")}${rel("rIdHdr", "header", "header1.xml")}${rel("rIdFtr", "footer", "footer1.xml")}${rel("rIdLogoBC", "image", "media/logo_bc.png")}${rel("rIdLogoDG", "image", "media/logo_dg.png")}${A.cover ? rel("rIdCover", "image", "media/cover.jpg") : ""}${A.dash ? rel("rIdDash", "image", "media/dash.png") : ""}${A.comp ? rel("rIdComp", "image", "media/comp.png") : ""}</Relationships>`);
+  zip.file("word/_rels/document.xml.rels", XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel("rIdSty", "styles", "styles.xml")}${rel("rIdSet", "settings", "settings.xml")}${rel("rIdHdr", "header", "header1.xml")}${rel("rIdFtr", "footer", "footer1.xml")}${rel("rIdLogoBC", "image", "media/logo_bc.png")}${rel("rIdLogoDG", "image", "media/logo_dg.png")}${A.cover ? rel("rIdCover", "image", "media/cover.jpg") : ""}${A.dash ? rel("rIdDash", "image", "media/dash.png") : ""}${A.comp ? rel("rIdComp", "image", "media/comp.png") : ""}${sigFiles.map((u, n) => rel("rIdSig" + (n + 1), "image", `media/sig${n + 1}.png`)).join("")}</Relationships>`);
   zip.file("word/_rels/header1.xml.rels", XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel("rIdLogoBC", "image", "media/logo_bc.png")}${rel("rIdLogoDG", "image", "media/logo_dg.png")}</Relationships>`);
   zip.file("word/media/logo_bc.png", dataUrlBytes(D.logoBC));
   zip.file("word/media/logo_dg.png", dataUrlBytes(D.logoDouane));
   if (A.cover) zip.file("word/media/cover.jpg", A.cover);
   if (A.dash) zip.file("word/media/dash.png", A.dash);
   if (A.comp) zip.file("word/media/comp.png", A.comp);
+  sigFiles.forEach((u, n) => zip.file(`word/media/sig${n + 1}.png`, dataUrlBytes(u)));
   zip.file("_rels/.rels", XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel("rId1", "officeDocument", "word/document.xml")}<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`);
   const now = (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d+Z$/, "Z");
   zip.file("docProps/core.xml", XML_HEAD + `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xmlEsc(D.kind === "rapport" ? "Rapport d’inventaire" : "Fiche de clôture")} — ${xmlEsc(D.parc)}</dc:title><dc:creator>Bénin Control / MAD-MAE</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created></cp:coreProperties>`);
@@ -4806,7 +5934,7 @@ function htmlBlock(b, A) {
     case "img":
       return A[b.key] ? `<figure class="rp-fig"><img src="${A[b.key]}" style="width:${b.wIn}in"><figcaption>${hesc(b.caption || "")}</figcaption></figure>` : "";
     case "sign":
-      return `<div class="rp-signt">Signatures</div><table class="rp-sign"><tr>${b.parties.map((p) => `<th>${hesc(p.title)}</th>`).join("")}</tr><tr class="sg">${b.parties.map(() => `<td>${b.withDate ? "Signature et cachet :" : "Signature :"}</td>`).join("")}</tr><tr class="nm">${b.parties.map((p) => `<td>Nom : ${p.name ? `<b>${hesc(p.name)}</b>` : "______________"}</td>`).join("")}</tr></table>`;
+      return `<div class="rp-signt">Signatures</div><table class="rp-sign"><tr>${b.parties.map((p) => `<th>${hesc(p.title)}</th>`).join("")}</tr><tr class="sg">${b.parties.map((p) => `<td>${b.withDate ? "Signature et cachet :" : "Signature :"}${p.sig ? `<div class="sgi"><img src="${p.sig}"></div>` : ""}</td>`).join("")}</tr><tr class="nm">${b.parties.map((p) => `<td>Nom : ${p.name ? `<b>${hesc(p.name)}</b>` : "______________"}</td>`).join("")}</tr></table>`;
     case "facts":
       return (b.title ? `<div class="rp-h3">${hesc(b.title)}</div>` : "") + `<div class="rp-facts">${b.items.map((it) => `<div class="rp-fact"><div class="l">${hesc(it.label)}</div><div class="v">${hesc(it.value)}</div></div>`).join("")}</div>`;
     case "steps": {
@@ -4849,13 +5977,14 @@ const RP_CSS = `#rp-host{font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif
 .rp-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:2mm;margin:0 0 5mm;break-inside:avoid}.rp-fact{background:#EEF5FA;border-left:1.2mm solid #1F6FA3;padding:2.2mm 3mm}.rp-fact .l{font-size:7.5pt;font-weight:800;letter-spacing:.8pt;text-transform:uppercase;color:#1F6FA3}.rp-fact .v{font-size:10.5pt;font-weight:800;color:#0B3C5D}
 .rp-steps{width:100%;border-collapse:collapse;margin:0 0 5mm;font-size:9.5pt}.rp-steps tr{break-inside:avoid}.rp-steps th{background:#0B3C5D;color:#fff;text-align:left;padding:1.6mm 3mm;font-size:8.5pt;letter-spacing:1pt;text-transform:uppercase;break-after:avoid}.rp-steps td.n{background:#1F6FA3;color:#fff;font-weight:800;font-size:12pt;text-align:center;width:11mm}.rp-steps td.t{padding:2mm 3mm;background:#fff;border-bottom:.5pt solid #DCEAF5}.rp-steps td.t.z{background:#EEF5FA}
 .rp-verdict{color:#fff;padding:4mm 6mm;margin:0 0 5mm;border-left:3.5mm solid #E3B505;break-inside:avoid}.rp-verdict .vt{font-size:18pt;font-weight:800;line-height:1.15}.rp-verdict .vx{font-size:10pt;margin-top:1mm;opacity:.95}
+.rp-sgi,.sgi{text-align:center;margin-top:1mm}.sgi img{height:14mm;max-width:100%}
 .rp-pb{break-before:page;height:0}`;
 function docToHtml(D, blocks, A) {
   const AA = { ...A, toc: blocks.map(tocLabel).filter(Boolean) };
   let h = "";
   const cv = blocks.find((b) => b.t === "cover");
   if (cv) h += htmlCover(cv, AA);
-  const ftxt = (D.kind === "rapport" ? "Rapport d’inventaire" : "Fiche de clôture") + ` — Parc ${D.parc} — ${D.dt.long} · ${D.ref}`;
+  const ftxt = (D.kind === "rapport" ? "Rapport d’inventaire" : "Fiche de clôture") + ` — Parc ${D.parc} — ${D.dt.long}`;
   h += `<table class="rp-wrapt"><thead><tr><td><div class="rp-hd"><img src="${D.logoBC}"><img src="${D.logoDouane}"></div></td></tr></thead><tfoot><tr><td><div class="rp-ft">${hesc(ftxt)}</div></td></tr></tfoot><tbody><tr><td>${blocks.map((b) => htmlBlock(b, AA)).join("")}</td></tr></tbody></table>`;
   return h;
 }
@@ -5010,6 +6139,68 @@ function DocEditor({ blocks, setBlocks, onReset }) {
   };
   return /* @__PURE__ */ React.createElement("div", { "data-testid": "doc-editor" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-700 mb-2" }, "Touchez un bloc pour le modifier. Vous pouvez aussi le déplacer (↑ ↓), le supprimer (✕) ou insérer un paragraphe ou un sous-titre après lui. Le Word obtenu reste entièrement modifiable."), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-1.5" }, blocks.map((b, i) => b.t === "pb" ? null : /* @__PURE__ */ React.createElement("div", { key: b._id || i, "data-testid": `ed-b-${i}`, className: "rounded-lg border-2 " + (open === i ? "border-blue-300 bg-blue-50/40" : "border-slate-200 bg-white") }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1 px-2 py-1.5" }, /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-open-${i}`, onClick: () => setOpen(open === i ? -1 : i), className: "flex-1 text-left min-w-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-extrabold uppercase tracking-wide text-blue-800" }, BT_LABEL[b.t] || b.t), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-slate-600 truncate" }, blockPreview(b))), /* @__PURE__ */ React.createElement("button", { title: "Monter", onClick: () => mv(i, -1), className: "px-1.5 text-slate-600" }, "↑"), /* @__PURE__ */ React.createElement("button", { title: "Descendre", onClick: () => mv(i, 1), className: "px-1.5 text-slate-600" }, "↓"), /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-del-${i}`, title: "Supprimer ce bloc", onClick: () => del(i), className: "px-1.5 text-rose-700 font-bold" }, "✕")), open === i && /* @__PURE__ */ React.createElement("div", { className: "px-2 pb-2" }, body(b, i), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-addp-${i}`, onClick: () => ins(i, { t: "p", text: "Nouveau paragraphe.", _id: "n" + Date.now() }), className: "text-xs font-bold text-blue-700" }, "+ Paragraphe après"), /* @__PURE__ */ React.createElement("button", { onClick: () => ins(i, { t: "h2", text: "Nouveau sous-titre", _id: "n" + Date.now() }), className: "text-xs font-bold text-blue-700" }, "+ Sous-titre après")))))), /* @__PURE__ */ React.createElement("button", { onClick: onReset, className: "mt-3 text-xs font-bold text-slate-600 underline" }, "Rétablir le contenu d'origine"));
 }
+function SignaturePad({ value, onChange, testid }) {
+  const ref = useRef(null);
+  const drawing = useRef(false);
+  const last = useRef(null);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const x = c.getContext("2d");
+    x.fillStyle = "#fff";
+    x.fillRect(0, 0, c.width, c.height);
+    if (value) {
+      const im = new Image();
+      im.onload = () => x.drawImage(im, 0, 0, c.width, c.height);
+      im.src = value;
+    }
+  }, []);
+  const pt = (e) => {
+    const c = ref.current;
+    const r = c.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width * c.width, y: (e.clientY - r.top) / r.height * c.height };
+  };
+  const down = (e) => {
+    e.preventDefault();
+    drawing.current = true;
+    last.current = pt(e);
+    try {
+      ref.current.setPointerCapture(e.pointerId);
+    } catch (er) {
+    }
+  };
+  const move = (e) => {
+    if (!drawing.current) return;
+    e.preventDefault();
+    const x = ref.current.getContext("2d");
+    const p = pt(e);
+    x.strokeStyle = "#0B3C5D";
+    x.lineWidth = 3.2;
+    x.lineCap = "round";
+    x.lineJoin = "round";
+    x.beginPath();
+    x.moveTo(last.current.x, last.current.y);
+    x.lineTo(p.x, p.y);
+    x.stroke();
+    last.current = p;
+  };
+  const up = () => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    try {
+      onChange(ref.current.toDataURL("image/png"));
+    } catch (er) {
+    }
+  };
+  const clear = () => {
+    const c = ref.current;
+    const x = c.getContext("2d");
+    x.fillStyle = "#fff";
+    x.fillRect(0, 0, c.width, c.height);
+    onChange("");
+  };
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("canvas", { "data-testid": testid, ref, width: 480, height: 160, onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up, onPointerLeave: up, className: "w-full rounded-lg border-2 border-dashed border-slate-300 bg-white", style: { touchAction: "none", height: 110 } }), /* @__PURE__ */ React.createElement("button", { type: "button", onClick: clear, className: "text-xs font-bold text-slate-600 underline mt-1" }, "Effacer"));
+}
 function DocBuilder({ kind, base, locked, extras, parcsList, onDone, standalone }) {
   const PREF = "mmte-doc-prefs", DRAFT = "mmte-doc-draft";
   const readLS = (k) => {
@@ -5040,6 +6231,7 @@ function DocBuilder({ kind, base, locked, extras, parcsList, onDone, standalone 
       obs: "",
       mmte: "",
       found: "",
+      retro: "",
       registered: "",
       liste: "",
       manus: "",
@@ -5061,6 +6253,9 @@ function DocBuilder({ kind, base, locked, extras, parcsList, onDone, standalone 
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [ed, setEd] = useState(null);
+  const [sigs, setSigs] = useState({ bc: "", douane: "", parc: "" });
+  const [sigOpen, setSigOpen] = useState(false);
+  const [shareInfo, setShareInfo] = useState(null);
   const set = (k, v) => setF((s) => {
     const n = { ...s, [k]: v };
     if (standalone) writeLS(DRAFT, n);
@@ -5068,8 +6263,8 @@ function DocBuilder({ kind, base, locked, extras, parcsList, onDone, standalone 
   });
   const num = (k) => k === "" || k == null ? 0 : parseInt(k, 10) || 0;
   const digits = (e) => e.target.value.replace(/\D/g, "");
-  const mmte = num(f.mmte), found = num(f.found), registered = num(f.registered);
-  const missing = Math.max(0, mmte - found);
+  const mmte = num(f.mmte), found = num(f.found), registered = num(f.registered), retro = num(f.retro);
+  const missing = Math.max(0, mmte - found - retro);
   const problems = [];
   if (!String(f.parc).trim()) problems.push("Indiquez le nom du parc.");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(f.invDate)) problems.push("Indiquez la date de l'inventaire.");
@@ -5085,10 +6280,12 @@ function DocBuilder({ kind, base, locked, extras, parcsList, onDone, standalone 
       minutes: base && base.minutes,
       mmte,
       found,
+      retro,
       registered,
       missing,
       agents: String(f.agents || "").split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean),
       sign: { douane: f.sDouane.trim(), bc: f.sBC.trim(), parc: f.sParc.trim() },
+      sigImg: { ...sigs },
       observations: String(f.obs || "").trim(),
       listeParc: String(f.liste).trim() !== "" ? num(f.liste) : null,
       manuscrits: String(f.manus).trim() !== "" ? num(f.manus) : registered,
@@ -5110,9 +6307,30 @@ function DocBuilder({ kind, base, locked, extras, parcsList, onDone, standalone 
     try {
       const D = ed ? ed.D : buildD();
       const blocks = ed ? ed.blocks : null;
-      if (how === "word") {
+      if (how === "word" || how === "share") {
         const { blob } = await makeDocFile(D, blocks);
-        downloadBlob(`${kind === "rapport" ? "Rapport_inventaire" : "Fiche_cloture"}_${slugify(D.parc)}_${D.invDate}.docx`, blob, blob.type);
+        const fname = `${kind === "rapport" ? "Rapport_inventaire" : "Fiche_cloture"}_${slugify(D.parc)}_${D.invDate}.docx`;
+        if (how === "share") {
+          const text = `${kind === "rapport" ? "Rapport d'inventaire" : "Fiche de clôture"} — parc ${D.parc}, ${D.dt.long} : ${D.found} véhicule(s) retrouvé(s) sur ${D.mmte} attendus (${D.pct} %), ${D.missing} manquant(s), ${D.registered} hors MMTE. Bénin Control / MAD-MAE.`;
+          let shared = false;
+          try {
+            const file = new File([blob], fname, { type: blob.type });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: fname, text });
+              shared = true;
+            }
+          } catch (e) {
+            if (e && e.name === "AbortError") shared = true;
+          }
+          if (!shared) {
+            downloadBlob(fname, blob, blob.type);
+            setShareInfo({ text, fname, subject: `${kind === "rapport" ? "Rapport d'inventaire" : "Fiche de clôture"} — parc ${D.parc} — ${D.dt.long}` });
+            setBusy("");
+            return;
+          }
+        } else {
+          downloadBlob(fname, blob, blob.type);
+        }
         if (onDone) onDone();
       } else {
         await makeDocPrint(D, blocks);
@@ -5135,7 +6353,7 @@ function DocBuilder({ kind, base, locked, extras, parcsList, onDone, standalone 
   };
   const resetEditor = () => setEd((s) => ({ ...s, blocks: defaultBlocks(s.D).map((b, n) => ({ ...b, _id: "b" + n })) }));
   const setEdBlocks = (fn) => setEd((s) => ({ ...s, blocks: typeof fn === "function" ? fn(s.blocks) : fn }));
-  const buttons = /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-word", disabled: !!busy, onClick: () => go("word"), className: "py-3 rounded-lg text-white font-bold text-sm disabled:opacity-60", style: { background: BLUE_DEEP } }, busy === "word" ? "Préparation du fichier..." : kind === "rapport" ? "Télécharger le rapport Word (.docx)" : "Télécharger la fiche de clôture Word (.docx)"), /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-pdf", disabled: !!busy, onClick: () => go("pdf"), className: "py-3 rounded-lg border-2 font-bold text-sm disabled:opacity-60", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, busy === "pdf" ? "Préparation..." : "Générer le PDF (impression)"));
+  const buttons = /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-word", disabled: !!busy, onClick: () => go("word"), className: "py-3 rounded-lg text-white font-bold text-sm disabled:opacity-60", style: { background: BLUE_DEEP } }, busy === "word" ? "Préparation du fichier..." : kind === "rapport" ? "Télécharger le rapport Word (.docx)" : "Télécharger la fiche de clôture Word (.docx)"), /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-pdf", disabled: !!busy, onClick: () => go("pdf"), className: "py-3 rounded-lg border-2 font-bold text-sm disabled:opacity-60", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, busy === "pdf" ? "Préparation..." : "Générer le PDF (impression)"), /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-share", disabled: !!busy, onClick: () => go("share"), className: "py-3 rounded-lg border-2 font-bold text-sm disabled:opacity-60 border-emerald-600 text-emerald-700" }, busy === "share" ? "Préparation..." : "Partager par WhatsApp ou e-mail"), shareInfo && /* @__PURE__ */ React.createElement("div", { "data-testid": "share-fallback", className: "rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-slate-700" }, "Le fichier « ", shareInfo.fname, " » a été enregistré sur l'appareil : joignez-le au message.", /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-2" }, /* @__PURE__ */ React.createElement("a", { className: "px-3 py-2 rounded-lg bg-emerald-600 text-white font-bold", href: "https://wa.me/?text=" + encodeURIComponent(shareInfo.text), target: "_blank", rel: "noopener noreferrer" }, "WhatsApp"), /* @__PURE__ */ React.createElement("a", { className: "px-3 py-2 rounded-lg bg-slate-700 text-white font-bold", href: "mailto:?subject=" + encodeURIComponent(shareInfo.subject) + "&body=" + encodeURIComponent(shareInfo.text + "\n\n(Document en pièce jointe)") }, "E-mail"))));
   const errBox = err && /* @__PURE__ */ React.createElement("div", { className: "mb-3 text-sm rounded-lg bg-rose-50 border border-rose-200 text-rose-800 p-2", "data-testid": "df-err" }, err);
   if (ed) {
     return /* @__PURE__ */ React.createElement("div", { "data-testid": "doc-builder-edit" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "ed-back", onClick: () => setEd(null), className: "text-sm font-bold mb-3", style: { color: BLUE_DEEP } }, "← Retour aux informations"), /* @__PURE__ */ React.createElement(DocEditor, { blocks: ed.blocks, setBlocks: setEdBlocks, onReset: resetEditor }), /* @__PURE__ */ React.createElement("div", { className: "mt-4" }, errBox, buttons));
@@ -5143,14 +6361,14 @@ function DocBuilder({ kind, base, locked, extras, parcsList, onDone, standalone 
   const inp = "mt-1 w-full border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm font-normal bg-white";
   const lab = "text-xs font-bold text-slate-600";
   const Num = ({ k, label, hint, ro }) => /* @__PURE__ */ React.createElement("label", { className: lab }, label, /* @__PURE__ */ React.createElement("input", { "data-testid": "df-" + k, inputMode: "numeric", readOnly: ro, value: f[k], onChange: (e) => set(k, digits(e)), placeholder: hint || "", className: inp + (ro ? " bg-slate-100" : "") }));
-  return /* @__PURE__ */ React.createElement("div", { "data-testid": "doc-builder" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 mb-3" }, /* @__PURE__ */ React.createElement("label", { className: "col-span-2 " + lab }, "Parc inventorié", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-parc", list: "df-parcs", readOnly: locked, value: f.parc, onChange: (e) => set("parc", e.target.value), className: inp + (locked ? " bg-slate-100" : "") }), /* @__PURE__ */ React.createElement("datalist", { id: "df-parcs" }, (parcsList || []).map((p) => /* @__PURE__ */ React.createElement("option", { key: p, value: p })))), /* @__PURE__ */ React.createElement("label", { className: lab }, "Date de l'inventaire", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-date", type: "date", readOnly: locked, value: f.invDate, onChange: (e) => set("invDate", e.target.value), className: inp + (locked ? " bg-slate-100" : "") })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement("label", { className: lab }, "Début", /* @__PURE__ */ React.createElement("input", { value: f.debut, onChange: (e) => set("debut", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Fin", /* @__PURE__ */ React.createElement("input", { value: f.fin, onChange: (e) => set("fin", e.target.value), className: inp })))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-slate-100 bg-slate-50 p-3 mb-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-500 uppercase tracking-wide mb-2" }, "Chiffres de l'inventaire", locked ? " (repris de l'application)" : ""), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2" }, /* @__PURE__ */ React.createElement(Num, { k: "mmte", label: "Attendus MMTE", ro: locked }), /* @__PURE__ */ React.createElement(Num, { k: "found", label: "Retrouvés", ro: locked }), /* @__PURE__ */ React.createElement(Num, { k: "registered", label: "Hors MMTE", ro: locked })), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-600 mt-2" }, "Total présent : ", /* @__PURE__ */ React.createElement("b", null, found + registered), " · Manquants : ", /* @__PURE__ */ React.createElement("b", null, missing), " · Taux de retrouvés : ", /* @__PURE__ */ React.createElement("b", null, mmte ? Math.round(found / mmte * 100) : 0, " %")), warn && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-amber-700 mt-1" }, warn)), /* @__PURE__ */ React.createElement("label", { className: "block mb-3 " + lab }, "Agents ayant participé ", standalone ? "(un par ligne ou séparés par des virgules)" : "", /* @__PURE__ */ React.createElement("textarea", { "data-testid": "df-agents", rows: 2, value: f.agents, onChange: (e) => set("agents", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ React.createElement("label", { className: lab }, "Agent Douane", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-sdouane", value: f.sDouane, onChange: (e) => set("sDouane", e.target.value), placeholder: "Nom", className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Agent Bénin Control", /* @__PURE__ */ React.createElement("input", { value: f.sBC, onChange: (e) => set("sBC", e.target.value), placeholder: "Nom", className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Représentant du parc", /* @__PURE__ */ React.createElement("input", { value: f.sParc, onChange: (e) => set("sParc", e.target.value), placeholder: "Nom", className: inp }))), /* @__PURE__ */ React.createElement("label", { className: "block mb-3 " + lab }, "Observations et constats à chaud (séance de clôture)", /* @__PURE__ */ React.createElement("textarea", { "data-testid": "df-obs", rows: 3, value: f.obs, onChange: (e) => set("obs", e.target.value), placeholder: "Facultatif — une ligne par constat", className: inp })), kind === "rapport" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "mb-3", "data-testid": "df-modeles" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600 mb-1" }, "Modèle de rapport"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 gap-2" }, [["visuel", "Visuel", "Cartes, tableaux colorés, étapes numérotées, recommandations classées par priorité. Textes raccourcis."], ["classique", "Classique", "Reprend le texte et la structure du rapport type (paragraphes complets, listes), avec la charte Bénin Control."], ["synthese", "Synthèse", "Version courte pour la hiérarchie : résultats, écarts, recommandations, fiche de clôture. Sans méthodologie ni tableau des taux."]].map(([k, t, d]) => /* @__PURE__ */ React.createElement("button", { key: k, type: "button", "data-testid": "df-modele-" + k, onClick: () => set("modele", k), className: "text-left rounded-xl border-2 px-3 py-2 " + (f.modele === k ? "border-[#1B4F8C] bg-blue-50" : "border-slate-200 bg-white") }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-extrabold", style: { color: BLUE_DEEP } }, f.modele === k ? "● " : "○ ", t), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-600" }, d))))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ React.createElement(Num, { k: "liste", label: "Liste remise par le parc", hint: "facultatif" }), /* @__PURE__ */ React.createElement(Num, { k: "manus", label: "Manuscrits", hint: String(registered) }), /* @__PURE__ */ React.createElement(Num, { k: "erron", label: "Châssis erronés", hint: "aucun" })), /* @__PURE__ */ React.createElement("details", { className: "mb-3" }, /* @__PURE__ */ React.createElement("summary", { className: "text-xs font-bold text-slate-600 cursor-pointer" }, "Tableau des taux d'utilisation de MMTE"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2 text-sm mt-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.taux, onChange: (e) => set("taux", e.target.checked) }), " Inclure ce tableau dans le rapport"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mt-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Constats d'enlèvement des parcs", /* @__PURE__ */ React.createElement("input", { value: f.t6, onChange: (e) => set("t6", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Mise à disposition des stocks", /* @__PURE__ */ React.createElement("input", { value: f.t8, onChange: (e) => set("t8", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Véhicules conteneurisés", /* @__PURE__ */ React.createElement("input", { value: f.t10, onChange: (e) => set("t10", e.target.value), className: inp })))), locked && extras && /* @__PURE__ */ React.createElement("div", { className: "mb-3 text-sm text-slate-700" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600 mb-1" }, "Annexes à joindre"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aM, onChange: (e) => set("aM", e.target.checked) }), " Véhicules manquants (", extras.manquants.length, ")"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aH, onChange: (e) => set("aH", e.target.checked) }), " Véhicules hors MMTE (", extras.horsMmte.length, ")"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aD, onChange: (e) => set("aD", e.target.checked) }), " Délai de séjour dépassé (", extras.depot.length, ")"))), errBox, /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-edit", onClick: openEditor, className: "w-full mb-2 py-2.5 rounded-lg border-2 border-dashed font-bold text-sm", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, "Aperçu et modification du contenu (facultatif)"), buttons);
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "doc-builder" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 mb-3" }, /* @__PURE__ */ React.createElement("label", { className: "col-span-2 " + lab }, "Parc inventorié", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-parc", list: "df-parcs", readOnly: locked, value: f.parc, onChange: (e) => set("parc", e.target.value), className: inp + (locked ? " bg-slate-100" : "") }), /* @__PURE__ */ React.createElement("datalist", { id: "df-parcs" }, (parcsList || []).map((p) => /* @__PURE__ */ React.createElement("option", { key: p, value: p })))), /* @__PURE__ */ React.createElement("label", { className: lab }, "Date de l'inventaire", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-date", type: "date", readOnly: locked, value: f.invDate, onChange: (e) => set("invDate", e.target.value), className: inp + (locked ? " bg-slate-100" : "") })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement("label", { className: lab }, "Début", /* @__PURE__ */ React.createElement("input", { value: f.debut, onChange: (e) => set("debut", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Fin", /* @__PURE__ */ React.createElement("input", { value: f.fin, onChange: (e) => set("fin", e.target.value), className: inp })))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-slate-100 bg-slate-50 p-3 mb-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-500 uppercase tracking-wide mb-2" }, "Chiffres de l'inventaire", locked ? " (repris de l'application)" : ""), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2" }, /* @__PURE__ */ React.createElement(Num, { k: "mmte", label: "Attendus MMTE", ro: locked }), /* @__PURE__ */ React.createElement(Num, { k: "found", label: "Retrouvés", ro: locked }), /* @__PURE__ */ React.createElement(Num, { k: "registered", label: "Hors MMTE", ro: locked })), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-600 mt-2" }, "Total présent : ", /* @__PURE__ */ React.createElement("b", null, found + registered), " · ", retro > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " · Régularisés après l'inventaire : ", /* @__PURE__ */ React.createElement("b", null, retro)), " · Manquants : ", /* @__PURE__ */ React.createElement("b", null, missing), " · Taux de retrouvés : ", /* @__PURE__ */ React.createElement("b", null, mmte ? Math.round((found + retro) / mmte * 100) : 0, " %")), warn && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-amber-700 mt-1" }, warn)), /* @__PURE__ */ React.createElement("label", { className: "block mb-3 " + lab }, "Agents ayant participé ", standalone ? "(un par ligne ou séparés par des virgules)" : "", /* @__PURE__ */ React.createElement("textarea", { "data-testid": "df-agents", rows: 2, value: f.agents, onChange: (e) => set("agents", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ React.createElement("label", { className: lab }, "Agent Douane", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-sdouane", value: f.sDouane, onChange: (e) => set("sDouane", e.target.value), placeholder: "Nom", className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Agent Bénin Control", /* @__PURE__ */ React.createElement("input", { value: f.sBC, onChange: (e) => set("sBC", e.target.value), placeholder: "Nom", className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Représentant du parc", /* @__PURE__ */ React.createElement("input", { value: f.sParc, onChange: (e) => set("sParc", e.target.value), placeholder: "Nom", className: inp }))), /* @__PURE__ */ React.createElement("div", { className: "mb-3 rounded-xl border-2 border-slate-100 bg-slate-50 p-3" }, /* @__PURE__ */ React.createElement("button", { type: "button", "data-testid": "sig-toggle", onClick: () => setSigOpen((v) => !v), className: "text-sm font-bold", style: { color: BLUE_DEEP } }, sigOpen ? "▾" : "▸", " Signer à l'écran (facultatif)"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500" }, "Sans signature saisie ici, le document garde son cadre vierge à signer à la main."), sigOpen && /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2" }, [["douane", "Agent Douane"], ["bc", "Agent Bénin Control"], ["parc", "Représentant du parc"]].map(([k, t]) => /* @__PURE__ */ React.createElement("div", { key: k }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600 mb-1" }, t), /* @__PURE__ */ React.createElement(SignaturePad, { testid: "sig-" + k, value: sigs[k], onChange: (v) => setSigs((o) => ({ ...o, [k]: v })) }))))), /* @__PURE__ */ React.createElement("label", { className: "block mb-3 " + lab }, "Observations et constats à chaud (séance de clôture)", /* @__PURE__ */ React.createElement("textarea", { "data-testid": "df-obs", rows: 3, value: f.obs, onChange: (e) => set("obs", e.target.value), placeholder: "Facultatif — une ligne par constat", className: inp })), kind === "rapport" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "mb-3", "data-testid": "df-modeles" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600 mb-1" }, "Modèle de rapport"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 gap-2" }, [["visuel", "Visuel", "Cartes, tableaux colorés, étapes numérotées, recommandations classées par priorité. Textes raccourcis."], ["classique", "Classique", "Reprend le texte et la structure du rapport type (paragraphes complets, listes), avec la charte Bénin Control."], ["synthese", "Synthèse", "Version courte pour la hiérarchie : résultats, écarts, recommandations, fiche de clôture. Sans méthodologie ni tableau des taux."]].map(([k, t, d]) => /* @__PURE__ */ React.createElement("button", { key: k, type: "button", "data-testid": "df-modele-" + k, onClick: () => set("modele", k), className: "text-left rounded-xl border-2 px-3 py-2 " + (f.modele === k ? "border-[#1B4F8C] bg-blue-50" : "border-slate-200 bg-white") }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-extrabold", style: { color: BLUE_DEEP } }, f.modele === k ? "● " : "○ ", t), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-600" }, d))))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ React.createElement(Num, { k: "liste", label: "Liste remise par le parc", hint: "facultatif" }), /* @__PURE__ */ React.createElement(Num, { k: "manus", label: "Manuscrits", hint: String(registered) }), /* @__PURE__ */ React.createElement(Num, { k: "erron", label: "Châssis erronés", hint: "aucun" })), /* @__PURE__ */ React.createElement("details", { className: "mb-3" }, /* @__PURE__ */ React.createElement("summary", { className: "text-xs font-bold text-slate-600 cursor-pointer" }, "Tableau des taux d'utilisation de MMTE"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2 text-sm mt-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.taux, onChange: (e) => set("taux", e.target.checked) }), " Inclure ce tableau dans le rapport"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mt-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Constats d'enlèvement des parcs", /* @__PURE__ */ React.createElement("input", { value: f.t6, onChange: (e) => set("t6", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Mise à disposition des stocks", /* @__PURE__ */ React.createElement("input", { value: f.t8, onChange: (e) => set("t8", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Véhicules conteneurisés", /* @__PURE__ */ React.createElement("input", { value: f.t10, onChange: (e) => set("t10", e.target.value), className: inp })))), locked && extras && /* @__PURE__ */ React.createElement("div", { className: "mb-3 text-sm text-slate-700" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600 mb-1" }, "Annexes à joindre"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aM, onChange: (e) => set("aM", e.target.checked) }), " Véhicules manquants (", extras.manquants.length, ")"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aH, onChange: (e) => set("aH", e.target.checked) }), " Véhicules hors MMTE (", extras.horsMmte.length, ")"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aD, onChange: (e) => set("aD", e.target.checked) }), " Délai de séjour dépassé (", extras.depot.length, ")"))), errBox, /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-edit", onClick: openEditor, className: "w-full mb-2 py-2.5 rounded-lg border-2 border-dashed font-bold text-sm", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, "Aperçu et modification du contenu (facultatif)"), buttons);
 }
 function DocsScreen({ parcsList }) {
   const [kind, setKind] = useState("fiche");
   const tab = (k) => `flex-1 py-2.5 rounded-lg text-sm font-bold border-2 ${kind === k ? "text-white" : "bg-white text-slate-700 border-slate-200"}`;
   return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-4 py-5 no-print", "data-testid": "docs-screen" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-[0.2em] font-bold mb-1", style: { color: BLUE_LIGHT } }, "Documents"), /* @__PURE__ */ React.createElement("h1", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, "Fiches et rapports"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mb-4" }, "Éditez une fiche de clôture ou un rapport d'inventaire sans passer par un inventaire dans l'application : renseignez les informations demandées. Pour un inventaire fait avec l'application, utilisez plutôt son récapitulatif : les chiffres y sont repris automatiquement."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mb-4" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "docs-tab-fiche", onClick: () => setKind("fiche"), className: tab("fiche"), style: kind === "fiche" ? { background: BLUE_DEEP, borderColor: BLUE_DEEP } : void 0 }, "Fiche de clôture"), /* @__PURE__ */ React.createElement("button", { "data-testid": "docs-tab-rapport", onClick: () => setKind("rapport"), className: tab("rapport"), style: kind === "rapport" ? { background: BLUE_DEEP, borderColor: BLUE_DEEP } : void 0 }, "Rapport d'inventaire")), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5" }, /* @__PURE__ */ React.createElement(DocBuilder, { key: kind, kind, standalone: true, parcsList })));
 }
-function SummaryScreen({ readOnly, invMeta, onReopen, parcName, invDate, mmteSize, foundList, registeredList, totalList, missingList, contributors, exportCSVList, exportExcel, backToInventory, resetAll, closeInventory, isGuest }) {
+function SummaryScreen({ followups, onFollow, onUnfollow, readOnly, invMeta, onReopen, parcName, invDate, mmteSize, foundList, registeredList, totalList, missingList, contributors, exportCSVList, exportExcel, backToInventory, resetAll, closeInventory, isGuest }) {
   const [confirmClose, setConfirmClose] = useState(false);
   const [printTarget, setPrintTarget] = useState("report");
   const [docOpen, setDocOpen] = useState(null);
@@ -5158,8 +6376,8 @@ function SummaryScreen({ readOnly, invMeta, onReopen, parcName, invDate, mmteSiz
   const openDoc = (kind) => {
     const h = docHeures([...foundList, ...registeredList]);
     setDocState({
-      extras: collectDocExtras(invDate, foundList, registeredList, missingList),
-      base: { parc: parcName, invDate, debut: h.debut, fin: h.fin, minutes: h.minutes, agents: contributors.join(", "), mmte: String(mmteSize), found: String(foundList.length), registered: String(registeredList.length), manus: String(registeredList.length) }
+      extras: collectDocExtras(invDate, foundList, registeredList, missingList, followups),
+      base: { parc: parcName, invDate, debut: h.debut, fin: h.fin, minutes: h.minutes, agents: contributors.join(", "), mmte: String(mmteSize), found: String(foundList.length), retro: String((followups || []).filter((f) => missingList.some((m) => m.norm === f.norm)).length), registered: String(registeredList.length), manus: String(registeredList.length) }
     });
     setDocOpen(kind);
   };
@@ -5200,7 +6418,7 @@ function SummaryScreen({ readOnly, invMeta, onReopen, parcName, invDate, mmteSiz
     setTimeout(() => window.print(), 60);
   };
   const hideOnClosurePrint = printTarget !== "report" ? "no-print" : "";
-  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 py-8 print:py-0 print:px-0" }, /* @__PURE__ */ React.createElement("button", { onClick: backToInventory, className: "no-print flex items-center gap-1 text-sm font-bold text-slate-500 mb-4" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " ", readOnly ? "Retour aux archives" : "Retour au pointage"), /* @__PURE__ */ React.createElement("div", { className: hideOnClosurePrint }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-[0.2em] font-bold mb-1", style: { color: BLUE_LIGHT } }, "Récapitulatif d'inventaire"), /* @__PURE__ */ React.createElement("h1", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, parcName), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 mb-4 font-medium" }, invDate)), readOnly && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-4 rounded-xl border-2 border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900" }, /* @__PURE__ */ React.createElement("b", null, "Consultation seule."), " Les pointages ne peuvent plus être modifiés depuis les archives.", invMeta && invMeta.completedAt && /* @__PURE__ */ React.createElement("div", { className: "text-xs mt-1" }, "Clôturé le ", formatTimestamp(invMeta.completedAt), invMeta.completedByName ? ` par ${invMeta.completedByName}` : "", "."), onReopen && /* @__PURE__ */ React.createElement("button", { onClick: onReopen, className: "mt-2 px-3 py-1.5 rounded-lg bg-white border-2 border-sky-300 text-sky-900 text-xs font-bold" }, "Rouvrir pour continuer le pointage (administrateur)")), contributors.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-6 rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-500 uppercase tracking-wide mb-1" }, "Agents ayant participé"), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-700" }, contributors.join(", "))), /* @__PURE__ */ React.createElement("div", { className: `grid grid-cols-2 gap-3 mb-6 ${hideOnClosurePrint}` }, /* @__PURE__ */ React.createElement(SummaryCard, { label: "Attendus sur MMTE", value: mmteSize, tone: "navy" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Trouvés sur MMTE", value: foundList.length, tone: "emerald" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Enregistrés (hors MMTE)", value: registeredList.length, tone: "sky" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Total présent sur le parc", value: totalList.length, tone: "navy" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Manquants (sur MMTE, absents)", value: missingList.length, tone: "rose", full: true })), isGuest ? /* @__PURE__ */ React.createElement("div", { className: "no-print bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 text-sm text-amber-800" }, "Les exports (Excel, CSV, rapport imprimable) sont réservés aux agents MAD-MAE. Un agent peut se connecter pour générer les rapports officiels à partir de ces mêmes données.") : /* @__PURE__ */ React.createElement("div", { className: "no-print bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-1" }, "Exporter les résultats"), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Download, { size: 16 }), " Télécharger le classeur Excel complet (4 feuilles + résumé)"), /* @__PURE__ */ React.createElement("button", { onClick: () => triggerPrint("report"), className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " Imprimer / générer un PDF du rapport"), /* @__PURE__ */ React.createElement("button", { "data-testid": "btn-fiche", onClick: () => openDoc("fiche"), className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }), " Fiche de clôture (Word / PDF, à signer)"), /* @__PURE__ */ React.createElement("button", { "data-testid": "btn-rapport", onClick: () => openDoc("rapport"), className: "w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2", style: { background: BLUE_LIGHT } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }), " Télécharger le rapport d'inventaire du parc ", parcName), photoRows.length > 0 && /* @__PURE__ */ React.createElement("button", { onClick: printPhotos, disabled: loadingPhotos, className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " ", loadingPhotos ? "Chargement des photos..." : `Rapport photos des véhicules hors MMTE (${photoRows.length})`), /* @__PURE__ */ React.createElement("button", { onClick: mailSummary, className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, "Envoyer le résumé par e-mail"), /* @__PURE__ */ React.createElement("button", { onClick: () => exportCSVList("total"), className: "w-full py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700" }, "Télécharger un fichier CSV (total présent sur le parc)")), readOnly && /* @__PURE__ */ React.createElement("div", { className: "mt-6" }, /* @__PURE__ */ React.createElement(ReadOnlyLists, { totalList, foundList, registeredList, missingList })), !isGuest && !readOnly && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "no-print w-full mt-6 py-3 rounded-xl text-white font-extrabold flex items-center justify-center gap-2 shadow-md", style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 18 }), " Quitter sans clôturer (l'inventaire reste ouvert)"), !confirmClose ? /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 py-8 print:py-0 print:px-0" }, /* @__PURE__ */ React.createElement("button", { onClick: backToInventory, className: "no-print flex items-center gap-1 text-sm font-bold text-slate-500 mb-4" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " ", readOnly ? "Retour aux archives" : "Retour au pointage"), /* @__PURE__ */ React.createElement("div", { className: hideOnClosurePrint }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-[0.2em] font-bold mb-1", style: { color: BLUE_LIGHT } }, "Récapitulatif d'inventaire"), /* @__PURE__ */ React.createElement("h1", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, parcName), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 mb-4 font-medium" }, invDate)), readOnly && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-4 rounded-xl border-2 border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900" }, /* @__PURE__ */ React.createElement("b", null, "Consultation seule."), " Les pointages ne peuvent plus être modifiés depuis les archives.", invMeta && invMeta.completedAt && /* @__PURE__ */ React.createElement("div", { className: "text-xs mt-1" }, "Clôturé le ", formatTimestamp(invMeta.completedAt), invMeta.completedByName ? ` par ${invMeta.completedByName}` : "", "."), onReopen && /* @__PURE__ */ React.createElement("button", { onClick: onReopen, className: "mt-2 px-3 py-1.5 rounded-lg bg-white border-2 border-sky-300 text-sky-900 text-xs font-bold" }, "Rouvrir pour continuer le pointage (administrateur)")), contributors.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-6 rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-500 uppercase tracking-wide mb-1" }, "Agents ayant participé"), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-700" }, contributors.join(", "))), /* @__PURE__ */ React.createElement("div", { className: `grid grid-cols-2 gap-3 mb-6 ${hideOnClosurePrint}` }, /* @__PURE__ */ React.createElement(SummaryCard, { label: "Attendus sur MMTE", value: mmteSize, tone: "navy" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Trouvés sur MMTE", value: foundList.length, tone: "emerald" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Enregistrés (hors MMTE)", value: registeredList.length, tone: "sky" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Total présent sur le parc", value: totalList.length, tone: "navy" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Manquants (sur MMTE, absents)", value: missingList.filter((m) => !(followups || []).some((f) => f.norm === m.norm)).length, tone: "rose", full: true })), isGuest ? /* @__PURE__ */ React.createElement("div", { className: "no-print bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 text-sm text-amber-800" }, "Les exports (Excel, CSV, rapport imprimable) sont réservés aux agents MAD-MAE. Un agent peut se connecter pour générer les rapports officiels à partir de ces mêmes données.") : /* @__PURE__ */ React.createElement("div", { className: "no-print bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-1" }, "Exporter les résultats"), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Download, { size: 16 }), " Télécharger le classeur Excel complet (4 feuilles + résumé)"), /* @__PURE__ */ React.createElement("button", { onClick: () => triggerPrint("report"), className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " Imprimer / générer un PDF du rapport"), /* @__PURE__ */ React.createElement("button", { "data-testid": "btn-fiche", onClick: () => openDoc("fiche"), className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }), " Fiche de clôture (Word / PDF, à signer)"), /* @__PURE__ */ React.createElement("button", { "data-testid": "btn-rapport", onClick: () => openDoc("rapport"), className: "w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2", style: { background: BLUE_LIGHT } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }), " Télécharger le rapport d'inventaire du parc ", parcName), photoRows.length > 0 && /* @__PURE__ */ React.createElement("button", { onClick: printPhotos, disabled: loadingPhotos, className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " ", loadingPhotos ? "Chargement des photos..." : `Rapport photos des véhicules hors MMTE (${photoRows.length})`), /* @__PURE__ */ React.createElement("button", { onClick: mailSummary, className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, "Envoyer le résumé par e-mail"), /* @__PURE__ */ React.createElement("button", { onClick: () => exportCSVList("total"), className: "w-full py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700" }, "Télécharger un fichier CSV (total présent sur le parc)")), !isGuest && onFollow && missingList.length > 0 && /* @__PURE__ */ React.createElement(FollowupPanel, { missingList, followups: followups || [], onFollow, onUnfollow }), readOnly && /* @__PURE__ */ React.createElement("div", { className: "mt-6" }, /* @__PURE__ */ React.createElement(ReadOnlyLists, { totalList, foundList, registeredList, missingList })), !isGuest && !readOnly && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "no-print w-full mt-6 py-3 rounded-xl text-white font-extrabold flex items-center justify-center gap-2 shadow-md", style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 18 }), " Quitter sans clôturer (l'inventaire reste ouvert)"), !confirmClose ? /* @__PURE__ */ React.createElement(
     "button",
     {
       onClick: () => setConfirmClose(true),
@@ -5407,7 +6625,7 @@ function StockCompareScreen({ onBack }) {
     setDraftB(draftA);
   };
   const resetAll = () => {
-    if (res && !window.confirm("Tout remettre à zéro ? Les deux fichiers, les noms et les résultats seront effacés de cet écran (vos fichiers d'origine ne sont pas touchés). Pensez à avoir fait vos exports.")) return;
+    if (res && !confirmT("Tout remettre à zéro ? Les deux fichiers, les noms et les résultats seront effacés de cet écran (vos fichiers d'origine ne sont pas touchés). Pensez à avoir fait vos exports.")) return;
     reset();
   };
   const reset = () => {
@@ -5680,7 +6898,15 @@ function ArchiveScreen({ list, loading, error, onOpen, onTrash, onRestore, onPur
       placeholder: "Rechercher un parc...",
       className: "w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border-2 border-slate-200 focus:outline-none focus:border-[#1B4F8C]"
     }
-  )), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement("select", { value: statusF, onChange: (e) => setStatusF(e.target.value), className: "py-2.5 px-3 text-sm rounded-lg border-2 border-slate-200 bg-white font-semibold text-slate-700" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Tous les statuts"), /* @__PURE__ */ React.createElement("option", { value: "completed" }, "Clôturés"), /* @__PURE__ */ React.createElement("option", { value: "in_progress" }, "En cours")), /* @__PURE__ */ React.createElement("select", { value: yearF, onChange: (e) => setYearF(e.target.value), className: "py-2.5 px-3 text-sm rounded-lg border-2 border-slate-200 bg-white font-semibold text-slate-700" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Toutes les années"), years.map((y) => /* @__PURE__ */ React.createElement("option", { key: y, value: y }, y)))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement("button", { onClick: onRefresh, className: "py-2.5 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(RefreshCw, { size: 15 }), " Actualiser"), /* @__PURE__ */ React.createElement("button", { onClick: () => onExport(filtered), disabled: filtered.length === 0, className: "py-2.5 rounded-lg text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Download, { size: 15 }), " Exporter la liste (Excel)"))), view === "list" && selItems.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mb-3 rounded-xl border-2 border-sky-200 bg-sky-50 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-sky-900" }, "Comparaison : ", selItems.length, "/2 inventaire(s) sélectionné(s)"), selItems.length === 2 && !canCompare && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-rose-700 mt-1" }, "Les deux inventaires doivent concerner le même parc."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-2" }, /* @__PURE__ */ React.createElement("button", { disabled: !canCompare, onClick: () => onCompare(selItems[0], selItems[1]), className: "flex-1 py-2.5 rounded-lg text-white text-sm font-bold disabled:opacity-50", style: { background: BLUE_DEEP } }, "Comparer ces deux inventaires"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSel([]), className: "px-3 py-2.5 rounded-lg bg-white border-2 border-sky-300 text-sky-900 text-sm font-bold" }, "Effacer"))), error && /* @__PURE__ */ React.createElement("div", { className: "mb-3 rounded-lg bg-rose-50 border-2 border-rose-200 text-rose-800 text-sm p-3" }, error), loading && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-6" }, "Chargement..."), view === "dashboard" && !loading && /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-slate-100 bg-white p-4 mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-slate-700" }, "Parcs inventoriés", yearF !== "all" ? ` en ${yearF}` : "", " : ", dashRows.length, " / ", (parcsList || []).length), /* @__PURE__ */ React.createElement("div", { className: "h-2 rounded-full bg-slate-100 overflow-hidden mt-2" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full", style: { width: `${(parcsList || []).length ? Math.min(100, Math.round(dashRows.length / parcsList.length * 100)) : 0}%`, background: BLUE_LIGHT } })), /* @__PURE__ */ React.createElement("button", { onClick: () => window.print(), className: "mt-3 w-full py-2.5 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 15 }), " Imprimer la synthèse de campagne (PDF)")), /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2 text-sm" }, "Situation par parc (du taux le plus faible au plus élevé)"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, dashRows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-6" }, "Aucun inventaire."), dashRows.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.name, className: "rounded-lg border-2 border-slate-100 bg-white px-3 py-2.5" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-sm text-slate-800 truncate" }, r.name), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-slate-500" }, "Dernier : ", fmtDate(r.last.invDate), " · ", r.count, " inventaire(s)", r.inProgress ? " · en cours" : "")), /* @__PURE__ */ React.createElement("div", { className: "text-right shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "text-lg font-extrabold font-plex-mono", style: { color: r.rate === null ? "#94a3b8" : r.rate >= 90 ? "#047857" : r.rate >= 70 ? "#B45309" : "#BE123C" } }, r.rate === null ? "—" : `${r.rate}%`), r.trend !== null && /* @__PURE__ */ React.createElement("div", { className: `text-[10px] font-bold ${r.trend >= 0 ? "text-emerald-700" : "text-rose-700"}` }, r.trend >= 0 ? "+" : "", r.trend, " pt vs précédent")))))), notDone.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-5" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2 text-sm" }, "Parcs sans inventaire", yearF !== "all" ? ` en ${yearF}` : "", " (", notDone.length, ")"), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg border-2 border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 leading-relaxed" }, notDone.join(" · ")))), view === "trash" && isAdmin && !loading && /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mb-3" }, "Les inventaires supprimés restent récupérables pendant 30 jours. Passé ce délai, vous pouvez les purger définitivement."), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement("select", { value: statusF, onChange: (e) => setStatusF(e.target.value), className: "py-2.5 px-3 text-sm rounded-lg border-2 border-slate-200 bg-white font-semibold text-slate-700" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Tous les statuts"), /* @__PURE__ */ React.createElement("option", { value: "completed" }, "Clôturés"), /* @__PURE__ */ React.createElement("option", { value: "in_progress" }, "En cours")), /* @__PURE__ */ React.createElement("select", { value: yearF, onChange: (e) => setYearF(e.target.value), className: "py-2.5 px-3 text-sm rounded-lg border-2 border-slate-200 bg-white font-semibold text-slate-700" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Toutes les années"), years.map((y) => /* @__PURE__ */ React.createElement("option", { key: y, value: y }, y)))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement("button", { onClick: onRefresh, className: "py-2.5 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(RefreshCw, { size: 15 }), " Actualiser"), /* @__PURE__ */ React.createElement("button", { onClick: () => onExport(filtered), disabled: filtered.length === 0, className: "py-2.5 rounded-lg text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Download, { size: 15 }), " Exporter la liste (Excel)"))), view === "list" && selItems.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mb-3 rounded-xl border-2 border-sky-200 bg-sky-50 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-sky-900" }, "Comparaison : ", selItems.length, "/2 inventaire(s) sélectionné(s)"), selItems.length === 2 && !canCompare && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-rose-700 mt-1" }, "Les deux inventaires doivent concerner le même parc."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-2" }, /* @__PURE__ */ React.createElement("button", { disabled: !canCompare, onClick: () => onCompare(selItems[0], selItems[1]), className: "flex-1 py-2.5 rounded-lg text-white text-sm font-bold disabled:opacity-50", style: { background: BLUE_DEEP } }, "Comparer ces deux inventaires"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSel([]), className: "px-3 py-2.5 rounded-lg bg-white border-2 border-sky-300 text-sky-900 text-sm font-bold" }, "Effacer"))), error && /* @__PURE__ */ React.createElement("div", { className: "mb-3 rounded-lg bg-rose-50 border-2 border-rose-200 text-rose-800 text-sm p-3" }, error), loading && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-6" }, "Chargement..."), view === "dashboard" && !loading && /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-slate-100 bg-white p-4 mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-slate-700" }, "Parcs inventoriés", yearF !== "all" ? ` en ${yearF}` : "", " : ", dashRows.length, " / ", (parcsList || []).length), /* @__PURE__ */ React.createElement("div", { className: "h-2 rounded-full bg-slate-100 overflow-hidden mt-2" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full", style: { width: `${(parcsList || []).length ? Math.min(100, Math.round(dashRows.length / parcsList.length * 100)) : 0}%`, background: BLUE_LIGHT } })), /* @__PURE__ */ React.createElement("button", { onClick: () => window.print(), className: "mt-3 w-full py-2.5 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 15 }), " Imprimer la synthèse de campagne (PDF)")), (() => {
+    const L = dashRows.map((r) => r.last);
+    const sum = (k) => L.reduce((n, i) => n + (i.stats && i.stats[k] || 0), 0);
+    const exp = sum("expected"), fnd = sum("found"), reg = sum("registered"), mis = sum("missing");
+    const closed = L.filter((i) => i.status === "completed").length, prog = L.filter((i) => i.status === "in_progress").length;
+    const todo = Math.max(0, (parcsList || []).length - dashRows.length);
+    const cells = [["Parcs clôturés", closed, "#0A8F44"], ["En cours", prog, "#B45309"], ["À faire", todo, "#64748b"], ["Attendus MMTE", exp, BLUE_DEEP], ["Retrouvés", fnd, "#047857"], ["Hors MMTE", reg, "#2E7DC1"], ["Manquants", mis, "#BE123C"], ["Taux global", exp ? Math.round(fnd / exp * 100) + " %" : "—", BLUE_DEEP]];
+    return /* @__PURE__ */ React.createElement("div", { "data-testid": "campaign-kpis", className: "grid grid-cols-4 gap-2 mb-4" }, cells.map(([l, v, c]) => /* @__PURE__ */ React.createElement("div", { key: l, className: "rounded-xl border-2 border-slate-100 bg-white p-2 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-lg font-extrabold font-plex-mono leading-none", style: { color: c } }, v), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] font-semibold text-slate-500 mt-1" }, l))));
+  })(), /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2 text-sm" }, "Situation par parc (du taux le plus faible au plus élevé)"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, dashRows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-6" }, "Aucun inventaire."), dashRows.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.name, className: "rounded-lg border-2 border-slate-100 bg-white px-3 py-2.5" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-sm text-slate-800 truncate" }, r.name), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-slate-500" }, "Dernier : ", fmtDate(r.last.invDate), " · ", r.count, " inventaire(s)", r.inProgress ? " · en cours" : "")), /* @__PURE__ */ React.createElement("div", { className: "text-right shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "text-lg font-extrabold font-plex-mono", style: { color: r.rate === null ? "#94a3b8" : r.rate >= 90 ? "#047857" : r.rate >= 70 ? "#B45309" : "#BE123C" } }, r.rate === null ? "—" : `${r.rate}%`), r.trend !== null && /* @__PURE__ */ React.createElement("div", { className: `text-[10px] font-bold ${r.trend >= 0 ? "text-emerald-700" : "text-rose-700"}` }, r.trend >= 0 ? "+" : "", r.trend, " pt vs précédent")))))), notDone.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-5" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2 text-sm" }, "Parcs sans inventaire", yearF !== "all" ? ` en ${yearF}` : "", " (", notDone.length, ")"), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg border-2 border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 leading-relaxed" }, notDone.join(" · ")))), view === "trash" && isAdmin && !loading && /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mb-3" }, "Les inventaires supprimés restent récupérables pendant 30 jours. Passé ce délai, vous pouvez les purger définitivement."), /* @__PURE__ */ React.createElement(
     "button",
     {
       onClick: async () => {
@@ -5733,7 +6959,7 @@ function ArchiveScreen({ list, loading, error, onOpen, onTrash, onRestore, onPur
       {
         disabled: busyId === x.id,
         onClick: async () => {
-          if (!window.confirm(`Déplacer « ${x.parcName} » (${fmtDate(x.invDate)}) dans la corbeille ?
+          if (!confirmT(`Déplacer « ${x.parcName} » (${fmtDate(x.invDate)}) dans la corbeille ?
 
 Il restera récupérable pendant 30 jours.`)) return;
           setBusyId(x.id);
@@ -5749,6 +6975,23 @@ Il restera récupérable pendant 30 jours.`)) return;
     const st = r.last && r.last.stats || {};
     return /* @__PURE__ */ React.createElement("tr", { key: r.name }, /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px" } }, r.name), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px" } }, fmtDate(r.last.invDate)), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" } }, st.expected != null ? st.expected : "—"), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" } }, st.found != null ? st.found : "—"), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" } }, st.registered != null ? st.registered : "—"), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" } }, st.missing != null ? st.missing : "—"), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center", fontWeight: 700 } }, r.rate === null ? "—" : `${r.rate}%`));
   }))), notDone.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, fontSize: 12 } }, /* @__PURE__ */ React.createElement("b", null, "Parcs sans inventaire (", notDone.length, ") :"), " ", notDone.join(" · "))));
+}
+function FollowupPanel({ missingList, followups, onFollow, onUnfollow }) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [edit, setEdit] = useState(null);
+  const fm = useMemo(() => new Map(followups.map((f) => [f.norm, f])), [followups]);
+  const done = missingList.filter((m) => fm.has(m.norm)).length;
+  const rows = missingList.filter((m) => !filter.trim() || matchesAllTerms(filter, { chassis: m.chassis, ...m.info || {} }));
+  const sorted = [...rows].sort((a, b) => (fm.has(a.norm) ? 1 : 0) - (fm.has(b.norm) ? 1 : 0));
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "followup-panel", className: "no-print mt-4 bg-white rounded-2xl border-2 border-amber-200 shadow-sm p-5" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "followup-toggle", onClick: () => setOpen(!open), className: "w-full flex items-center justify-between text-left" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700" }, "Suivi des manquants"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500" }, `${done} régularisé${done > 1 ? "s" : ""} sur ${missingList.length} · ${missingList.length - done} encore manquant${missingList.length - done > 1 ? "s" : ""}`)), /* @__PURE__ */ React.createElement("span", { className: "text-sm font-bold", style: { color: BLUE_DEEP } }, open ? "Masquer" : "Ouvrir")), open && /* @__PURE__ */ React.createElement("div", { className: "mt-3" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mb-2" }, "Un véhicule manquant a été retrouvé ou régularisé dans MMTE après l'inventaire ? Marquez-le ici, puis régénérez la fiche et le rapport : les chiffres sont mis à jour."), /* @__PURE__ */ React.createElement("input", { "data-testid": "followup-filter", value: filter, onChange: (e) => setFilter(e.target.value), placeholder: "Filtrer par châssis, description…", className: "w-full mb-2 px-3 py-2 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none" }), /* @__PURE__ */ React.createElement("div", { className: "space-y-2 max-h-[45vh] overflow-y-auto" }, sorted.slice(0, LIST_RENDER_CAP).map((m) => {
+    const f = fm.get(m.norm);
+    const ed = edit && edit.norm === m.norm ? edit : null;
+    return /* @__PURE__ */ React.createElement("div", { key: m.norm, "data-testid": "fu-row-" + m.norm, className: "rounded-xl border-2 px-3 py-2 " + (f ? "border-emerald-200 bg-emerald-50" : "border-slate-100") }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-plex-mono text-sm font-bold truncate" }, m.chassis), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 truncate" }, m.info && m.info.description || "")), f ? /* @__PURE__ */ React.createElement("button", { "data-testid": "fu-undo-" + m.norm, onClick: () => onUnfollow(m.norm), className: "text-xs font-bold text-slate-500 underline whitespace-nowrap" }, "Annuler") : !ed ? /* @__PURE__ */ React.createElement("button", { "data-testid": "fu-mark-" + m.norm, onClick: () => setEdit({ norm: m.norm, status: "retrouve", note: "" }), className: "px-3 py-1.5 rounded-lg text-xs font-bold text-white whitespace-nowrap", style: { background: BLUE_DEEP } }, "Marquer") : null), f && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-800 mt-1" }, /* @__PURE__ */ React.createElement("b", null, f.status === "regularise" ? "Régularisé dans MMTE" : "Retrouvé sur le parc"), f.byName ? ` · ${f.byName}` : "", f.at && f.at.toMillis ? ` · ${formatTimestamp(f.at)}` : "", f.note ? ` · ${f.note}` : ""), ed && /* @__PURE__ */ React.createElement("div", { className: "mt-2 space-y-2" }, /* @__PURE__ */ React.createElement("select", { "data-testid": "fu-status", value: ed.status, onChange: (e) => setEdit({ ...ed, status: e.target.value }), className: "w-full px-2 py-2 text-sm rounded-lg border-2 border-slate-200" }, /* @__PURE__ */ React.createElement("option", { value: "retrouve" }, "Retrouvé sur le parc"), /* @__PURE__ */ React.createElement("option", { value: "regularise" }, "Régularisé dans MMTE (sorti, transféré…)")), /* @__PURE__ */ React.createElement("input", { "data-testid": "fu-note", value: ed.note, maxLength: 200, onChange: (e) => setEdit({ ...ed, note: e.target.value }), placeholder: "Observation (facultatif)", className: "w-full px-3 py-2 text-sm rounded-lg border-2 border-slate-200" }), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "fu-save", onClick: () => {
+      onFollow(m.norm, m.chassis, ed.status, ed.note.trim());
+      setEdit(null);
+    }, className: "px-3 py-1.5 rounded-lg text-xs font-bold text-white", style: { background: "#0A8F44" } }, "Valider"), /* @__PURE__ */ React.createElement("button", { onClick: () => setEdit(null), className: "px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-slate-200 text-slate-600" }, "Annuler"))));
+  }), /* @__PURE__ */ React.createElement(TruncationNote, { count: sorted.length }))));
 }
 function ReadOnlyLists({ totalList, foundList, registeredList, missingList }) {
   const [tab, setTab] = useState("total");

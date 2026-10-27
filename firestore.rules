@@ -226,6 +226,20 @@ service cloud.firestore {
         allow delete: if isStaff();
       }
 
+      // Suivi des manquants : un véhicule attendu et absent est marqué
+      // « retrouvé » ou « régularisé » après l'inventaire (agents et admins).
+      match /followups/{chassisId} {
+        allow read: if isStaff();
+        allow create, update: if isStaff()
+          && request.resource.data.keys().hasOnly(['norm', 'chassis', 'status', 'note', 'byUid', 'byName', 'at'])
+          && request.resource.data.byUid == request.auth.uid
+          && request.resource.data.at == request.time
+          && request.resource.data.status in ['retrouve', 'regularise']
+          && request.resource.data.note is string && request.resource.data.note.size() <= 300
+          && request.resource.data.norm is string && request.resource.data.chassis is string;
+        allow delete: if isStaff();
+      }
+
       // Journal d'audit : on ajoute, on ne modifie jamais ; seul
       // l'administrateur peut le purger avec l'inventaire.
       match /audit/{entryId} {
