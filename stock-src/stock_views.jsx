@@ -106,6 +106,7 @@ function StkDashboard({ lastImports }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("stock");
   const [onlyStock, setOnlyStock] = useState(false);
+  const [expAt, setExpAt] = useState(false);
   const tot = dash.reduce((a, d) => ({ presents: a.presents + +d.presents, disponibles: a.disponibles + +d.disponibles, bientot: a.bientot + +d.bientot, depot: a.depot + +d.depot, nj: a.nj + +d.non_justifiees, sans: a.sans + +d.sans_date }), { presents: 0, disponibles: 0, bientot: 0, depot: 0, nj: 0, sans: 0 });
   const today = stkToday();
   const withImport = dash.filter((d) => d.last_import);
@@ -113,7 +114,8 @@ function StkDashboard({ lastImports }) {
   let list = dash.filter((d) => d.active !== false && (!q || d.parc.includes(q.trim().toUpperCase())) && (!onlyStock || +d.presents > 0));
   list = [...list].sort((a, b) => sort === "name" ? a.parc.localeCompare(b.parc) : sort === "depot" ? b.depot - a.depot : sort === "import" ? String(b.last_import || "").localeCompare(String(a.last_import || "")) : (b.presents - a.presents) || a.parc.localeCompare(b.parc));
   return <>
-    <StkPageHead title="Tableau de bord des stocks" sub={`Situation au ${stkFmt(today)} · séjour de ${cfg.duree} jours à compter de la date d'arrivée du navire`} right={<StkBtn small onClick={reloadDash}><RefreshCw size={15} /> Actualiser</StkBtn>} />
+    <StkPageHead title="Tableau de bord des stocks" sub={`Situation au ${stkFmt(today)} · séjour de ${cfg.duree} jours à compter de la date d'arrivée du navire`} right={<><StkBtn small onClick={() => setExpAt(true)}><Download size={15} /> Exporter le stock à une date</StkBtn><StkBtn small onClick={reloadDash}><RefreshCw size={15} /> Actualiser</StkBtn></>} />
+    {expAt && <StkExportAtDateModal onClose={() => setExpAt(false)} />}
     <StkCard className="p-4"><StkQuickSearch big /></StkCard>
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
       <StkKpi label="Véhicules en stock" value={tot.presents} sub={`${withImport.length} parc(s) importé(s)`} />
@@ -187,6 +189,7 @@ function StkParc({ parcId }) {
   const [atDate, setAtDate] = useState(null); // { date, rows, lastImport }
   const [askDate, setAskDate] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [expAt, setExpAt] = useState(false);
   const today = stkToday();
   const load = async () => {
     try { setErr(""); setData(await stkCall("parc_stock", { parc_id: parcId })); } catch (e) { setErr(stkErrText(e)); }
@@ -223,6 +226,7 @@ function StkParc({ parcId }) {
       right={<>
         {stkCanEdit(C) && <StkBtn kind="primary" onClick={() => go("import", { parc: info.parc })}><Upload size={16} /> Importer le stock</StkBtn>}
         <StkBtn onClick={() => setAskDate(true)}><StkIc.Cal size={16} /> Stock à une date</StkBtn>
+        <StkBtn onClick={() => setExpAt(true)}><Download size={16} /> Exporter à une date</StkBtn>
         {isAdmin && <StkBtn onClick={() => setAdding(true)}><StkIc.Plus size={16} /> Ajouter un véhicule</StkBtn>}
       </>} />
     {err && <StkMsg tone="err">{err}</StkMsg>}
@@ -242,6 +246,7 @@ function StkParc({ parcId }) {
         {!data && !atDate ? <StkLoading /> : <StkTable columns={stkCols(cfg, ref, { entree: true })} rows={filtered} onRow={(r) => openVehicle({ id: r.vehicle_id })} empty={rows.length ? "Aucun véhicule dans cette catégorie." : "Aucun véhicule : importez le premier fichier de stock de ce parc."} />}
       </StkCard>}
     {askDate && <StkAtDateModal parcId={parcId} lastImport={data && data.lastImport} onClose={() => setAskDate(false)} onImport={() => { setAskDate(false); go("import", { parc: info.parc }); }} onResult={(r) => { setAskDate(false); setAtDate(r); setTab("tous"); }} />}
+    {expAt && <StkExportAtDateModal parcId={parcId} onClose={() => setExpAt(false)} />}
     {adding && <StkVehicleForm parcId={parcId} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load(); C.reloadDash(); }} />}
   </>;
 }
@@ -489,8 +494,8 @@ function StkVehicleModal({ target, onClose }) {
             {isAdmin && <><button className="text-xs font-bold text-[#1B4F8C] underline" onClick={() => setEditStay(s)}>Modifier</button><button className="text-xs font-bold text-rose-700 underline" onClick={() => act("stay_delete", { id: s.stay_id }, "Mettre ce mouvement à la corbeille ?")}>Supprimer</button></>}
           </div>
           <div className="grid md:grid-cols-2 gap-2 mt-2 text-sm">
-            <div className="rounded-lg bg-emerald-50/60 border border-emerald-100 px-3 py-2"><div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">{STK_ENTRY[s.entry_kind]}{s.from_parc ? ` depuis ${s.from_parc}` : ""}</div><div className="font-semibold">{stkFmt(s.entry_date)}</div>{s.entry_import_id && <div className="text-[11px] text-slate-500">{impName(s.entry_import_id)}</div>}</div>
-            <div className={`rounded-lg px-3 py-2 border ${s.exit_date ? "bg-rose-50/60 border-rose-100" : "bg-slate-50 border-slate-100"}`}><div className="text-[11px] font-bold uppercase tracking-wider text-rose-800">{s.exit_date ? `${STK_EXIT[s.exit_kind] || "Sortie"}${s.to_parc ? ` vers ${s.to_parc}` : ""}` : "Sortie"}</div><div className="font-semibold">{s.exit_date ? stkFmt(s.exit_date) : "—"}</div>{s.exit_import_id && <div className="text-[11px] text-slate-500">Absent de {impName(s.exit_import_id)}</div>}</div>
+            <div className="rounded-lg bg-emerald-50/60 border border-emerald-100 px-3 py-2"><div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">{STK_ENTRY[s.entry_kind]}{s.from_parc ? ` depuis ${s.from_parc}` : ""}</div><div className="font-semibold">{stkFmt(s.entry_date)} <span className="text-[11px] font-normal text-slate-500">{s.entry_from_file ? "(date du fichier du parc)" : s.entry_import_id ? "(date de l'import)" : ""}</span></div>{s.entry_import_id && <div className="text-[11px] text-slate-500">{impName(s.entry_import_id)}</div>}</div>
+            <div className={`rounded-lg px-3 py-2 border ${s.exit_date ? "bg-rose-50/60 border-rose-100" : "bg-slate-50 border-slate-100"}`}><div className="text-[11px] font-bold uppercase tracking-wider text-rose-800">{s.exit_date ? `${STK_EXIT[s.exit_kind] || "Sortie"}${s.to_parc ? ` vers ${s.to_parc}` : ""}` : "Sortie"}</div><div className="font-semibold">{s.exit_date ? <>{stkFmt(s.exit_date)} <span className="text-[11px] font-normal text-slate-500">(constatée à l'import)</span></> : "—"}</div>{s.exit_import_id && <div className="text-[11px] text-slate-500">Absent de {impName(s.exit_import_id)}</div>}</div>
           </div>
           {s.exit_date && <div className="mt-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
             <div className="flex flex-wrap items-center gap-2">

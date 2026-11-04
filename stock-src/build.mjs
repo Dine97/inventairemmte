@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { transformSync } from "esbuild";
 const dir = new URL(".", import.meta.url).pathname;
-const files = ["parser.js", "stock_core.jsx", "stock_views.jsx", "stock_import_admin.jsx", "stock_v2.jsx"];
+const files = ["parser.js", "stock_core.jsx", "stock_views.jsx", "stock_import_admin.jsx", "stock_v2.jsx", "stock_v3.jsx"];
 const src = files.map((f) => readFileSync(dir + f, "utf8")).join("\n");
 const { code } = transformSync(src, { loader: "jsx", jsxFactory: "React.createElement", jsxFragment: "React.Fragment", target: "es2019", charset: "utf8" });
 const htmlPath = dir + "../index.html";

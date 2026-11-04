@@ -7,6 +7,7 @@
 | `stock_views.jsx` | Tableau de bord, parc, recherche, fiche véhicule, justification, mouvements, imports |
 | `stock_import_admin.jsx` | Import d'un fichier, administration, écran de choix d'application |
 | `stock_v2.jsx` | Rapport hebdomadaire, graphiques, anomalies, contrôles inventaire et MMTE, filtres, sauvegarde, utilisateurs |
+| `stock_v3.jsx` | Inventaire depuis le stock du parc, export du stock à une date, comptes et accès aux applications |
 
 Le code compilé est injecté dans `index.html` entre les marqueurs `STOCK-MODULE-DEBUT` et `STOCK-MODULE-FIN`.
 Après une modification : `npm i --no-save esbuild` puis `node stock-src/build.mjs`.

@@ -143,3 +143,16 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
   **sauvegarde complète** en Excel (Administration › Sauvegarde).
 - **Maintien en éveil** du projet Supabase gratuit par une tâche GitHub (`.github/workflows/supabase-keepalive.yml`).
 - Sources versionnées : `stock-src/` (interface), `supabase/` (base et API). Voir `stock-src/LISEZMOI.md`.
+
+### Version 6.2.0
+
+- **Inventaire à partir du stock du parc** : au démarrage d'un inventaire, bouton « Stock du parc » qui charge le dernier
+  stock importé dans le suivi des stocks ; option de fusion avec la liste MMTE (étiquette « MMTE + stock du parc »,
+  « MMTE seulement », « Stock du parc seulement »).
+- **Dates d'entrée** reprises du fichier du parc (date de transfert, sinon date d'arrivée) lorsqu'elles tombent entre
+  deux imports ; les sorties restent datées à l'import où le véhicule n'apparaît plus (« constatée »).
+- **Export du stock à une date** : tous les parcs ou un parc, tout le stock / disponibles / bientôt en dépôt / dépôt /
+  sans date, en Excel ou PDF.
+- **Comptes et accès** (Panneau admin › Comptes) : création de compte par l'administrateur, choix par agent de l'accès à
+  Inventaire MMTE et au Suivi des stocks (agent, consultation, aucun) ; l'écran de choix n'affiche que les applications
+  autorisées.

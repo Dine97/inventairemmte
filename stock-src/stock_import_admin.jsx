@@ -358,8 +358,17 @@ function StkAdminTrash() {
 }
 
 // ---------------- Choix de l'application après connexion ----------------
-function StkAppChooser({ name, onChoose }) {
+function StkAppChooser({ name, onChoose, canInventory }) {
   const now = useNow();
+  const [stockOk, setStockOk] = useState(undefined);
+  useEffect(() => { stkCall("me", {}).then(() => setStockOk(true)).catch((e) => setStockOk(String(e.message) === "RESEAU" ? true : false)); }, []);
+  useEffect(() => {
+    if (stockOk === undefined) return;
+    if (canInventory && !stockOk) onChoose("inventaire");
+    else if (!canInventory && stockOk) onChoose("stock");
+  }, [stockOk]);
+  if (stockOk === undefined) return <StkLoading text="Vérification de vos accès..." />;
+  if (!canInventory && !stockOk) return <div className="max-w-lg mx-auto px-5 py-16"><StkMsg tone="warn">Votre compte n'a accès à aucune des deux applications pour le moment. Contactez un administrateur MAD-MAE.</StkMsg></div>;
   const Card = ({ k, title, text, Ic, tone }) => <button onClick={() => onChoose(k)} data-testid={"choose-" + k} className="group text-left bg-white rounded-3xl border-2 border-slate-200 hover:border-[#1B4F8C] shadow-sm hover:shadow-xl transition p-6 md:p-8 flex flex-col gap-4">
     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white ${tone}`}><Ic size={28} /></div>
     <div><div className="font-semibold text-2xl text-[#0B1F38]" style={{ fontFamily: "'Sora',system-ui,sans-serif" }}>{title}</div><div className="text-sm text-slate-600 mt-2 leading-relaxed">{text}</div></div>

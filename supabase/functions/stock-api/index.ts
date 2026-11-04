@@ -98,7 +98,7 @@ function agentOnly(who: Who) { if (!who.isAdmin && who.access !== "agent") throw
 function pick(o: any, keys: string[]) { const r: any = {}; for (const k of keys) if (o && k in o) r[k] = o[k] === "" ? null : o[k]; return r; }
 const today = () => new Date(Date.now() + 3600e3).toISOString().slice(0, 10); // heure du Bénin
 
-const LIST_COLS = "stay_id,vehicle_id,parc_id,parc,entry_import_id,entry_date,entry_kind,from_parc,exit_import_id,exit_date,exit_kind,to_parc,justif_type,justif_numero,justif_date,justif_bureau,justif_status,justif_files,justif_by,valide_by,chassis,chassis_raw,marque,modele,annee,navire,manifeste,bl,date_arrivee,date_transfert,importateur,mmte_depot_date";
+const LIST_COLS = "stay_id,vehicle_id,parc_id,parc,entry_import_id,entry_date,entry_kind,from_parc,exit_import_id,exit_date,exit_kind,to_parc,justif_type,justif_numero,justif_date,justif_bureau,justif_status,justif_files,justif_by,valide_by,entry_from_file,chassis,chassis_raw,marque,modele,annee,navire,manifeste,bl,date_arrivee,date_transfert,importateur,mmte_depot_date";
 const VEH_FIELDS = ["locked_fields", "chassis_raw", "marque", "modele", "annee", "navire", "manifeste", "bl", "date_arrivee", "date_transfert", "importateur", "notes", "data"];
 const STAY_FIELDS = ["parc_id", "entry_date", "entry_kind", "from_parc_id", "exit_date", "exit_kind", "to_parc_id", "justif_type", "justif_numero", "justif_date", "justif_bureau", "justif_note", "justif_status"];
 const JUSTIF_FIELDS = ["justif_type", "justif_numero", "justif_date", "justif_bureau", "justif_note"];
@@ -132,7 +132,14 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
   async dashboard(p) { return dashboard(p.ref); },
 
   async parc_stock(p) {
-    const pid = Number(p.parc_id);
+    let pid = Number(p.parc_id);
+    if (!pid && p.parc_name) {
+      const key = String(p.parc_name).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const all = must(await sb.from("parcs").select("id,name").is("deleted_at", null)) as any[];
+      const hit = all.find((x) => String(x.name).normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]/g, "") === key);
+      if (!hit) throw new ApiError("PARC_INCONNU", 404);
+      pid = hit.id;
+    }
     if (!pid) throw new ApiError("PARC_MANQUANT");
     const rows = await fetchAll(() => {
       let q = sb.from("v_stays").select(LIST_COLS).eq("parc_id", pid);
@@ -331,6 +338,16 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
   },
 
 
+  // Stock de tous les parcs (ou d'un parc) à une date donnée
+  async stock_at(p) {
+    const d = String(p.date || today());
+    const rows = await fetchAll(() => {
+      let q = sb.from("v_stays").select(LIST_COLS).lte("entry_date", d).or(`exit_date.is.null,exit_date.gt.${d}`);
+      if (p.parc_id) q = q.eq("parc_id", Number(p.parc_id));
+      return q.order("parc").order("chassis");
+    }, 300000);
+    return { date: d, rows };
+  },
   // ---- Rapports, graphiques, anomalies ----
   async report(p) {
     const s = await settingsMap();
@@ -385,7 +402,10 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
   async user_save(p, who) {
     adminOnly(who);
     if (!["aucun", "consultation", "agent"].includes(p.access)) throw new ApiError("ACCES_INVALIDE");
-    must(await sb.from("stock_users").update({ access: p.access, updated_at: new Date().toISOString(), updated_by: who.name }).eq("uid", String(p.uid)));
+    const row: any = { uid: String(p.uid), access: p.access, updated_at: new Date().toISOString(), updated_by: who.name };
+    if (p.email) row.email = String(p.email).toLowerCase();
+    if (p.name) row.name = String(p.name);
+    must(await sb.from("stock_users").upsert(row, { onConflict: "uid" }));
     roleCache.delete(String(p.uid));
     await audit(who, "acces", "user", p.uid, `Accès de ${p.name || p.uid} : ${p.access}`);
     return { ok: true };
