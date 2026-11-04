@@ -1,4 +1,4 @@
-const CACHE_NAME = "inventaire-mmte-v45";
+const CACHE_NAME = "inventaire-mmte-v46";
 // Moteur de lecture du texte (gros fichiers) : cache à part, conservé d'une version à l'autre.
 const OCR_CACHE = "inventaire-mmte-ocr-v1";
 const APP_SHELL = [

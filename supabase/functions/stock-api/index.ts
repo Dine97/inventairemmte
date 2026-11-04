@@ -31,7 +31,9 @@ function fsVal(v: any): any {
   return null;
 }
 async function fsGet(path: string, token: string) {
-  const r = await fetch(`${FS}/${path}`, { headers: { Authorization: `Bearer ${token}` } });
+  let r: Response;
+  try { r = await fetch(`${FS}/${path}`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(6000) }); }
+  catch (_e) { return null; }
   if (!r.ok) return null;
   const d = await r.json();
   const out: Record<string, any> = {};
@@ -50,29 +52,28 @@ async function identify(req: Request): Promise<Who> {
   const uid = String(payload.sub);
   const email = String(payload.email || "").toLowerCase();
   const c = roleCache.get(uid);
-  if (c && Date.now() - c.at < 60e3) return c.role;
-  let isAdmin = FALLBACK_ADMINS.includes(email);
-  if (!isAdmin) {
-    const adm = await fsGet("config/admins", token);
-    if (adm && Array.isArray(adm.emails) && adm.emails.map((x: string) => String(x).toLowerCase()).includes(email)) isAdmin = true;
-  }
-  if (!isAdmin) {
-    const app = await fsGet("config/app", token);
-    if (app && Array.isArray(app.adminEmails) && app.adminEmails.map((x: string) => String(x).toLowerCase()).includes(email)) isAdmin = true;
-  }
-  const user = await fsGet(`users/${uid}`, token);
+  if (c && Date.now() - c.at < 120e3) return c.role;
+  const fallback = FALLBACK_ADMINS.includes(email);
+  const [adm, app, user, suRes] = await Promise.all([
+    fallback ? null : fsGet("config/admins", token),
+    fallback ? null : fsGet("config/app", token),
+    fsGet(`users/${uid}`, token),
+    sb.from("stock_users").select("access").eq("uid", uid).maybeSingle(),
+  ]);
+  const inList = (x: any) => Array.isArray(x) && x.map((y: string) => String(y).toLowerCase()).includes(email);
+  const isAdmin = fallback || inList(adm && adm.emails) || inList(app && app.adminEmails);
   if (!isAdmin && (!user || user.status !== "approved")) throw new ApiError("COMPTE_NON_APPROUVE", 403);
   const name = String((user && (user.displayName || user.name || user.fullName)) || payload.name || email);
   // Accès au suivi des stocks (réglable par utilisateur dans l'administration)
   let access = "agent";
-  const su = (await sb.from("stock_users").select("access").eq("uid", uid).maybeSingle()).data as any;
+  const su = suRes.data as any;
   if (su) access = su.access;
   else {
     const def = (await sb.from("settings").select("value").eq("key", "acces_par_defaut").maybeSingle()).data as any;
     access = def && ["aucun", "consultation", "agent"].includes(def.value) ? def.value : "agent";
     await sb.from("stock_users").insert({ uid, email, name, access });
   }
-  await sb.from("stock_users").update({ last_seen: new Date().toISOString(), email, name }).eq("uid", uid);
+  sb.from("stock_users").update({ last_seen: new Date().toISOString(), email, name }).eq("uid", uid).then(() => {}, () => {});
   if (isAdmin) access = "agent";
   if (access === "aucun") throw new ApiError("ACCES_STOCK_REFUSE", 403);
   const role = { uid, email, name, isAdmin, access };

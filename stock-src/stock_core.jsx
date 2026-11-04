@@ -17,6 +17,7 @@ const STK_ERR = {
   FICHIER_TROP_GROS: "Fichier trop volumineux (8 Mo maximum).",
   VEHICULE_INTROUVABLE: "Aucun véhicule ne correspond à ce châssis.",
   RESEAU: "Connexion impossible au serveur des stocks. Vérifiez Internet puis réessayez.",
+  LENTEUR: "Le serveur des stocks ne répond pas assez vite (connexion lente). Réessayez dans un instant.",
   DATE_STOCK_MANQUANTE: "Indiquez la date du stock.",
   LECTURE_SEULE: "Votre accès au suivi des stocks est en consultation seule.",
   ACCES_STOCK_REFUSE: "Vous n'avez pas accès au suivi des stocks. Demandez l'accès à un administrateur MAD-MAE.",
@@ -30,14 +31,19 @@ function stkErrText(e) {
   if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return STK_ERR.RESEAU;
   return "Erreur : " + m;
 }
-async function stkCall(action, params, retried) {
+const STK_SLOW = { commit_import: 180e3, export_all: 180e3, stock_at: 90e3, mmte_sync: 120e3, merge: 90e3, cancel_import: 90e3, restore_import: 90e3, upload_file: 90e3 };
+async function stkCall(action, params, retried, timeoutMs) {
   const u = auth.currentUser;
   if (!u) throw new Error("NON_CONNECTE");
   const token = await u.getIdToken(!!retried);
   let r;
+  const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const limit = timeoutMs || STK_SLOW[action] || 30e3;
+  const timer = ctl ? setTimeout(() => ctl.abort(), limit) : null;
   try {
-    r = await fetch(STK_API, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify({ action, params: params || {} }) });
-  } catch (e) { throw new Error("RESEAU"); }
+    r = await fetch(STK_API, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify({ action, params: params || {} }), signal: ctl ? ctl.signal : void 0 });
+  } catch (e) { throw new Error(e && e.name === "AbortError" ? "LENTEUR" : "RESEAU"); }
+  finally { if (timer) clearTimeout(timer); }
   let j = null;
   try { j = await r.json(); } catch (e) { throw new Error("RESEAU"); }
   if (!j.ok) {

@@ -4129,6 +4129,7 @@ const STK_ERR = {
   FICHIER_TROP_GROS: "Fichier trop volumineux (8 Mo maximum).",
   VEHICULE_INTROUVABLE: "Aucun véhicule ne correspond à ce châssis.",
   RESEAU: "Connexion impossible au serveur des stocks. Vérifiez Internet puis réessayez.",
+  LENTEUR: "Le serveur des stocks ne répond pas assez vite (connexion lente). Réessayez dans un instant.",
   DATE_STOCK_MANQUANTE: "Indiquez la date du stock.",
   LECTURE_SEULE: "Votre accès au suivi des stocks est en consultation seule.",
   ACCES_STOCK_REFUSE: "Vous n'avez pas accès au suivi des stocks. Demandez l'accès à un administrateur MAD-MAE.",
@@ -4142,15 +4143,21 @@ function stkErrText(e) {
   if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return STK_ERR.RESEAU;
   return "Erreur : " + m;
 }
-async function stkCall(action, params, retried) {
+const STK_SLOW = { commit_import: 18e4, export_all: 18e4, stock_at: 9e4, mmte_sync: 12e4, merge: 9e4, cancel_import: 9e4, restore_import: 9e4, upload_file: 9e4 };
+async function stkCall(action, params, retried, timeoutMs) {
   const u = auth.currentUser;
   if (!u) throw new Error("NON_CONNECTE");
   const token = await u.getIdToken(!!retried);
   let r;
+  const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const limit = timeoutMs || STK_SLOW[action] || 3e4;
+  const timer = ctl ? setTimeout(() => ctl.abort(), limit) : null;
   try {
-    r = await fetch(STK_API, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify({ action, params: params || {} }) });
+    r = await fetch(STK_API, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify({ action, params: params || {} }), signal: ctl ? ctl.signal : void 0 });
   } catch (e) {
-    throw new Error("RESEAU");
+    throw new Error(e && e.name === "AbortError" ? "LENTEUR" : "RESEAU");
+  } finally {
+    if (timer) clearTimeout(timer);
   }
   let j = null;
   try {
@@ -5519,15 +5526,21 @@ function StkAppChooser({ name, onChoose, canInventory }) {
   const now = useNow();
   const [stockOk, setStockOk] = useState(void 0);
   useEffect(() => {
-    stkCall("me", {}).then(() => setStockOk(true)).catch((e) => setStockOk(String(e.message) === "RESEAU" ? true : false));
+    if (!canInventory) {
+      onChoose("stock");
+      return;
+    }
+    let live = true;
+    stkCall("me", {}, false, 12e3).then(() => live && setStockOk(true)).catch((e) => {
+      if (live) setStockOk(String(e.message) === "ACCES_STOCK_REFUSE" ? false : true);
+    });
+    return () => {
+      live = false;
+    };
   }, []);
   useEffect(() => {
-    if (stockOk === void 0) return;
-    if (canInventory && !stockOk) onChoose("inventaire");
-    else if (!canInventory && stockOk) onChoose("stock");
+    if (stockOk === false && canInventory) onChoose("inventaire");
   }, [stockOk]);
-  if (stockOk === void 0) return /* @__PURE__ */ React.createElement(StkLoading, { text: "Vérification de vos accès..." });
-  if (!canInventory && !stockOk) return /* @__PURE__ */ React.createElement("div", { className: "max-w-lg mx-auto px-5 py-16" }, /* @__PURE__ */ React.createElement(StkMsg, { tone: "warn" }, "Votre compte n'a accès à aucune des deux applications pour le moment. Contactez un administrateur MAD-MAE."));
   const Card = ({ k, title, text, Ic, tone }) => /* @__PURE__ */ React.createElement("button", { onClick: () => onChoose(k), "data-testid": "choose-" + k, className: "group text-left bg-white rounded-3xl border-2 border-slate-200 hover:border-[#1B4F8C] shadow-sm hover:shadow-xl transition p-6 md:p-8 flex flex-col gap-4" }, /* @__PURE__ */ React.createElement("div", { className: `w-14 h-14 rounded-2xl flex items-center justify-center text-white ${tone}` }, /* @__PURE__ */ React.createElement(Ic, { size: 28 })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-semibold text-2xl text-[#0B1F38]", style: { fontFamily: "'Sora',system-ui,sans-serif" } }, title), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-600 mt-2 leading-relaxed" }, text)), /* @__PURE__ */ React.createElement("div", { className: "mt-auto inline-flex items-center gap-1 text-sm font-bold text-[#1B4F8C]" }, "Ouvrir ", /* @__PURE__ */ React.createElement(StkIc.Chev, { size: 16 })));
   return /* @__PURE__ */ React.createElement("div", { className: "max-w-4xl mx-auto px-5 py-8 md:py-14 space-y-8" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-hi" }, greetingWord(now), name ? `, ${name}` : ""), /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-date" }, formatDateFr(now)))), /* @__PURE__ */ React.createElement("div", { className: "text-center" }, /* @__PURE__ */ React.createElement("h2", { className: "text-2xl md:text-3xl font-semibold text-[#0B1F38]" }, "Quelle application voulez-vous ouvrir ?")), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-5" }, /* @__PURE__ */ React.createElement(Card, { k: "inventaire", title: "Inventaire MMTE", Ic: (p) => /* @__PURE__ */ React.createElement(ScanLine, { ...p }), tone: "bg-gradient-to-br from-[#2E7DC1] to-[#123A66]", text: "Inventaire physique des parcs : pointage des châssis par scan, liste MMTE, manquants, fiches et rapports." }), /* @__PURE__ */ React.createElement(Card, { k: "stock", title: "Suivi des stocks", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Layers, { ...p }), tone: "bg-gradient-to-br from-[#C9A96A] to-[#8A6A2E]", text: "Stock hebdomadaire de chaque parc : entrées, sorties, véhicules en dépôt, historique complet de chaque châssis et justification des sorties." })));
 }
