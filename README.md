@@ -125,3 +125,21 @@ transferts par comparaison avec l'import précédent, statut dépôt calculé à
 365 jours de la date d'arrivée du navire (paramétrable), stock à une date,
 recherche avancée et fiche historique de chaque châssis, justification facultative
 des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbeille.
+
+### Version 6.1.0 — compléments du suivi des stocks
+
+- **Rapport hebdomadaire** consolidé (tous les parcs) en PDF et Excel, avec les anomalies en cours.
+- **Graphiques d'évolution** (stock, entrées, sorties par semaine) : total et par parc.
+- **Contrôle inventaire** (dans la vue d'un parc) : stock déclaré par le parc ↔ châssis scannés dans INVENTAIRE MMTE.
+- **Centre des anomalies** : présents dans deux parcs, fautes de frappe probables (fusion en un clic, la faute est
+  ensuite corrigée automatiquement), réapparitions, sans date, châssis atypiques, écarts avec MMTE.
+- **Contrôle avec MMTE** : import d'un export MMTE (ou de la liste MMTE d'un inventaire) ; la date de dépôt MMTE
+  peut devenir la référence (Administration › Paramètres).
+- **Fichiers en retard acceptés** et **annulation / réactivation de n'importe quel import** : l'historique du parc est
+  recalculé à partir des instantanés de chaque fichier, les justificatifs sont conservés.
+- **Champs verrouillés** : une correction faite à la main n'est plus écrasée par les imports suivants.
+- **Accès par utilisateur** : agent MMTE, consultation seule ou aucun accès.
+- **Filtres de recherche enregistrés** (personnels ou partagés), **rappel du lundi** des fichiers non reçus,
+  **sauvegarde complète** en Excel (Administration › Sauvegarde).
+- **Maintien en éveil** du projet Supabase gratuit par une tâche GitHub (`.github/workflows/supabase-keepalive.yml`).
+- Sources versionnées : `stock-src/` (interface), `supabase/` (base et API). Voir `stock-src/LISEZMOI.md`.

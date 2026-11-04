@@ -1,0 +1,14 @@
+# Évite la mise en veille du projet Supabase gratuit (veille après 7 jours sans activité).
+name: Maintien en éveil Supabase
+on:
+  schedule:
+    - cron: "17 6 * * 1,4"   # lundi et jeudi, 7 h 17 heure du Bénin
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Solliciter la base et l'API
+        run: |
+          curl -s -o /dev/null -w "REST %{http_code}\n" "https://hrxldrhfqyxyzsetlamc.supabase.co/rest/v1/settings?select=key&limit=1" -H "apikey: sb_publishable_18XVYGzwNZuc-XA7OSU02A_y61_x72D"
+          curl -s -o /dev/null -w "API %{http_code}\n" -X POST "https://hrxldrhfqyxyzsetlamc.supabase.co/functions/v1/stock-api" -H "content-type: application/json" -d '{"action":"me"}'
