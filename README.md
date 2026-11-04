@@ -96,9 +96,22 @@ tablette ne fonctionneront.
 
 ## Mise à jour de l'application
 
-1. Remplacer les fichiers à l'identique à l'endroit où ils sont hébergés.
-2. Augmenter `APP_VERSION` dans le code pour déclencher la bannière de
-   mise à jour chez les utilisateurs déjà connectés.
+Depuis la version 6.3.0, `index.html`, `lib/stock.js` et `lib/app.css` sont **générés** : on ne les modifie pas à la main.
+
+| Source | Contenu |
+|---|---|
+| `src/index.template.html` | page HTML (en-tête, bibliothèques) |
+| `src/inventaire.js` | application Inventaire MMTE (JavaScript lisible) |
+| `stock-src/` | module « Suivi des stocks » (voir `stock-src/LISEZMOI.md`) |
+| `tests/` | tests de la lecture des fichiers Excel (données fictives) |
+
+1. Modifier les sources, augmenter `APP_VERSION` dans `src/inventaire.js` et, dans `service-worker.js`,
+   `CACHE_NAME` et les deux lignes `lib/app.css?v=…` / `lib/stock.js?v=…`.
+2. `npm ci` (une fois), puis `npm test` et `node build.mjs`.
+3. Valider et pousser : GitHub Actions relance les tests et vérifie que les fichiers publiés correspondent aux sources.
+
+Les bibliothèques (React 18.3.1, Firebase 10.14.1) sont dans `lib/` avec leur version dans le nom ;
+seule la bibliothèque Excel (SheetJS 0.20.1) reste chargée depuis son site officiel, puis gardée sur l'appareil.
 
 ---
 
@@ -156,3 +169,10 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
 - **Comptes et accès** (Panneau admin › Comptes) : création de compte par l'administrateur, choix par agent de l'accès à
   Inventaire MMTE et au Suivi des stocks (agent, consultation, aucun) ; l'écran de choix n'affiche que les applications
   autorisées.
+
+### Version 6.3.0 — performance et fiabilité
+
+- **Base de données** : un import n'enregistre plus que les lignes qui ont changé (la liste des châssis présents est gardée à part) ; calculs d'import, d'annulation et de reconstruction faits en une seule passe ; nouveaux index ; résumé hebdomadaire précalculé pour les graphiques (`supabase/migrations/006_performance.sql`).
+- **Vitesse** : styles générés une fois pour toutes (plus de Tailwind en ligne), bibliothèques hébergées avec l'application et servies depuis l'appareil, module stock chargé à la demande (préchargé dès l'écran de choix), appels à l'API sans requête préalable (le jeton voyage dans le corps), dernier tableau de bord affiché immédiatement puis actualisé.
+- **Fiabilité** : les erreurs survenues sur les appareils sont envoyées au serveur et consultables dans *Administration stock → Erreurs récentes* ; sources de l'inventaire lisibles dans `src/`, construction unique (`build.mjs`), tests automatiques et vérification GitHub Actions à chaque envoi.
+

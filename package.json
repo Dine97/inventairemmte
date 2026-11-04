@@ -1,0 +1,16 @@
+{
+  "name": "inventaire-mmte",
+  "private": true,
+  "type": "module",
+  "description": "INVENTAIRE MMTE & Suivi des stocks — Bénin Control (MAD-MAE)",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.0",
+    "tailwindcss": "3.4.17",
+    "xlsx": "0.18.5"
+  }
+}

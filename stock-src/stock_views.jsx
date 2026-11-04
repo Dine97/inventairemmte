@@ -1,21 +1,14 @@
 // ============================================================
 // STOCK MMTE — Écrans
 // ============================================================
-const STK_SECTIONS = [
-  { key: "dash", label: "Tableau de bord", Ic: (p) => <StkIc.Grid {...p} /> },
-  { key: "rapport", label: "Rapport hebdomadaire", Ic: (p) => <FileSpreadsheet {...p} /> },
-  { key: "search", label: "Recherche avancée", Ic: (p) => <Search {...p} /> },
-  { key: "import", label: "Importer un stock", Ic: (p) => <Upload {...p} /> },
-  { key: "moves", label: "Entrées et sorties", Ic: (p) => <StkIc.Swap {...p} /> },
-  { key: "justif", label: "Justification des sorties", Ic: (p) => <StkIc.Clip {...p} /> },
-  { key: "anomalies", label: "Centre des anomalies", Ic: (p) => <AlertTriangle {...p} /> },
-  { key: "mmte", label: "Contrôle avec MMTE", Ic: (p) => <ShieldCheck {...p} /> },
-  { key: "imports", label: "Historique des imports", Ic: (p) => <Archive {...p} /> },
-  { key: "admin", label: "Administration stock", Ic: (p) => <StkIc.Gear {...p} />, admin: true }
-];
 
+// Dernier tableau de bord gardé sur l'appareil : affiché tout de suite, puis actualisé
+function stkBootKey() { try { return "stk-boot-" + ((auth.currentUser && auth.currentUser.uid) || ""); } catch (e) { return "stk-boot-"; } }
+function stkBootCacheRead() { try { const j = JSON.parse(localStorage.getItem(stkBootKey()) || "null"); return j && j.v === 1 ? j.b : null; } catch (e) { return null; } }
+function stkBootCacheWrite(b) { try { localStorage.setItem(stkBootKey(), JSON.stringify({ v: 1, at: Date.now(), b })); } catch (e) {} }
 function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
-  const [boot, setBoot] = useState(null);
+  const [boot, setBootRaw] = useState(() => { const c = stkBootCacheRead(); return c ? { ...c, fromCache: true } : null; });
+  const setBoot = (fn) => setBootRaw((prev) => { const next = typeof fn === "function" ? fn(prev) : fn; if (next && !next.fromCache) stkBootCacheWrite(next); return next; });
   const [err, setErr] = useState("");
   const [parcId, setParcId] = useState(null);
   const [vehicle, setVehicle] = useState(null);
@@ -27,10 +20,10 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
       setErr("");
       const b = await stkCall("bootstrap", { names: parcsList });
       setBoot(b);
-    } catch (e) { setErr(stkErrText(e)); }
+    } catch (e) { setErr(stkErrText(e)); setBootRaw((b) => (b && b.fromCache ? { ...b, stale: true } : b)); }
   };
   const reloadDash = async () => {
-    try { const d = await stkCall("dashboard", {}); setBoot((b) => b ? { ...b, dashboard: d } : b); } catch (e) {}
+    try { const d = await stkCall("dashboard", {}); setBoot((b) => b ? { ...b, dashboard: d, fromCache: false, stale: false } : b); } catch (e) {}
   };
   useEffect(() => { load(); }, []);
   useEffect(() => {
@@ -64,7 +57,12 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   else if (section === "admin" && isAdmin) body = <StkAdmin />;
   else body = <StkDashboard lastImports={boot.lastImports} />;
   return <StkCtx.Provider value={ctx}>
-    <div className="max-w-6xl mx-auto px-4 md:px-6 py-5 md:py-7 space-y-5" data-i18n-skip="1">{body}</div>
+    <div className="max-w-6xl mx-auto px-4 md:px-6 py-5 md:py-7 space-y-5" data-i18n-skip="1">
+      {boot.fromCache && <div className="no-print flex flex-wrap items-center gap-2 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-600 px-3 py-2" data-testid="stk-cache-note">
+        {boot.stale ? <>Serveur injoignable : chiffres de votre dernière visite. {err} <button onClick={load} className="font-bold text-[#1B4F8C] underline">Réessayer</button></> : <><span className="w-3 h-3 rounded-full border-2 border-slate-300 border-t-[#1B4F8C] animate-spin" /> Mise à jour des chiffres...</>}
+      </div>}
+      {body}
+    </div>
     {vehicle && <StkVehicleModal target={vehicle} onClose={() => setVehicle(null)} />}
     {toast && <div className="mmte-toast no-print" role="status">{toast}</div>}
   </StkCtx.Provider>;

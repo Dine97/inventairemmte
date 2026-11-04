@@ -227,7 +227,7 @@ function StkAdmin() {
   const [tab, setTab] = useState("params");
   return <>
     <StkPageHead title="Administration du suivi des stocks" sub="Contrôle total : paramètres, parcs, lecture des fichiers, journal et corbeille. Véhicules et mouvements se modifient depuis leur fiche." />
-    <StkTabs tabs={[{ key: "params", label: "Paramètres" }, { key: "users", label: "Utilisateurs" }, { key: "parcs", label: "Parcs" }, { key: "backup", label: "Sauvegarde" }, { key: "syn", label: "Noms de colonnes" }, { key: "tpl", label: "Modèles de fichiers" }, { key: "alias", label: "Châssis corrigés" }, { key: "audit", label: "Journal" }, { key: "trash", label: "Corbeille" }]} value={tab} onChange={setTab} />
+    <StkTabs tabs={[{ key: "params", label: "Paramètres" }, { key: "users", label: "Utilisateurs" }, { key: "parcs", label: "Parcs" }, { key: "backup", label: "Sauvegarde" }, { key: "syn", label: "Noms de colonnes" }, { key: "tpl", label: "Modèles de fichiers" }, { key: "alias", label: "Châssis corrigés" }, { key: "audit", label: "Journal" }, { key: "errors", label: "Erreurs récentes" }, { key: "trash", label: "Corbeille" }]} value={tab} onChange={setTab} />
     {tab === "users" && <StkAdminUsers />}
     {tab === "backup" && <StkAdminBackup />}
     {tab === "alias" && <StkAdminAliases />}
@@ -236,6 +236,7 @@ function StkAdmin() {
     {tab === "syn" && <StkAdminSynonyms />}
     {tab === "tpl" && <StkAdminTemplates />}
     {tab === "audit" && <StkAdminAudit />}
+    {tab === "errors" && <StkAdminErrors />}
     {tab === "trash" && <StkAdminTrash />}
   </>;
 }
@@ -342,6 +343,18 @@ function StkAdminAudit() {
     {!rows ? <StkLoading /> : <StkTable rowKey={(r) => r.id} rows={rows} columns={[{ key: "at", label: "Date", render: (r) => <span className="text-xs whitespace-nowrap">{stkFmtTs(r.at)}</span> }, { key: "by_name", label: "Par", render: (r) => <b>{r.by_name}</b> }, { key: "action", label: "Action" }, { key: "detail", label: "Détail", render: (r) => <span className="text-slate-600">{r.detail}</span> }]} empty="Journal vide." />}
   </StkCard>;
 }
+function StkAdminErrors() {
+  const [rows, setRows] = useState(null);
+  const [err, setErr] = useState("");
+  const load = async () => { setErr(""); try { setRows(await stkCall("errors_list", { limit: 300 })); } catch (e) { setErr(stkErrText(e)); setRows([]); } };
+  useEffect(() => { load(); }, []);
+  const purge = async () => { if (!window.confirm("Vider le journal des erreurs ?")) return; try { await stkCall("errors_purge"); load(); } catch (e) { alert(stkErrText(e)); } };
+  return <StkCard className="p-4 md:p-5 space-y-3">
+    <div className="flex flex-wrap items-center gap-2"><div className="flex-1 min-w-[220px] text-sm text-slate-600">Erreurs survenues sur les appareils des agents (inventaire et suivi des stocks). Elles aident à corriger un problème sans attendre qu'il soit signalé.</div><StkBtn small onClick={load}><RefreshCw size={14} /> Actualiser</StkBtn>{rows && rows.length > 0 && <StkBtn small kind="danger" onClick={purge}>Vider</StkBtn>}</div>
+    {err && <StkMsg tone="err">{err}</StkMsg>}
+    {!rows ? <StkLoading /> : <StkTable rowKey={(r) => r.id} rows={rows} columns={[{ key: "at", label: "Date", render: (r) => <span className="text-xs whitespace-nowrap">{stkFmtTs(r.at)}</span> }, { key: "name", label: "Agent", render: (r) => <b>{r.name}</b> }, { key: "app_version", label: "Version" }, { key: "message", label: "Erreur", render: (r) => <div className="text-xs"><div className="text-rose-800 break-words">{r.message}</div><div className="text-slate-400 mt-0.5">{r.url}{r.ua ? " · " + (["Android", "iPhone", "iPad", "Windows", "Mac OS X", "Linux"].find((x) => r.ua.includes(x)) || "autre appareil") : ""}</div></div> }]} empty="Aucune erreur enregistrée." />}
+  </StkCard>;
+}
 function StkAdminTrash() {
   const C = React.useContext(StkCtx);
   const [d, setD] = useState(null);
@@ -357,28 +370,3 @@ function StkAdminTrash() {
   </StkCard>;
 }
 
-// ---------------- Choix de l'application après connexion ----------------
-function StkAppChooser({ name, onChoose, canInventory }) {
-  const now = useNow();
-  const [stockOk, setStockOk] = useState(undefined);
-  useEffect(() => {
-    if (!canInventory) { onChoose("stock"); return; }
-    let live = true;
-    stkCall("me", {}, false, 12e3).then(() => live && setStockOk(true)).catch((e) => { if (live) setStockOk(String(e.message) === "ACCES_STOCK_REFUSE" ? false : true); });
-    return () => { live = false; };
-  }, []);
-  useEffect(() => { if (stockOk === false && canInventory) onChoose("inventaire"); }, [stockOk]);
-  const Card = ({ k, title, text, Ic, tone }) => <button onClick={() => onChoose(k)} data-testid={"choose-" + k} className="group text-left bg-white rounded-3xl border-2 border-slate-200 hover:border-[#1B4F8C] shadow-sm hover:shadow-xl transition p-6 md:p-8 flex flex-col gap-4">
-    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white ${tone}`}><Ic size={28} /></div>
-    <div><div className="font-semibold text-2xl text-[#0B1F38]" style={{ fontFamily: "'Sora',system-ui,sans-serif" }}>{title}</div><div className="text-sm text-slate-600 mt-2 leading-relaxed">{text}</div></div>
-    <div className="mt-auto inline-flex items-center gap-1 text-sm font-bold text-[#1B4F8C]">Ouvrir <StkIc.Chev size={16} /></div>
-  </button>;
-  return <div className="max-w-4xl mx-auto px-5 py-8 md:py-14 space-y-8">
-    <div className="mmte-welcome"><div><div className="mmte-welcome-hi">{greetingWord(now)}{name ? `, ${name}` : ""}</div><div className="mmte-welcome-date">{formatDateFr(now)}</div></div></div>
-    <div className="text-center"><h2 className="text-2xl md:text-3xl font-semibold text-[#0B1F38]">Quelle application voulez-vous ouvrir ?</h2></div>
-    <div className="grid md:grid-cols-2 gap-5">
-      <Card k="inventaire" title="Inventaire MMTE" Ic={(p) => <ScanLine {...p} />} tone="bg-gradient-to-br from-[#2E7DC1] to-[#123A66]" text="Inventaire physique des parcs : pointage des châssis par scan, liste MMTE, manquants, fiches et rapports." />
-      <Card k="stock" title="Suivi des stocks" Ic={(p) => <StkIc.Layers {...p} />} tone="bg-gradient-to-br from-[#C9A96A] to-[#8A6A2E]" text="Stock hebdomadaire de chaque parc : entrées, sorties, véhicules en dépôt, historique complet de chaque châssis et justification des sorties." />
-    </div>
-  </div>;
-}

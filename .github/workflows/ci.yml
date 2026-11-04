@@ -1,0 +1,21 @@
+name: Vérification automatique
+
+on:
+  push:
+    branches: [main, module-suivi-stocks]
+  pull_request:
+
+jobs:
+  verifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tests de lecture des fichiers Excel
+        run: npm test
+      - name: Les fichiers publiés correspondent aux sources
+        run: npm run check

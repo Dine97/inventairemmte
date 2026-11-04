@@ -1,0 +1,7051 @@
+const { useState, useEffect, useMemo, useRef } = React;
+function Icon({ children, size = 20, className = "", ...rest }) {
+  return /* @__PURE__ */ React.createElement(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "2",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      className,
+      ...rest
+    },
+    children
+  );
+}
+const Upload = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M12 3v12" }), /* @__PURE__ */ React.createElement("path", { d: "M7 8l5-5 5 5" }), /* @__PURE__ */ React.createElement("path", { d: "M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" }));
+const ClipboardPaste = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "6", y: "7", width: "12", height: "13", rx: "1" }), /* @__PURE__ */ React.createElement("path", { d: "M9 4h6a1 1 0 0 1 1 1v2H8V5a1 1 0 0 1 1-1z" }));
+const CheckCircle2 = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "9" }), /* @__PURE__ */ React.createElement("path", { d: "m9 12 2 2 4-4" }));
+const XCircle = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "9" }), /* @__PURE__ */ React.createElement("path", { d: "M15 9l-6 6M9 9l6 6" }));
+const AlertTriangle = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "9", x2: "12", y2: "13" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "17", x2: "12.01", y2: "17" }));
+const RotateCcw = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M3 12a9 9 0 1 0 3-6.7L3 8" }), /* @__PURE__ */ React.createElement("polyline", { points: "3 3 3 8 8 8" }));
+const Trash2 = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M3 6h18" }), /* @__PURE__ */ React.createElement("path", { d: "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6h14z" }), /* @__PURE__ */ React.createElement("line", { x1: "10", y1: "11", x2: "10", y2: "17" }), /* @__PURE__ */ React.createElement("line", { x1: "14", y1: "11", x2: "14", y2: "17" }));
+const Download = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M12 3v12" }), /* @__PURE__ */ React.createElement("path", { d: "M7 10l5 5 5-5" }), /* @__PURE__ */ React.createElement("path", { d: "M4 19h16" }));
+const ScanLine = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M4 7V5a2 2 0 0 1 2-2h2" }), /* @__PURE__ */ React.createElement("path", { d: "M4 17v2a2 2 0 0 0 2 2h2" }), /* @__PURE__ */ React.createElement("path", { d: "M20 7V5a2 2 0 0 0-2-2h-2" }), /* @__PURE__ */ React.createElement("path", { d: "M20 17v2a2 2 0 0 1-2 2h-2" }), /* @__PURE__ */ React.createElement("line", { x1: "4", y1: "12", x2: "20", y2: "12" }));
+const FileSpreadsheet = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" }), /* @__PURE__ */ React.createElement("polyline", { points: "14 2 14 8 20 8" }), /* @__PURE__ */ React.createElement("line", { x1: "8", y1: "13", x2: "16", y2: "13" }), /* @__PURE__ */ React.createElement("line", { x1: "8", y1: "17", x2: "16", y2: "17" }));
+const ListChecks = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "m3 6 1 1 2-2" }), /* @__PURE__ */ React.createElement("path", { d: "m3 12 1 1 2-2" }), /* @__PURE__ */ React.createElement("path", { d: "m3 18 1 1 2-2" }), /* @__PURE__ */ React.createElement("line", { x1: "9", y1: "6", x2: "21", y2: "6" }), /* @__PURE__ */ React.createElement("line", { x1: "9", y1: "12", x2: "21", y2: "12" }), /* @__PURE__ */ React.createElement("line", { x1: "9", y1: "18", x2: "21", y2: "18" }));
+const ArrowLeft = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("line", { x1: "19", y1: "12", x2: "5", y2: "12" }), /* @__PURE__ */ React.createElement("polyline", { points: "12 19 5 12 12 5" }));
+const Search = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "11", cy: "11", r: "8" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "21", x2: "16.65", y2: "16.65" }));
+const Printer = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M6 9V2h12v7" }), /* @__PURE__ */ React.createElement("path", { d: "M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" }), /* @__PURE__ */ React.createElement("rect", { x: "6", y: "14", width: "12", height: "8" }));
+const Clock = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "9" }), /* @__PURE__ */ React.createElement("polyline", { points: "12 7 12 12 15 15" }));
+const Volume2 = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M11 5 6 9H2v6h4l5 4V5z" }), /* @__PURE__ */ React.createElement("path", { d: "M15.5 8.5a5 5 0 0 1 0 7" }), /* @__PURE__ */ React.createElement("path", { d: "M18.5 5.5a9 9 0 0 1 0 13" }));
+const VolumeX = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M11 5 6 9H2v6h4l5 4V5z" }), /* @__PURE__ */ React.createElement("line", { x1: "23", y1: "9", x2: "17", y2: "15" }), /* @__PURE__ */ React.createElement("line", { x1: "17", y1: "9", x2: "23", y2: "15" }));
+const PenTool = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" }), /* @__PURE__ */ React.createElement("path", { d: "M15 5l4 4" }));
+const RefreshCw = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M3 12a9 9 0 0 1 15-6.7L21 8" }), /* @__PURE__ */ React.createElement("path", { d: "M21 3v5h-5" }), /* @__PURE__ */ React.createElement("path", { d: "M21 12a9 9 0 0 1-15 6.7L3 16" }), /* @__PURE__ */ React.createElement("path", { d: "M8 16H3v5" }));
+const Users = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" }), /* @__PURE__ */ React.createElement("circle", { cx: "9", cy: "7", r: "4" }), /* @__PURE__ */ React.createElement("path", { d: "M23 21v-2a4 4 0 0 0-3-3.87" }), /* @__PURE__ */ React.createElement("path", { d: "M16 3.13a4 4 0 0 1 0 7.75" }));
+const ShieldCheck = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" }), /* @__PURE__ */ React.createElement("path", { d: "m9 12 2 2 4-4" }));
+const Archive = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "2", y: "3", width: "20", height: "5", rx: "1" }), /* @__PURE__ */ React.createElement("path", { d: "M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" }), /* @__PURE__ */ React.createElement("path", { d: "M10 12h4" }));
+const Columns = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("path", { d: "M12 3v18" }));
+const Home = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" }), /* @__PURE__ */ React.createElement("polyline", { points: "9 22 9 12 15 12 15 22" }));
+const HelpCircle = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("path", { d: "M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" }), /* @__PURE__ */ React.createElement("line", { x1: "12", y1: "17", x2: "12.01", y2: "17" }));
+const Globe = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "10" }), /* @__PURE__ */ React.createElement("line", { x1: "2", y1: "12", x2: "22", y2: "12" }), /* @__PURE__ */ React.createElement("path", { d: "M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" }));
+const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
+const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
+const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
+const APP_VERSION = "6.3.0";
+const firebaseConfig = {
+  apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
+  authDomain: "benin-control-mmte.firebaseapp.com",
+  projectId: "benin-control-mmte",
+  storageBucket: "benin-control-mmte.firebasestorage.app",
+  messagingSenderId: "317248183425",
+  appId: "1:317248183425:web:57043d776ddec812278180",
+  measurementId: "G-DP39TFF0C3"
+};
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const auth = firebase.auth();
+const db = firebase.firestore();
+try {
+  db.enablePersistence({ synchronizeTabs: true }).catch(() => {
+  });
+} catch (e) {
+}
+const FieldValue = firebase.firestore.FieldValue;
+const USAGE_READ_QUOTA = 5e4;
+const USAGE_WRITE_QUOTA = 2e4;
+function usageDayKey(d) {
+  const date = d || /* @__PURE__ */ new Date();
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+  } catch (e) {
+    return date.toISOString().slice(0, 10);
+  }
+}
+const USAGE_STORE_KEY = "mmte-usage-pending";
+const usageMeter = { r: 0, w: 0, d: 0, mute: false, flushing: false, installed: false, saveTimer: null, lastOk: 0, lastErr: "", lastTry: 0 };
+function usageLoad() {
+  try {
+    const v = JSON.parse(localStorage.getItem(USAGE_STORE_KEY) || "null");
+    if (v && typeof v === "object") {
+      usageMeter.r += Number(v.r) || 0;
+      usageMeter.w += Number(v.w) || 0;
+      usageMeter.d += Number(v.d) || 0;
+    }
+  } catch (e) {
+  }
+}
+function usageSaveSoon() {
+  if (usageMeter.saveTimer) return;
+  usageMeter.saveTimer = setTimeout(() => {
+    usageMeter.saveTimer = null;
+    try {
+      localStorage.setItem(USAGE_STORE_KEY, JSON.stringify({ r: usageMeter.r, w: usageMeter.w, d: usageMeter.d }));
+    } catch (e) {
+    }
+  }, 1500);
+}
+function usageBump(key, n) {
+  if (usageMeter.mute || !n) return;
+  usageMeter[key] += n;
+  usageSaveSoon();
+}
+function usageCountSnap(snap, isDoc, isGet) {
+  try {
+    if (!snap || !snap.metadata || snap.metadata.fromCache) return;
+    if (isDoc) {
+      if (!snap.metadata.hasPendingWrites) usageBump("r", 1);
+      return;
+    }
+    if (isGet) {
+      usageBump("r", Math.max(1, snap.size || 0));
+      return;
+    }
+    let n = 0;
+    snap.docChanges().forEach((c) => {
+      if (!c.doc.metadata.hasPendingWrites) n++;
+    });
+    usageBump("r", n);
+  } catch (e) {
+  }
+}
+function installUsageMeter(database) {
+  if (usageMeter.installed) return;
+  usageMeter.installed = true;
+  usageLoad();
+  try {
+    const collRef = database.collection("__usage_probe");
+    const docRef2 = collRef.doc("__p");
+    const protoColl = Object.getPrototypeOf(collRef);
+    const protoDoc = Object.getPrototypeOf(docRef2);
+    const protoBatch = Object.getPrototypeOf(database.batch());
+    const protoQuery = protoColl ? Object.getPrototypeOf(protoColl) : null;
+    const good = (x) => x && x !== Object.prototype;
+    const ownerOf = (proto, name) => {
+      let q = proto;
+      while (good(q)) {
+        if (Object.prototype.hasOwnProperty.call(q, name) && typeof q[name] === "function") return q;
+        q = Object.getPrototypeOf(q);
+      }
+      return null;
+    };
+    const wrap = (proto, name, make) => {
+      const owner = ownerOf(proto, name);
+      if (!owner) return;
+      if (!Object.prototype.hasOwnProperty.call(owner, "__usagePatched")) owner.__usagePatched = {};
+      if (owner.__usagePatched[name]) return;
+      owner.__usagePatched[name] = true;
+      owner[name] = make(owner[name]);
+    };
+    const snapArgs = (args, isDoc) => {
+      const a = Array.prototype.slice.call(args);
+      let i = 0;
+      if (a[0] && typeof a[0] === "object" && typeof a[0].next !== "function") i = 1;
+      const cb = a[i];
+      const count = (snap) => usageCountSnap(snap, isDoc, false);
+      if (typeof cb === "function") a[i] = function(snap) {
+        count(snap);
+        return cb.apply(this, arguments);
+      };
+      else if (cb && typeof cb.next === "function") a[i] = Object.assign({}, cb, { next: function(snap) {
+        count(snap);
+        return cb.next.apply(cb, arguments);
+      } });
+      return a;
+    };
+    const getter = (isDoc) => (orig) => function() {
+      const p = orig.apply(this, arguments);
+      try {
+        return p.then((snap) => {
+          usageCountSnap(snap, isDoc, true);
+          return snap;
+        });
+      } catch (e) {
+        return p;
+      }
+    };
+    const listener = (isDoc) => (orig) => function() {
+      let a = arguments;
+      try {
+        a = snapArgs(arguments, isDoc);
+      } catch (e) {
+      }
+      return orig.apply(this, a);
+    };
+    const counter = (key) => (orig) => function() {
+      usageBump(key, 1);
+      return orig.apply(this, arguments);
+    };
+    if (good(protoQuery)) {
+      wrap(protoQuery, "get", getter(false));
+      wrap(protoQuery, "onSnapshot", listener(false));
+    }
+    if (good(protoColl)) wrap(protoColl, "add", counter("w"));
+    if (good(protoDoc)) {
+      wrap(protoDoc, "get", getter(true));
+      wrap(protoDoc, "onSnapshot", listener(true));
+      wrap(protoDoc, "set", counter("w"));
+      wrap(protoDoc, "update", counter("w"));
+      wrap(protoDoc, "delete", counter("d"));
+    }
+    if (good(protoBatch)) {
+      const per = /* @__PURE__ */ new WeakMap();
+      const bump = (b, k) => {
+        const o = per.get(b) || { w: 0, d: 0 };
+        o[k]++;
+        per.set(b, o);
+      };
+      const op = (k) => (orig) => function() {
+        bump(this, k);
+        return orig.apply(this, arguments);
+      };
+      wrap(protoBatch, "set", op("w"));
+      wrap(protoBatch, "update", op("w"));
+      wrap(protoBatch, "delete", op("d"));
+      wrap(protoBatch, "commit", (orig) => function() {
+        const o = per.get(this);
+        if (o) {
+          usageBump("w", o.w);
+          usageBump("d", o.d);
+          per.delete(this);
+        }
+        return orig.apply(this, arguments);
+      });
+    }
+  } catch (e) {
+  }
+  const tick = () => {
+    usageFlush();
+  };
+  setInterval(tick, 5 * 60 * 1e3);
+  setTimeout(tick, 45 * 1e3);
+  try {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") tick();
+    });
+    window.addEventListener("pagehide", tick);
+  } catch (e) {
+  }
+}
+function usageFlush() {
+  if (usageMeter.flushing) return Promise.resolve();
+  const u = auth.currentUser;
+  if (!u) {
+    usageMeter.lastErr = "non-connecte";
+    return Promise.resolve();
+  }
+  const r = usageMeter.r, w = usageMeter.w, d = usageMeter.d;
+  if (r + w + d === 0) return Promise.resolve();
+  usageMeter.lastTry = Date.now();
+  usageMeter.r = 0;
+  usageMeter.w = 0;
+  usageMeter.d = 0;
+  usageSaveSoon();
+  usageMeter.flushing = true;
+  const day = usageDayKey();
+  const inc = FieldValue.increment;
+  const restore = () => {
+    usageMeter.r += r;
+    usageMeter.w += w;
+    usageMeter.d += d;
+    usageSaveSoon();
+  };
+  try {
+    usageMeter.mute = true;
+    const pr = db.collection("usage").doc(day).set({
+      day,
+      updatedAt: FieldValue.serverTimestamp(),
+      reads: inc(r),
+      writes: inc(w + 1),
+      deletes: inc(d),
+      byUser: { [u.uid]: { name: agentDisplayName(u), reads: inc(r), writes: inc(w + 1) } }
+    }, { merge: true });
+    usageMeter.mute = false;
+    return pr.then(() => {
+      usageMeter.flushing = false;
+      usageMeter.lastOk = Date.now();
+      usageMeter.lastErr = "";
+    }, (e) => {
+      usageMeter.flushing = false;
+      usageMeter.lastErr = e && (e.code || e.message) || "erreur";
+      restore();
+    });
+  } catch (e) {
+    usageMeter.mute = false;
+    usageMeter.flushing = false;
+    usageMeter.lastErr = e && (e.code || e.message) || "erreur";
+    restore();
+    return Promise.resolve();
+  }
+}
+installUsageMeter(db);
+try {
+  window.__mmteUsage = { meter: usageMeter, flush: usageFlush };
+} catch (e) {
+}
+const LOGO_BC = "data:image/png;base64,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";
+const LOGO_DOUANES = "data:image/png;base64,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";
+const BLUE_DEEP = "#123A66";
+const BLUE = "#1B4F8C";
+const BLUE_LIGHT = "#2E7DC1";
+const DEFAULT_PARCS_LIST = [
+  "FADI STAR",
+  "THREE KING",
+  "AUTO KOUBAISI",
+  "APAA",
+  "ASSCOMAR",
+  "SOBAMAR",
+  "ROSE",
+  "ALASKA",
+  "HOVAS",
+  "ZONE FIFA",
+  "HADI CARS",
+  "BAHSOUN PLUS",
+  "UNIVERSAL",
+  "MICHA PRINCIPAL",
+  "MICHA ANNEXE",
+  "YASMAINE D PLUS",
+  "JANA",
+  "ATLANTIC",
+  "NO LIMITS",
+  "RITIS 3",
+  "SONAT",
+  "AL WOUDJOUD",
+  "TAU",
+  "JANA 1",
+  "MHD POIDS LOURDS",
+  "SOBENI",
+  "ZF",
+  "GTS",
+  "OG PARC",
+  "CITY PARK",
+  "BLUE SKY",
+  "CONSULVIT",
+  "DAS PRINCIPAL",
+  "DAS ANNEXE",
+  "SODESCY",
+  "GENERAL CONTRACTOR",
+  "DOM TRACO",
+  "AT SALAM",
+  "SESUR",
+  "TRADER PARK",
+  "MADO AUTO",
+  "BALLA SEKANDJI",
+  "BALLA MIVVO",
+  "BENIN MANUTENTIONS",
+  "RORO TERMINAL BENIN (RTB)"
+];
+const DEFAULT_GUEST_ACCESS_CODE = "MMTE2026";
+const LIST_RENDER_CAP = 300;
+const FALLBACK_ADMIN_EMAILS = ["nourouloka@gmail.com"];
+function agentDisplayName(user) {
+  if (!user) return "";
+  if (user.isAnonymous) return user.displayName ? `${user.displayName} (Invité)` : "Invité";
+  return user.displayName || user.email || "Utilisateur";
+}
+function isGuestUser(user) {
+  if (!user) return false;
+  if (user.isAnonymous) return true;
+  return Array.isArray(user.providerData) && user.providerData.length === 0;
+}
+function isAdminEmail(email, adminEmails) {
+  if (!email) return false;
+  const e = email.toLowerCase();
+  return (adminEmails || FALLBACK_ADMIN_EMAILS).map((x) => x.toLowerCase()).includes(e);
+}
+const AUTH_ERROR_MESSAGES = {
+  "auth/invalid-email": "Adresse e-mail invalide.",
+  "auth/user-disabled": "Ce compte a été désactivé. Contactez un administrateur.",
+  "auth/user-not-found": "Aucun compte ne correspond à cet e-mail.",
+  "auth/wrong-password": "Mot de passe incorrect.",
+  "auth/invalid-credential": "Identifiants incorrects.",
+  "auth/email-already-in-use": "Un compte existe déjà avec cet e-mail.",
+  "auth/weak-password": "Le mot de passe doit contenir au moins 6 caractères.",
+  "auth/too-many-requests": "Trop de tentatives. Réessayez dans quelques minutes.",
+  "auth/network-request-failed": "Connexion internet indisponible.",
+  "guest/bad-code": "Code d'accès incorrect, ou accès temporaire pas encore configuré : un administrateur doit ouvrir l'application une fois avec son compte.",
+  "guest/not-enabled": "L'accès temporaire n'est pas activé sur le serveur : l'administrateur doit activer la méthode « Anonyme » dans Firebase > Authentication > Méthode de connexion.",
+  "guest/rules": "Les règles de sécurité du serveur n'autorisent pas encore l'accès temporaire : l'administrateur doit publier le fichier firestore.rules dans Firebase.",
+  "auth/unauthorized-domain": "Ce site n'est pas autorisé à utiliser cette connexion (contactez l'administrateur)."
+};
+function friendlyAuthError(err) {
+  return err && AUTH_ERROR_MESSAGES[err.code] || "Une erreur est survenue. Veuillez réessayer.";
+}
+const FIELD_ALIASES = {
+  chassis: ["chassis", "numerochassis", "numchassis", "nchassis", "vin"],
+  description: ["description", "nomduvehicule", "vehicule", "designation"],
+  registredAt: ["registredat", "registeredat", "dateenregistrement", "denregistrement"],
+  depotDate: ["expiratedat", "expiration", "dateexpiration", "dateentreeendepot", "dentreeendepot", "datedepot"],
+  atp: ["atp", "ptu", "parctamponunique", "parctampon"],
+  shipName: ["shipname", "navire", "nomdunavire"],
+  weight: ["weight", "poids"],
+  companyNumber: ["companynumber"],
+  bl: ["bl"],
+  entryDate: ["entrydate"]
+};
+const FIELD_LABELS = {
+  atp: "Manifeste",
+  registredAt: "Date d'enregistrement du manifeste",
+  depotDate: "Date d'entrée en dépôt",
+  shipName: "Navire",
+  weight: "Poids du véhicule",
+  companyNumber: "Manutentionnaire",
+  bl: "BL",
+  entryDate: "Date d'entrée"
+};
+const EXCLUDED_HEADER_ALIASES = [
+  "source",
+  "id",
+  "vaf",
+  "state",
+  "importateur",
+  "constatableid",
+  "constatcenid",
+  "numcolis2",
+  "extensionid",
+  "extensionstate",
+  "joursrestant",
+  "joursrestants",
+  "jourrestant",
+  "nombredejoursrestants"
+];
+function prettifyHeader(h) {
+  return String(h || "").replace(/_/g, " ").trim().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function stripAccentsLower(v) {
+  return String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+function matchFieldAlias(header) {
+  const h = stripAccentsLower(header);
+  if (EXCLUDED_HEADER_ALIASES.includes(h)) return "ignore";
+  for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+    if (aliases.includes(h)) return field;
+  }
+  return null;
+}
+function isEmptyCsvValue(v) {
+  const t = String(v == null ? "" : v).trim();
+  return t === "" || t.toUpperCase() === "NULL";
+}
+function formatCsvDate(v) {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    const p = (n) => String(n).padStart(2, "0");
+    return `${p(v.getDate())}/${p(v.getMonth() + 1)}/${v.getFullYear()}`;
+  }
+  if (typeof v === "number" && Number.isFinite(v)) {
+    if (v > 2e4 && v < 1e5) {
+      const d = new Date(Math.round((v - 25569) * 864e5));
+      const p = (n) => String(n).padStart(2, "0");
+      return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+    }
+    return String(v);
+  }
+  if (isEmptyCsvValue(v)) return "";
+  const raw = String(v).trim();
+  if (/^\d{5}(\.\d+)?$/.test(raw)) return formatCsvDate(Number(raw));
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  const f = raw.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+  if (f) return `${f[1].padStart(2, "0")}/${f[2].padStart(2, "0")}/${f[3]}`;
+  return raw;
+}
+function dmyToExcelSerial(s) {
+  const m = String(s || "").match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  return Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1])) / 864e5 + 25569;
+}
+function timestampToExcelSerial(ts) {
+  if (!ts) return null;
+  try {
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    if (Number.isNaN(d.getTime())) return null;
+    return (d.getTime() - d.getTimezoneOffset() * 6e4) / 864e5 + 25569;
+  } catch (e) {
+    return null;
+  }
+}
+function applyDateCells(ws, dateCols, tsCol) {
+  const ref = ws["!ref"];
+  if (!ref) return;
+  const range = XLSX.utils.decode_range(ref);
+  for (let r = range.s.r + 1; r <= range.e.r; r++) {
+    dateCols.forEach((c) => {
+      const addr = XLSX.utils.encode_cell({ r, c });
+      const cell = ws[addr];
+      if (!cell) return;
+      const serial = dmyToExcelSerial(cell.v);
+      if (serial !== null) ws[addr] = { t: "n", v: serial, z: "dd/mm/yyyy" };
+    });
+  }
+  if (tsCol != null) {
+    ws["!cols"] = ws["!cols"] || [];
+  }
+  ws["!cols"] = dateCols.reduce((acc, c) => {
+    acc[c] = { wch: 14 };
+    return acc;
+  }, ws["!cols"] || []);
+}
+function computeJoursRestant(depotDateStr) {
+  if (!depotDateStr) return null;
+  const m = String(depotDateStr).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const depot = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  if (Number.isNaN(depot.getTime())) return null;
+  const today = /* @__PURE__ */ new Date();
+  today.setHours(0, 0, 0, 0);
+  depot.setHours(0, 0, 0, 0);
+  return Math.round((depot - today) / 864e5);
+}
+function formatJoursRestantText(depotDateStr) {
+  const n = computeJoursRestant(depotDateStr);
+  if (n === null) return "";
+  return n < 0 ? `Dépassé de ${Math.abs(n)} j` : `${n} j restants`;
+}
+function normalize(v) {
+  return String(v || "").replace(/\s+/g, "").toUpperCase();
+}
+function isHeaderLike(v) {
+  const t = String(v || "").trim();
+  return /^(ch[aâ]ssis|n[°o]?\s*ch[aâ]ssis|numero\s*ch[aâ]ssis|num\s*ch[aâ]ssis|vin|chassis\s*n[°o]?)$/i.test(t);
+}
+function buildMap(list) {
+  const map = /* @__PURE__ */ new Map();
+  list.forEach((v) => {
+    const norm = normalize(v);
+    if (norm) map.set(norm, { chassis: String(v).trim(), extra: {} });
+  });
+  return map;
+}
+function buildRichMap(headers, rows) {
+  const colField = headers.map((h) => matchFieldAlias(h));
+  const chassisColIdx = colField.indexOf("chassis");
+  if (chassisColIdx === -1) return null;
+  const map = /* @__PURE__ */ new Map();
+  rows.forEach((row) => {
+    const chassisRaw = row[chassisColIdx];
+    if (isEmptyCsvValue(chassisRaw)) return;
+    const chassis = String(chassisRaw).trim();
+    const norm = normalize(chassis);
+    if (!norm) return;
+    const info = { chassis, extra: {} };
+    headers.forEach((h, i) => {
+      const field = colField[i];
+      const val = row[i];
+      if (isEmptyCsvValue(val)) return;
+      if (field === "chassis" || field === "ignore") return;
+      if (field === "registredAt" || field === "depotDate" || field === "entryDate") {
+        info[field] = formatCsvDate(val);
+      } else if (field) {
+        info[field] = String(val).trim();
+      } else {
+        info.extra[prettifyHeader(h)] = String(val).trim();
+      }
+    });
+    map.set(norm, info);
+  });
+  return map.size > 0 ? map : null;
+}
+function compressImageToDataUrl(file, maxSide = 900, quality = 0.6) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("img"));
+      img.onload = () => {
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        let q = quality;
+        let out = canvas.toDataURL("image/jpeg", q);
+        while (out.length > 22e4 && q > 0.3) {
+          q -= 0.1;
+          out = canvas.toDataURL("image/jpeg", q);
+        }
+        resolve(out);
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+const VEHICLE_AGE_LABELS = { under1: "Moins d'un an", over1: "Plus d'un an" };
+const GUEST_SESSION_MS = 24 * 3600 * 1e3;
+const MMTE_CHUNK_SIZE = 300;
+const PhotoCtx = React.createContext(null);
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    try {
+      console.error("INVENTAIRE MMTE — erreur d'affichage", error, info);
+    } catch (e) {
+    }
+  }
+  render() {
+    if (this.state.error) {
+      return /* @__PURE__ */ React.createElement("div", { className: "max-w-md mx-auto px-5 py-16 text-center" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-extrabold", style: { color: BLUE_DEEP } }, "Un problème est survenu"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mt-2" }, "L'application a rencontré une erreur. Vos pointages déjà envoyés sont conservés. Rechargez la page ; si le problème continue, signalez-le à l'administrateur en indiquant le message ci-dessous."), /* @__PURE__ */ React.createElement("button", { onClick: () => window.location.reload(), className: "mt-4 px-5 py-3 rounded-xl text-white font-bold", style: { background: BLUE_DEEP } }, "Recharger l'application"), /* @__PURE__ */ React.createElement("div", { className: "mt-4 text-[11px] text-slate-400 break-words" }, "Version ", APP_VERSION, " — ", String(this.state.error && this.state.error.message || this.state.error).slice(0, 220)));
+    }
+    return this.props.children;
+  }
+}
+function writeErrorMessage(err) {
+  if (err && err.code === "permission-denied") {
+    return "Refusé : ce châssis vient d'être pointé par un autre agent, ou vos droits ont expiré.";
+  }
+  return "Erreur d'enregistrement, réessayez.";
+}
+async function writeMmteChunks(ref, entries) {
+  for (let i = 0, idx = 0; i < entries.length; i += MMTE_CHUNK_SIZE, idx++) {
+    const items = entries.slice(i, i + MMTE_CHUNK_SIZE).map(([norm, info]) => ({ norm, ...info }));
+    await ref.collection("mmteChunks").doc(String(idx).padStart(5, "0")).set({ idx, items });
+  }
+}
+async function loadMmteMap(ref) {
+  const map = /* @__PURE__ */ new Map();
+  const chunks = await ref.collection("mmteChunks").get();
+  if (!chunks.empty) {
+    chunks.forEach((d) => (d.data().items || []).forEach((it) => map.set(it.norm, it)));
+    return map;
+  }
+  const legacy = await ref.collection("mmte").get();
+  legacy.forEach((d) => map.set(d.id, d.data()));
+  return map;
+}
+async function deleteSubcollection(ref, name) {
+  const snap = await ref.collection(name).get();
+  for (let i = 0; i < snap.docs.length; i += 450) {
+    const batch = db.batch();
+    snap.docs.slice(i, i + 450).forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+}
+async function purgeInventoryData(ref, includeAudit) {
+  for (const n of ["mmte", "mmteChunks", "scans", "photos"]) await deleteSubcollection(ref, n);
+  if (includeAudit) await deleteSubcollection(ref, "audit");
+}
+function stripAccents(s) {
+  return String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+}
+function searchTerms(q) {
+  return stripAccents(q).split(/[\s,;+]+/).filter(Boolean);
+}
+function itemSearchText(it) {
+  const s = it && it.info ? { ...it.info, chassis: it.chassis } : it || {};
+  const ex = s.extra && typeof s.extra === "object" ? Object.values(s.extra).join(" ") : "";
+  const age = s.vehicleAge === "under1" ? "moins d'un an" : s.vehicleAge === "over1" ? "plus d'un an" : "";
+  return stripAccents(
+    [s.chassis, s.description, s.vehicleName, s.vehicleModel, age, s.shipName, s.atp, s.bl, s.companyNumber, s.entryDate, s.registredAt, s.agentName, ex].filter(Boolean).join(" ")
+  );
+}
+function matchesAllTerms(q, it) {
+  const terms = searchTerms(q);
+  if (!terms.length) return true;
+  const h = itemSearchText(it);
+  return terms.every((t) => h.includes(t));
+}
+function guessParcsFromFileName(fileName, parcsList) {
+  const clean = (v) => " " + stripAccents(v).replace(/\.[a-z0-9]{2,4}$/i, "").replace(/[^A-Z0-9]+/g, " ").trim() + " ";
+  const fn = clean(fileName || "");
+  if (fn.trim().length < 2) return [];
+  const words = [];
+  const loose = [];
+  (parcsList || []).forEach((p) => {
+    const pn = clean(p);
+    if (pn.trim().length < 2) return;
+    if (fn.includes(pn)) words.push(p);
+    else if (pn.trim().length >= 5 && fn.replace(/ /g, "").includes(pn.replace(/ /g, ""))) loose.push(p);
+  });
+  const byLen = (a, b) => b.length - a.length;
+  return (words.length ? words.sort(byLen) : loose.sort(byLen)).slice(0, 3);
+}
+function foldChassis(v) {
+  return String(v).replace(/[OQ]/g, "0").replace(/[IL]/g, "1").replace(/S/g, "5").replace(/B/g, "8").replace(/Z/g, "2");
+}
+function withinOneEdit(a, b) {
+  if (a === b) return false;
+  const la = a.length, lb = b.length;
+  if (Math.abs(la - lb) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < la && j < lb) {
+    if (a[i] === b[j]) {
+      i++;
+      j++;
+      continue;
+    }
+    edits++;
+    if (edits > 1) return false;
+    if (la === lb) {
+      i++;
+      j++;
+    } else if (la > lb) i++;
+    else j++;
+  }
+  edits += la - i + (lb - j);
+  return edits <= 1;
+}
+function suggestChassis(norm, mmteMap, foundSet, limit = 3) {
+  if (!norm || norm.length < 4 || !mmteMap) return [];
+  const f = foldChassis(norm);
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  const push = (k, info) => {
+    if (out.length >= limit || seen.has(k) || foundSet && foundSet.has(k)) return;
+    seen.add(k);
+    out.push({ norm: k, chassis: info && info.chassis || k, description: info && info.description || "" });
+  };
+  mmteMap.forEach((info, k) => {
+    if (k.length === norm.length && foldChassis(k) === f) push(k, info);
+  });
+  if (out.length < limit) mmteMap.forEach((info, k) => {
+    if (withinOneEdit(k, norm)) push(k, info);
+  });
+  if (out.length < limit && norm.length >= 6) mmteMap.forEach((info, k) => {
+    if (k.endsWith(norm)) push(k, info);
+  });
+  return out;
+}
+const HELP_SECTIONS = [
+  {
+    id: "start",
+    fr: { t: "1. Démarrer", p: [
+      "Connectez-vous avec votre compte agent (approuvé par l'administrateur) ou, si on vous l'a communiqué, avec le code d'accès invité.",
+      "Pour un nouvel inventaire : indiquez le parc, chargez la liste MMTE (fichier Excel/CSV, ou liste collée) puis touchez « Démarrer ».",
+      "Pour continuer un inventaire déjà commencé par un collègue : choisissez-le dans « Rejoindre un inventaire en cours » ; tout le monde pointe sur la même liste en temps réel."
+    ] },
+    en: { t: "1. Getting started", p: [
+      "Sign in with your agent account (approved by the administrator) or, if you were given one, with the guest access code.",
+      "For a new inventory: enter the park, load the MMTE list (Excel/CSV file, or pasted list) then tap “Start”.",
+      "To continue an inventory already started by a colleague: pick it under “Join an ongoing inventory”; everyone checks vehicles on the same list in real time."
+    ] }
+  },
+  {
+    id: "scan",
+    fr: { t: "2. Pointer les véhicules", p: [
+      "Saisissez le châssis (ou une partie : marque, modèle) puis validez, ou scannez le code-barres / QR avec la caméra.",
+      "Dans la caméra : la lampe torche (si l'appareil en a une) et le zoom aident dans les parcs sombres ou pour les châssis éloignés.",
+      "La lecture automatique (OCR) permet de photographier la plaque du châssis ; vérifiez toujours le texte lu avant de valider.",
+      "Résultat « Trouvé » : le véhicule est sur la liste MMTE. Résultat « Hors MMTE » : enregistrez-le avec marque, modèle, ancienneté et photo si besoin.",
+      "Un châssis déjà pointé est refusé (pas de doublon). Une erreur se corrige en supprimant la ligne : elle peut être restaurée."
+    ] },
+    en: { t: "2. Checking vehicles", p: [
+      "Type the chassis number (or part of it: make, model) and confirm, or scan the barcode / QR code with the camera.",
+      "In the camera view: the torch (if the device has one) and the zoom help in dark parks or for distant chassis plates.",
+      "Automatic reading (OCR) lets you photograph the chassis plate; always check the text read before confirming.",
+      "“Found” means the vehicle is on the MMTE list. “Not on MMTE” means you must register it with make, model, age and a photo if needed.",
+      "A chassis already checked is refused (no duplicates). A mistake is fixed by deleting the line: it can be restored."
+    ] }
+  },
+  {
+    id: "offline",
+    fr: { t: "3. Sans réseau et synchronisation", p: [
+      "Sans connexion, continuez normalement : les pointages sont gardés sur l'appareil et envoyés dès le retour du réseau.",
+      "La pastille en bas à gauche indique l'état : « Synchronisé » (vert), « Envoi en cours » (bleu) ou « Hors connexion » (orange) avec le nombre de pointages en attente.",
+      "Ne fermez pas l'application tant que des pointages sont « en attente » et que vous êtes hors connexion."
+    ] },
+    en: { t: "3. No network and synchronisation", p: [
+      "Without a connection, keep working normally: checks are kept on the device and sent as soon as the network is back.",
+      "The badge at the bottom left shows the state: “Synchronised” (green), “Sending” (blue) or “Offline” (orange) with the number of pending checks.",
+      "Do not close the app while checks are “pending” and you are offline."
+    ] }
+  },
+  {
+    id: "end",
+    fr: { t: "4. Terminer et clôturer", p: [
+      "« Terminer et voir le récapitulatif » affiche : attendus MMTE, trouvés, hors MMTE, total présent et manquants.",
+      "Exports disponibles : classeur Excel complet, CSV, rapport imprimable (PDF) et rapport photos des véhicules hors MMTE.",
+      "« Quitter sans clôturer » laisse l'inventaire ouvert. « Clôturer définitivement » le retire de la liste des inventaires en cours ; les données sont conservées et consultables dans les archives."
+    ] },
+    en: { t: "4. Finishing and closing", p: [
+      "“Finish and view the summary” shows: expected on MMTE, found, not on MMTE, total present and missing.",
+      "Available exports: full Excel workbook, CSV, printable report (PDF) and photo report of vehicles not on MMTE.",
+      "“Leave without closing” keeps the inventory open. “Close permanently” removes it from the ongoing list; the data is kept and can be viewed in the archives."
+    ] }
+  },
+  {
+    id: "followup",
+    fr: { t: "5. Suivi des manquants", p: [
+      "Après l'inventaire, un véhicule manquant peut être retrouvé ou régularisé dans MMTE (sorti, transféré…).",
+      "Dans le récapitulatif (y compris depuis les archives), ouvrez « Suivi des manquants », touchez « Marquer », choisissez « Retrouvé » ou « Régularisé » et ajoutez une observation.",
+      "Les compteurs sont mis à jour. Régénérez ensuite la fiche et le rapport : ils intègrent ces chiffres et une annexe « Suivi des manquants ». « Annuler » remet le véhicule parmi les manquants."
+    ] },
+    en: { t: "5. Follow-up of missing vehicles", p: [
+      "After the inventory, a missing vehicle may be found or settled in MMTE (exited, transferred…).",
+      "In the summary (also from the archives), open “Follow-up of missing vehicles”, tap “Mark”, choose “Found” or “Settled” and add a remark.",
+      "The counters are updated. Then regenerate the closing sheet and the report: they include these figures and a “Follow-up of missing vehicles” annex. “Cancel” puts the vehicle back among the missing."
+    ] }
+  },
+  {
+    id: "docs",
+    fr: { t: "6. Fiche de clôture et rapport", p: [
+      "Depuis le récapitulatif ou « Fiches et rapports », générez la fiche de clôture (à signer) et le rapport d'inventaire, en Word ou PDF.",
+      "Trois modèles au choix : Visuel (graphiques), Classique (administratif), Synthèse (court). Le contenu reste modifiable (« Aperçu et modification »).",
+      "Signatures : la méthode papier reste possible ; vous pouvez aussi signer directement sur l'écran (facultatif).",
+      "Le bouton « Partager » envoie le document par WhatsApp, e-mail ou toute autre application du téléphone. Les documents officiels sont toujours rédigés en français."
+    ] },
+    en: { t: "6. Closing sheet and report", p: [
+      "From the summary or “Sheets and reports”, generate the closing sheet (to be signed) and the inventory report, as Word or PDF.",
+      "Three templates: Visual (charts), Classic (administrative), Summary (short). The content can be edited (“Preview and edit”).",
+      "Signatures: the paper method is still possible; you can also sign directly on the screen (optional).",
+      "The “Share” button sends the document through WhatsApp, e-mail or any other app on the phone. Official documents are always written in French."
+    ] }
+  },
+  {
+    id: "archives",
+    fr: { t: "7. Archives et tableau de bord", p: [
+      "« Mes données / Archives » liste tous les inventaires : ouvrez-en un pour revoir les listes, refaire les exports et suivre les manquants.",
+      "L'onglet « Tableau de bord » montre la campagne : parcs clôturés, en cours, à faire, taux global et situation par parc.",
+      "Vous pouvez comparer deux inventaires du même parc. Un administrateur peut rouvrir un inventaire clôturé ou le mettre à la corbeille."
+    ] },
+    en: { t: "7. Archives and dashboard", p: [
+      "“My data / Archives” lists all inventories: open one to review the lists, redo exports and follow up missing vehicles.",
+      "The “Dashboard” tab shows the campaign: parks closed, in progress, to do, overall rate and situation per park.",
+      "You can compare two inventories of the same park. An administrator can reopen a closed inventory or move it to the trash."
+    ] }
+  },
+  {
+    id: "stock",
+    fr: { t: "8. Comparer deux stocks", p: [
+      "« Comparer deux stocks » prend deux exports MMTE et indique les châssis communs, ceux présents seulement dans le premier et ceux présents seulement dans le second. Rien n'est enregistré."
+    ] },
+    en: { t: "8. Comparing two stocks", p: [
+      "“Compare two stocks” takes two MMTE exports and shows the chassis common to both, those only in the first and those only in the second. Nothing is saved."
+    ] }
+  },
+  {
+    id: "admin",
+    fr: { t: "9. Administration", p: [
+      "Réservé aux administrateurs : approbation des comptes, accès invité (code, durée), liste des parcs, journal des actions et suivi de la consommation Firestore (quotas).",
+      "Le compteur de quotas est une estimation ; la console Firebase fait foi."
+    ] },
+    en: { t: "9. Administration", p: [
+      "For administrators only: account approval, guest access (code, duration), list of parks, action log and Firestore usage (quotas).",
+      "The quota meter is an estimate; the Firebase console is the reference."
+    ] }
+  },
+  {
+    id: "faq",
+    fr: { t: "10. Dépannage", p: [
+      "Un châssis connu n'est pas trouvé : vérifiez les zéros/lettres (O/0, I/1) ou cherchez par marque et modèle.",
+      "« Accès refusé » : votre compte n'est pas encore approuvé, ou l'accès invité a expiré. Contactez l'administrateur.",
+      "L'application ne se met pas à jour : fermez-la complètement puis rouvrez-la avec du réseau.",
+      "Les chiffres de quotas restent à zéro : l'administrateur doit publier les règles Firestore."
+    ] },
+    en: { t: "10. Troubleshooting", p: [
+      "A known chassis is not found: check zeros/letters (O/0, I/1) or search by make and model.",
+      "“Access denied”: your account is not yet approved, or guest access has expired. Contact the administrator.",
+      "The app does not update: close it completely then reopen it with network access.",
+      "Quota figures stay at zero: the administrator must publish the Firestore rules."
+    ] }
+  }
+];
+function HelpScreen({ onBack }) {
+  const l = useLang();
+  const [open, setOpen] = useState("start");
+  const T = l === "en" ? { back: "Back to home", title: "User guide", intro: "Everything you need to run an inventory, from loading the list to the signed report.", print: "Print the guide", all: "Show all sections" } : { back: "Retour à l'accueil", title: "Guide d'utilisation", intro: "Tout ce qu'il faut pour mener un inventaire, du chargement de la liste au rapport signé.", print: "Imprimer le guide", all: "Tout déplier" };
+  const [all, setAll] = useState(false);
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "help-screen", "data-i18n-skip": true, className: "max-w-2xl mx-auto px-5 py-8" }, /* @__PURE__ */ React.createElement("button", { onClick: onBack, className: "no-print flex items-center gap-1 text-sm font-bold text-slate-500 mb-4" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " ", T.back), /* @__PURE__ */ React.createElement("h2", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, T.title), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mb-4" }, T.intro), /* @__PURE__ */ React.createElement("div", { className: "no-print grid grid-cols-2 gap-2 mb-4" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setAll(!all), className: "py-2.5 rounded-lg border-2 text-sm font-bold", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, T.all), /* @__PURE__ */ React.createElement("button", { "data-testid": "help-print", onClick: () => window.print(), className: "py-2.5 rounded-lg text-white text-sm font-bold flex items-center justify-center gap-2", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 15 }), " ", T.print)), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, HELP_SECTIONS.map((sec) => {
+    const c = sec[l] || sec.fr;
+    const isOpen = all || open === sec.id;
+    return /* @__PURE__ */ React.createElement("div", { key: sec.id, "data-testid": "help-" + sec.id, className: "rounded-xl border-2 border-slate-100 bg-white" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setOpen(isOpen && !all ? "" : sec.id), className: "w-full text-left px-4 py-3 font-bold flex items-center justify-between", style: { color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement("span", null, c.t), /* @__PURE__ */ React.createElement("span", { className: "no-print text-slate-400 text-xs" }, isOpen ? "–" : "+")), /* @__PURE__ */ React.createElement("div", { className: isOpen ? "px-4 pb-3 space-y-2" : "hidden print:block px-4 pb-3 space-y-2" }, c.p.map((x, i) => /* @__PURE__ */ React.createElement("p", { key: i, className: "text-sm text-slate-700 leading-relaxed" }, x))));
+  })));
+}
+const LANG_KEY = "mmte-lang";
+let LANG = (() => {
+  try {
+    return localStorage.getItem(LANG_KEY) === "en" ? "en" : "fr";
+  } catch (e) {
+    return "fr";
+  }
+})();
+const langListeners = /* @__PURE__ */ new Set();
+const EN_DICT = {};
+Object.assign(EN_DICT, {
+  "Inventaire physique annuel": "Annual physical inventory",
+  "Pointez les véhicules de chaque parc, rapprochez-les du stock MMTE et suivez l'avancement en temps réel.": "Check the vehicles of each park, match them against the MMTE stock and follow progress in real time.",
+  "et codes-barres": "and barcodes",
+  "Hors-ligne": "Offline",
+  "sur le terrain": "in the field",
+  "Temps réel": "Real time",
+  "entre agents": "between agents",
+  "Connexion agent": "Agent sign-in",
+  "Réservé aux agents du département MAD-MAE.": "Reserved for agents of the MAD-MAE department.",
+  "E-mail": "E-mail",
+  "Mot de passe": "Password",
+  "Mot de passe oublié ?": "Forgot your password?",
+  "Mot de passe oublié": "Forgot password",
+  "Se connecter": "Sign in",
+  "Pas encore de compte ?": "No account yet?",
+  "Créer un compte": "Create an account",
+  "ou": "or",
+  "Utiliser sans compte (accès temporaire)": "Use without an account (temporary access)",
+  "Pour les personnes hors MAD-MAE disposant d'un code d'accès ponctuel.": "For people outside MAD-MAE with a one-time access code.",
+  "Pour les personnes hors MAD-MAE disposant d'un code d'accès ponctuel": "For people outside MAD-MAE with a one-time access code",
+  "Douanes Béninoises": "Beninese Customs",
+  "Afficher le mot de passe": "Show password",
+  "Masquer le mot de passe": "Hide password",
+  "Votre compte devra être validé par un administrateur.": "Your account will have to be approved by an administrator.",
+  "Nom complet": "Full name",
+  "Confirmer le mot de passe": "Confirm password",
+  "Créer mon compte": "Create my account",
+  "Retour à la connexion": "Back to sign-in",
+  "Ex : Jean KOSSOU": "E.g. Jean KOSSOU",
+  "Prénom NOM": "First name LAST NAME",
+  "Votre nom": "Your name",
+  "Recevez un lien pour réinitialiser votre mot de passe.": "Receive a link to reset your password.",
+  "Envoyer le lien": "Send the link",
+  "Réservé aux personnes disposant d'un code d'accès temporaire.": "Reserved for people with a temporary access code.",
+  "Accéder à l'application": "Enter the app",
+  "Code communiqué par le service": "Code provided by the department",
+  "Utilisé pour vous identifier dans les rapports, comme pour les agents MAD-MAE.": "Used to identify you in reports, as for MAD-MAE agents.",
+  "Merci de renseigner l'e-mail et le mot de passe.": "Please enter your e-mail and password.",
+  "Merci de renseigner votre e-mail.": "Please enter your e-mail.",
+  "Merci de renseigner votre nom.": "Please enter your name.",
+  "Merci de saisir le code d'accès.": "Please enter the access code.",
+  "Le mot de passe doit contenir au moins 6 caractères.": "The password must contain at least 6 characters.",
+  "Les deux mots de passe ne correspondent pas.": "The two passwords do not match.",
+  "Mot de passe incorrect.": "Incorrect password.",
+  "Aucun compte ne correspond à cet e-mail.": "No account matches this e-mail.",
+  "Un compte existe déjà avec cet e-mail.": "An account already exists with this e-mail.",
+  "Trop de tentatives. Réessayez dans quelques minutes.": "Too many attempts. Try again in a few minutes.",
+  "Une erreur est survenue. Réessayez.": "An error occurred. Try again.",
+  "Une erreur est survenue. Veuillez réessayer.": "An error occurred. Please try again.",
+  "Un e-mail de réinitialisation a été envoyé si ce compte existe.": "A reset e-mail has been sent if this account exists.",
+  "Impossible d'envoyer le lien (adresse inconnue ou réseau).": "Unable to send the link (unknown address or network).",
+  "Ce compte a été désactivé. Contactez un administrateur.": "This account has been deactivated. Contact an administrator.",
+  "Ce site n'est pas autorisé à utiliser cette connexion (contactez l'administrateur).": "This site is not allowed to use this sign-in (contact the administrator).",
+  "Erreur de connexion au serveur. Réessayez.": "Server connection error. Try again.",
+  "Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.": "Server connection error. Check your internet connection and try again.",
+  "Code d'accès incorrect, ou accès temporaire pas encore configuré : un administrateur doit ouvrir l'application une fois avec son compte.": "Incorrect access code, or temporary access not configured yet: an administrator must open the app once with their account.",
+  "L'accès temporaire n'est pas activé sur le serveur : l'administrateur doit activer la méthode « Anonyme » dans Firebase > Authentication > Méthode de connexion.": "Temporary access is not enabled on the server: the administrator must enable the “Anonymous” method in Firebase > Authentication > Sign-in method.",
+  "Les règles de sécurité du serveur n'autorisent pas encore l'accès temporaire : l'administrateur doit publier le fichier firestore.rules dans Firebase.": "The server security rules do not allow temporary access yet: the administrator must publish the firestore.rules file in Firebase.",
+  "Un administrateur doit approuver votre compte avant que vous puissiez accéder à l'application. Contactez le service MAD-MAE si l'attente se prolonge.": "An administrator must approve your account before you can use the app. Contact the MAD-MAE department if the wait is long.",
+  "Votre compte a été désactivé par un administrateur. Contactez le service MAD-MAE pour le réactiver.": "Your account has been deactivated by an administrator. Contact the MAD-MAE department to reactivate it.",
+  "Votre demande de compte agent n'a pas été approuvée. Contactez un administrateur MAD-MAE si vous pensez qu'il s'agit d'une erreur.": "Your agent account request was not approved. Contact a MAD-MAE administrator if you think this is a mistake.",
+  "Compte en attente de validation": "Account awaiting approval",
+  "Compte désactivé": "Account deactivated",
+  "Compte refusé": "Account refused",
+  "Accès refusé": "Access denied",
+  "Vérification de l'accès invité...": "Checking guest access...",
+  "Chargement du profil...": "Loading profile...",
+  "Chargement...": "Loading...",
+  "Se déconnecter": "Sign out",
+  "Inventaire": "Inventory",
+  "Bénin Control / MAD-MAE": "Bénin Control / MAD-MAE",
+  "Navigation": "Navigation",
+  "Mes données / Archives": "My data / Archives",
+  "Comparer deux stocks": "Compare two stocks",
+  "Fiches et rapports": "Sheets and reports",
+  "Aide et guide d'utilisation": "Help and user guide",
+  "Panneau admin": "Admin panel",
+  "Fermer le panneau admin": "Close the admin panel",
+  "Déconnexion": "Sign out",
+  "Administrateur": "Administrator",
+  "Agent": "Agent",
+  "Invité": "Guest",
+  "Bienvenue,": "Welcome,",
+  "Bonsoir": "Good evening",
+  "Bonjour": "Good morning",
+  "Bon après-midi": "Good afternoon",
+  "Rejoindre un inventaire en cours": "Join an ongoing inventory",
+  "Aucune liste à charger : vous récupérez directement les données d'un collègue et vos pointages se synchronisent en temps réel.": "No list to load: you pick up a colleague's data directly and your checks synchronise in real time.",
+  "Aucun inventaire en cours pour le moment.": "No ongoing inventory at the moment.",
+  "Aucun inventaire disponible à rejoindre pour l'instant. Contactez un agent MAD-MAE pour qu'il en démarre un.": "No inventory available to join for now. Contact a MAD-MAE agent to start one.",
+  "Démarrer un nouvel inventaire": "Start a new inventory",
+  "Nom du parc": "Park name",
+  "Date de l'inventaire": "Inventory date",
+  "Liste des châssis MMTE pour ce parc": "List of MMTE chassis numbers for this park",
+  "Fichier": "File",
+  "Coller": "Paste",
+  "Fichier CSV ou Excel (.csv, .xlsx, .xls)": "CSV or Excel file (.csv, .xlsx, .xls)",
+  "CSV ou Excel (.csv, .xlsx, .xls)": "CSV or Excel (.csv, .xlsx, .xls)",
+  "Choisir un fichier": "Choose a file",
+  "Choisir le fichier": "Choose the file",
+  "Démarrer ce nouvel inventaire": "Start this new inventory",
+  "Comparer deux fichiers de stock": "Compare two stock files",
+  "Fiche de clôture ou rapport sans inventaire": "Closing sheet or report without an inventory",
+  "Synchronisé": "Synchronised",
+  "Ex : ZF, HOVAS, GTS...": "E.g. ZF, HOVAS, GTS...",
+  "Charger la liste collée": "Load the pasted list",
+  "Collez la liste des châssis, un par ligne": "Paste the list of chassis numbers, one per line",
+  "châssis chargés depuis MMTE": "chassis loaded from MMTE",
+  "Synchronisé avec le serveur.": "Synchronised with the server.",
+  "Nouveau parc": "New park",
+  "Merci d'importer la liste des châssis MMTE avant de démarrer.": "Please import the MMTE chassis list before starting.",
+  "Indiquez le nom du parc.": "Enter the park name.",
+  "Indiquez la date de l'inventaire.": "Enter the inventory date.",
+  "Aucun numéro de châssis détecté. Vérifiez le fichier ou le texte collé.": "No chassis number detected. Check the file or the pasted text.",
+  "Impossible de lire ce fichier. Formats acceptés : CSV, XLS, XLSX.": "Unable to read this file. Accepted formats: CSV, XLS, XLSX.",
+  "Échec de la lecture du fichier.": "Failed to read the file.",
+  "Lecture du fichier...": "Reading the file...",
+  "Préparation du fichier...": "Preparing the file...",
+  "Chaque châssis n'est compté qu'une seule fois : les doublons sont retirés automatiquement (la dernière ligne est conservée).": "Each chassis is counted only once: duplicates are removed automatically (the last line is kept).",
+  "Un inventaire pour ce parc et cette date existe déjà et est en cours. Utilisez « Rejoindre un inventaire en cours » ci-dessus.": "An inventory for this park and date already exists and is ongoing. Use “Join an ongoing inventory” above.",
+  "Un inventaire clôturé existe déjà pour ce parc à cette date": "A closed inventory already exists for this park on this date",
+  "Rouvrir cet inventaire (garder son ancienne liste MMTE et ses pointages)": "Reopen this inventory (keep its previous MMTE list and checks)",
+  "Remplacer par la liste que je viens de charger ci-dessus (efface l'ancienne liste et les anciens pointages)": "Replace with the list I just loaded above (erases the old list and previous checks)",
+  "Chargez d'abord un fichier ou collez une liste ci-dessus pour pouvoir remplacer.": "First load a file or paste a list above to be able to replace.",
+  "Inventaire partagé rejoint — vous voyez les pointages de toute l'équipe en temps réel.": "Shared inventory joined — you see the whole team's checks in real time.",
+  "Cet inventaire n'est pas encore prêt (création en cours par son créateur) ou a été clôturé. Réessayez dans un instant.": "This inventory is not ready yet (being created by its author) or has been closed. Try again in a moment.",
+  "Cet inventaire n'est plus disponible (peut-être déjà clôturé).": "This inventory is no longer available (it may already be closed).",
+  "Cet inventaire est dans la corbeille des archives. Demandez à l'administrateur de le restaurer ou de le supprimer définitivement.": "This inventory is in the archive trash. Ask the administrator to restore or permanently delete it.",
+  "Impossible d'ouvrir cet inventaire. Réessayez.": "Unable to open this inventory. Try again.",
+  "Quitter cet inventaire et repartir sur un nouveau parc ?": "Leave this inventory and start over on a new park?",
+  "Oui, changer de parc": "Yes, change park",
+  "Terminer et tout remettre à zéro": "Finish and reset everything",
+  "Durée de session :": "Session duration:",
+  "Progression MMTE": "MMTE progress",
+  "Attendus MMTE": "Expected on MMTE",
+  "Trouvés MMTE": "Found on MMTE",
+  "Enregistrés": "Registered",
+  "Total présent": "Total present",
+  "Manquants": "Missing",
+  "Numéro de châssis": "Chassis number",
+  "Valider": "Confirm",
+  "Scanner avec la caméra": "Scan with the camera",
+  "Aucun véhicule pointé pour l'instant.": "No vehicle checked yet.",
+  "Terminer et voir le récapitulatif": "Finish and view the summary",
+  "Couper le son": "Mute sound",
+  "Activer le son": "Turn sound on",
+  "Châssis, ou marque / modèle (ex : TOYOTA COROLLA)": "Chassis, or make / model (e.g. TOYOTA COROLLA)",
+  "Filtrer : châssis, marque, modèle… (combinables)": "Filter: chassis, make, model… (combinable)",
+  "Trouvé sur MMTE.": "Found on MMTE.",
+  "Trouvé MMTE": "Found on MMTE",
+  "Par": "By",
+  "Déjà pointé comme trouvé sur MMTE.": "Already checked as found on MMTE.",
+  "Déjà enregistré comme présent sur le parc (hors MMTE).": "Already registered as present in the park (not on MMTE).",
+  "Introuvable sur la liste MMTE.": "Not found on the MMTE list.",
+  "Informations facultatives sur le véhicule": "Optional vehicle information",
+  "Âge du véhicule": "Vehicle age",
+  "Moins d'un an": "Under one year",
+  "Plus d'un an": "Over one year",
+  "moins d'un an": "under one year",
+  "plus d'un an": "over one year",
+  "Âge non précisé": "Age not specified",
+  "Joindre / prendre la photo du châssis (facultatif)": "Attach / take a photo of the chassis (optional)",
+  "Changer la photo du châssis": "Change the chassis photo",
+  "Retirer la photo": "Remove the photo",
+  "Photo du châssis": "Chassis photo",
+  "Enregistrer présent sur le parc": "Register as present in the park",
+  "Annuler": "Cancel",
+  "Marque du véhicule — facultatif": "Vehicle make — optional",
+  "Modèle du véhicule — facultatif": "Vehicle model — optional",
+  "Enregistré": "Registered",
+  "Enregistré comme présent sur le parc.": "Registered as present in the park.",
+  "Parc": "Park",
+  "Absent": "Absent",
+  "Code-barres / QR": "Barcode / QR",
+  "Texte du châssis": "Chassis text",
+  "Visez le code-barres ou le QR code du châssis": "Aim at the chassis barcode or QR code",
+  "Les deux types de codes sont lus automatiquement.": "Both types of code are read automatically.",
+  "Impossible de lancer la lecture (réseau nécessaire la première fois, ou accès à la caméra refusé). Réessayez, ou tapez le numéro.": "Unable to start reading (network needed the first time, or camera access denied). Try again, or type the number.",
+  "Impossible d'utiliser la caméra. Autorisez son accès dans le navigateur, puis réessayez.": "Unable to use the camera. Allow access in the browser, then try again.",
+  "Démarrage de la caméra...": "Starting the camera...",
+  "Préparation de la caméra...": "Preparing the camera...",
+  "Fermer": "Close",
+  "Allumer la lampe": "Turn the torch on",
+  "Éteindre la lampe": "Turn the torch off",
+  "Placez le numéro de châssis dans le cadre": "Place the chassis number inside the frame",
+  "Lecture automatique : dès qu'un numéro correspond à la liste MMTE, il est pointé.": "Automatic reading: as soon as a number matches the MMTE list, it is checked.",
+  "Si la lecture hésite : rapprochez-vous, évitez les reflets, ou touchez la ligne voulue.": "If reading hesitates: move closer, avoid reflections, or tap the right line.",
+  "Chargement du lecteur de texte (première fois : quelques secondes)...": "Loading the text reader (first time: a few seconds)...",
+  "Le lecteur de texte n'a pas pu démarrer (réseau nécessaire la première fois). Réessayez, utilisez le code-barres ou tapez le numéro.": "The text reader could not start (network needed the first time). Try again, use the barcode or type the number.",
+  "Lecteur de codes :": "Code reader:",
+  "Lecteur de texte :": "Text reader:",
+  "Lecture du texte :": "Reading text:",
+  "Numéro lu — est-ce le châssis ?": "Number read — is it the chassis?",
+  "Plusieurs numéros lus — lequel est le châssis ?": "Several numbers read — which one is the chassis?",
+  "Proche d'un châssis de la liste MMTE — à confirmer": "Close to a chassis on the MMTE list — to be confirmed",
+  "Vouliez-vous dire :": "Did you mean:",
+  "Corriger ou taper le numéro": "Correct or type the number",
+  "Ou continuez en saisissant le nom vous-même.": "Or continue by typing the name yourself.",
+  "Touchez un véhicule pour le pointer.": "Tap a vehicle to check it.",
+  "Photo illisible, essayez une autre image.": "Unreadable photo, try another image.",
+  "Traitement de la photo...": "Processing the photo...",
+  "Chargement de la photo...": "Loading the photo...",
+  "Chargement des photos...": "Loading the photos...",
+  "détecté": "detected",
+  "VIN (clé de contrôle valide)": "VIN (valid check digit)",
+  "VIN (corrigé, clé valide)": "VIN (corrected, valid check digit)",
+  "VIN 17 signes (clé non valide)": "17-character VIN (invalid check digit)",
+  "code modèle": "model code",
+  "numéro de série": "serial number",
+  "châssis": "chassis",
+  "dans la liste MMTE": "in the MMTE list",
+  "Total": "Total",
+  "Trouvés": "Found",
+  "Retrouvés": "Found again",
+  "Aucun châssis enregistré hors MMTE pour l'instant.": "No chassis registered outside MMTE yet.",
+  "Aucun châssis trouvé sur MMTE pour l'instant.": "No chassis found on MMTE yet.",
+  "Tous les châssis MMTE ont été retrouvés sur le parc.": "All MMTE chassis were found in the park.",
+  "Refusé : ce châssis vient d'être pointé par un autre agent, ou vos droits ont expiré.": "Refused: this chassis was just checked by another agent, or your rights have expired.",
+  "Erreur d'enregistrement, réessayez.": "Saving error, try again.",
+  "Hors connexion": "Offline",
+  "Envoi en cours": "Sending",
+  "Hors connexion — vos pointages sont gardés sur la tablette et seront envoyés au retour du réseau.": "Offline — your checks are kept on the tablet and will be sent when the network returns.",
+  "Les données déjà enregistrées restent sauvegardées dans le système partagé.": "Data already saved remains stored in the shared system.",
+  "Un problème est survenu": "A problem occurred",
+  "Réessayer": "Try again",
+  "L'application a rencontré une erreur. Vos pointages déjà envoyés sont conservés. Rechargez la page ; si le problème continue, signalez-le à l'administrateur en indiquant le message ci-dessous.": "The app encountered an error. Your checks already sent are kept. Reload the page; if the problem continues, report it to the administrator with the message below.",
+  "Retour au pointage": "Back to checking",
+  "Retour aux archives": "Back to archives",
+  "Récapitulatif d'inventaire": "Inventory summary",
+  "Consultation seule.": "View only.",
+  "Les pointages ne peuvent plus être modifiés depuis les archives.": "Checks can no longer be modified from the archives.",
+  "Clôturé le": "Closed on",
+  "par": "by",
+  "Rouvrir pour continuer le pointage (administrateur)": "Reopen to continue checking (administrator)",
+  "Agents ayant participé": "Agents who took part",
+  "Attendus sur MMTE": "Expected on MMTE",
+  "Trouvés sur MMTE": "Found on MMTE",
+  "Enregistrés (hors MMTE)": "Registered (not on MMTE)",
+  "Total présent sur le parc": "Total present in the park",
+  "Manquants (sur MMTE, absents)": "Missing (on MMTE, absent)",
+  "Les exports (Excel, CSV, rapport imprimable) sont réservés aux agents MAD-MAE. Un agent peut se connecter pour générer les rapports officiels à partir de ces mêmes données.": "Exports (Excel, CSV, printable report) are reserved for MAD-MAE agents. An agent can sign in to generate the official reports from this same data.",
+  "Exporter les résultats": "Export the results",
+  "Télécharger le classeur Excel complet (4 feuilles + résumé)": "Download the full Excel workbook (4 sheets + summary)",
+  "Imprimer / générer un PDF du rapport": "Print / generate a PDF of the report",
+  "Fiche de clôture (Word / PDF, à signer)": "Closing sheet (Word / PDF, to sign)",
+  "Télécharger le rapport d'inventaire du parc": "Download the inventory report of park",
+  "Envoyer le résumé par e-mail": "Send the summary by e-mail",
+  "Télécharger un fichier CSV (total présent sur le parc)": "Download a CSV file (total present in the park)",
+  "Quitter sans clôturer (l'inventaire reste ouvert)": "Leave without closing (the inventory stays open)",
+  "Clôturer définitivement cet inventaire": "Close this inventory permanently",
+  "Clôturer cet inventaire ?": "Close this inventory?",
+  "Il disparaîtra de la liste « Rejoindre un inventaire en cours » pour tout le monde. Les données restent conservées et exportables, rien n'est supprimé.": "It will disappear from the “Join an ongoing inventory” list for everyone. The data is kept and can be exported; nothing is deleted.",
+  "Oui, clôturer": "Yes, close",
+  "Rapport généré le": "Report generated on",
+  "Enregistrés sur le parc (hors MMTE)": "Registered in the park (not on MMTE)",
+  "Manquants (attendus sur MMTE, absents du parc)": "Missing (expected on MMTE, absent from the park)",
+  "Manquants (sur MMTE, absents du parc)": "Missing (on MMTE, absent from the park)",
+  "Détails de l'inventaire": "Inventory details",
+  "Suivi des manquants": "Follow-up of missing vehicles",
+  "régularisé": "settled",
+  "régularisés": "settled",
+  "sur": "out of",
+  "encore manquant": "still missing",
+  "encore manquants": "still missing",
+  "s": "",
+  "Ouvrir": "Open",
+  "Masquer": "Hide",
+  "Un véhicule manquant a été retrouvé ou régularisé dans MMTE après l'inventaire ? Marquez-le ici, puis régénérez la fiche et le rapport : les chiffres sont mis à jour.": "A missing vehicle was found or settled in MMTE after the inventory? Mark it here, then regenerate the sheet and the report: the figures are updated.",
+  "Marquer": "Mark",
+  "Retrouvé sur le parc": "Found in the park",
+  "Régularisé dans MMTE": "Settled in MMTE",
+  "Régularisé dans MMTE (sorti, transféré…)": "Settled in MMTE (exited, transferred…)",
+  "Filtrer par châssis, description…": "Filter by chassis, description…",
+  "Observation (facultatif)": "Remark (optional)",
+  "Annuler le suivi": "Cancel follow-up",
+  "Documents": "Documents",
+  "Éditez une fiche de clôture ou un rapport d'inventaire sans passer par un inventaire dans l'application : renseignez les informations demandées. Pour un inventaire fait avec l'application, utilisez plutôt son récapitulatif : les chiffres y sont repris automatiquement.": "Edit a closing sheet or an inventory report without going through an inventory in the app: fill in the requested information. For an inventory done with the app, use its summary instead: the figures are taken over automatically.",
+  "Fiche de clôture": "Closing sheet",
+  "Rapport d'inventaire": "Inventory report",
+  "Parc inventorié": "Inventoried park",
+  "Début": "Start",
+  "Fin": "End",
+  "Chiffres de l'inventaire": "Inventory figures",
+  "(repris de l'application)": "(taken from the app)",
+  "Total présent :": "Total present:",
+  "· Manquants :": "· Missing:",
+  "· Taux de retrouvés :": "· Found rate:",
+  "· Régularisés après l'inventaire :": "· Settled after the inventory:",
+  "(un par ligne ou séparés par des virgules)": "(one per line or separated by commas)",
+  "Agent Douane": "Customs agent",
+  "Agent Bénin Control": "Bénin Control agent",
+  "Représentant du parc": "Park representative",
+  "Signer à l'écran (facultatif)": "Sign on screen (optional)",
+  "Sans signature saisie ici, le document garde son cadre vierge à signer à la main.": "Without a signature entered here, the document keeps its blank box to sign by hand.",
+  "Observations et constats à chaud (séance de clôture)": "Observations and on-the-spot findings (closing session)",
+  "Facultatif — une ligne par constat": "Optional — one line per finding",
+  "Aperçu et modification du contenu (facultatif)": "Preview and edit the content (optional)",
+  "Télécharger la fiche de clôture Word (.docx)": "Download the closing sheet as Word (.docx)",
+  "Télécharger le rapport Word (.docx)": "Download the report as Word (.docx)",
+  "Générer le PDF (impression)": "Generate the PDF (print)",
+  "Partager par WhatsApp ou e-mail": "Share by WhatsApp or e-mail",
+  "Nom": "Name",
+  "Nom du signataire": "Signatory name",
+  "Effacer": "Clear",
+  "Les chiffres viennent de l'inventaire. Complétez ce qui manque : les champs laissés vides sont adaptés dans le texte.": "The figures come from the inventory. Fill in what is missing: empty fields are adapted in the text.",
+  "← Retour aux informations": "← Back to information",
+  "Touchez un bloc pour le modifier. Vous pouvez aussi le déplacer (↑ ↓), le supprimer (✕) ou insérer un paragraphe ou un sous-titre après lui. Le Word obtenu reste entièrement modifiable.": "Tap a block to edit it. You can also move it (↑ ↓), delete it (✕) or insert a paragraph or subtitle after it. The resulting Word file remains fully editable.",
+  "Bandeau de titre": "Title banner",
+  "Bandeau supérieur": "Top banner",
+  "Bandeau de résultat": "Result banner",
+  "Tableau": "Table",
+  "Sous-titre": "Subtitle",
+  "Chiffres clés": "Key figures",
+  "Cadre d'observations": "Observations box",
+  "à compléter à la main": "to be completed by hand",
+  "Paragraphe": "Paragraph",
+  "Signatures": "Signatures",
+  "Rétablir le contenu d'origine": "Restore the original content",
+  "Monter": "Move up",
+  "Descendre": "Move down",
+  "Supprimer ce bloc": "Delete this block",
+  "+ Ajouter un point": "+ Add a point",
+  "+ Ajouter une ligne": "+ Add a line",
+  "+ Ajouter une étape": "+ Add a step",
+  "+ Paragraphe après": "+ Paragraph after",
+  "+ Sous-titre après": "+ Subtitle after",
+  "Annexes à joindre": "Annexes to attach",
+  "Modèle de rapport": "Report template",
+  "Visuel": "Visual",
+  "Classique": "Classic",
+  "Synthèse": "Summary",
+  "Cartes, tableaux colorés, étapes numérotées, recommandations classées par priorité. Textes raccourcis.": "Cards, coloured tables, numbered steps, recommendations ranked by priority. Shortened texts.",
+  "Reprend le texte et la structure du rapport type (paragraphes complets, listes), avec la charte Bénin Control.": "Takes over the text and structure of the standard report (full paragraphs, lists), with the Bénin Control branding.",
+  "Version courte pour la hiérarchie : résultats, écarts, recommandations, fiche de clôture. Sans méthodologie ni tableau des taux.": "Short version for management: results, gaps, recommendations, closing sheet. No methodology or rates table.",
+  "Le nombre de véhicules retrouvés dépasse le nombre attendu sur MMTE : vérifiez les chiffres.": "The number of vehicles found exceeds the number expected on MMTE: check the figures.",
+  "Le document n'a pas pu être généré (": "The document could not be generated (",
+  "Fiche supprimée": "Sheet deleted",
+  "Fiche supprimée.": "Sheet deleted.",
+  "Inclure ce tableau dans le rapport": "Include this table in the report",
+  "Le sommaire se met à jour tout seul d'après les titres conservés.": "The table of contents updates itself from the titles kept.",
+  "Page de garde": "Cover page",
+  "Pied de page": "Footer",
+  "Saut de page": "Page break",
+  "Liste numérotée": "Numbered list",
+  "Liste à puces": "Bulleted list",
+  "Légende": "Caption",
+  "Encadré": "Callout",
+  "Étapes": "Steps",
+  "Nouvelle étape": "New step",
+  "Résumé": "Summary",
+  "Titre de section": "Section title",
+  "Texte (entourez de ** pour mettre en gras)": "Text (wrap in ** for bold)",
+  "Texte (laisser vide pour un cadre à remplir à la main)": "Text (leave empty for a box to fill in by hand)",
+  "Titre (une ligne par rang)": "Title (one line per row)",
+  "Nombre de lignes": "Number of lines",
+  "Supprimer ce point": "Delete this point",
+  "Supprimer cette ligne": "Delete this line",
+  "Supprimer cette étape": "Delete this step",
+  "Mois et année": "Month and year",
+  "Cadre large (plaquette de portière avec plusieurs lignes)": "Large box (door plate with several lines)",
+  "Signature": "Signature",
+  "Partager": "Share",
+  "Retour à l'accueil": "Back to home",
+  "Archives des inventaires": "Inventory archives",
+  "Tous les inventaires réalisés. Ouvrez-en un pour revoir les listes et télécharger à nouveau les rapports — sans pouvoir modifier les pointages.": "All inventories done. Open one to review the lists and download the reports again — without being able to change the checks.",
+  "Liste": "List",
+  "Tableau de bord": "Dashboard",
+  "Corbeille": "Trash",
+  "Inventaire(s)": "Inventories",
+  "Véhicules présents": "Vehicles present",
+  "Manquants cumulés": "Cumulative missing",
+  "Tous les statuts": "All statuses",
+  "Clôturés": "Closed",
+  "Clôturé": "Closed",
+  "En cours": "In progress",
+  "Toutes les années": "All years",
+  "Actualiser": "Refresh",
+  "Exporter la liste (Excel)": "Export the list (Excel)",
+  "Aucun inventaire ne correspond à votre recherche.": "No inventory matches your search.",
+  "Aucun inventaire.": "No inventory.",
+  "Rechercher un parc...": "Search for a park...",
+  "Impossible de charger les archives. Vérifiez votre connexion et réessayez.": "Unable to load the archives. Check your connection and try again.",
+  "SYNTHÈSE DE CAMPAGNE D'INVENTAIRE": "INVENTORY CAMPAIGN SUMMARY",
+  "BÉNIN CONTROL / MAD-MAE": "BÉNIN CONTROL / MAD-MAE",
+  "Parcs inventoriés :": "Parks inventoried:",
+  "Parcs inventoriés": "Parks inventoried",
+  "— édité le": "— issued on",
+  "Dernier inventaire": "Latest inventory",
+  "Attendus": "Expected",
+  "Hors MMTE": "Not on MMTE",
+  "Taux": "Rate",
+  "Parcs sans inventaire (": "Parks without inventory (",
+  "Parcs sans inventaire": "Parks without inventory",
+  "Imprimer la synthèse de campagne (PDF)": "Print the campaign summary (PDF)",
+  "Parcs clôturés": "Parks closed",
+  "À faire": "To do",
+  "Taux global": "Overall rate",
+  "Situation par parc (du taux le plus faible au plus élevé)": "Situation per park (from lowest to highest rate)",
+  "Dernier :": "Latest:",
+  "inventaire(s)": "inventory(ies)",
+  "La corbeille est vide.": "The trash is empty.",
+  "Aucun inventaire de plus de 30 jours.": "No inventory older than 30 days.",
+  "Inventaire du": "Inventory of",
+  "Clôturé par": "Closed by",
+  "Créé par": "Created by",
+  "% des véhicules attendus retrouvés": "% of expected vehicles found",
+  "Sélectionner pour comparer": "Select to compare",
+  "Ouvrir (lecture seule)": "Open (read only)",
+  "Rouvrir": "Reopen",
+  "Restaurer": "Restore",
+  "Supprimer définitivement": "Delete permanently",
+  "Comparer ces deux inventaires": "Compare these two inventories",
+  "Les deux inventaires doivent concerner le même parc.": "Both inventories must concern the same park.",
+  "Impossible de comparer ces inventaires. Réessayez.": "Unable to compare these inventories. Try again.",
+  "Impossible de rouvrir cet inventaire. Réessayez.": "Unable to reopen this inventory. Try again.",
+  "Impossible de restaurer cet inventaire.": "Unable to restore this inventory.",
+  "Impossible de déplacer cet inventaire dans la corbeille (droits ou connexion).": "Unable to move this inventory to the trash (rights or connection).",
+  "La suppression définitive a échoué (droits ou connexion). Rouvrez la corbeille pour vérifier l'état.": "Permanent deletion failed (rights or connection). Reopen the trash to check the state.",
+  "Suppression impossible (droits insuffisants ou connexion). Réessayez.": "Deletion impossible (insufficient rights or connection). Try again.",
+  "La clôture n'a pas pu être enregistrée (connexion ou droits). L'inventaire reste ouvert : réessayez dans un instant.": "The closing could not be saved (connection or rights). The inventory stays open: try again in a moment.",
+  "La liste MMTE, les pointages, les photos et le journal seront effacés sans retour possible. Tapez": "The MMTE list, checks, photos and log will be erased with no way back. Type",
+  "pour confirmer.": "to confirm.",
+  "Lecture seule": "Read only",
+  "Détails": "Details",
+  "INVENTAIRE MMTE — Comparaison de deux inventaires": "MMTE INVENTORY — Comparison of two inventories",
+  "Inventaire récent": "Recent inventory",
+  "Présents au récent inventaire": "Present at the recent inventory",
+  "Présents à l'ancien inventaire": "Present at the old inventory",
+  "Présents aux deux dates": "Present on both dates",
+  "Nouveaux (absents avant, présents maintenant)": "New (absent before, present now)",
+  "Sortis (présents avant, absents maintenant)": "Exited (present before, absent now)",
+  "Nouveaux véhicules": "New vehicles",
+  "Véhicules sortis": "Vehicles exited",
+  "Véhicules conteneurisés": "Containerised vehicles",
+  "COMPARAISON DE DEUX FICHIERS DE STOCK": "COMPARISON OF TWO STOCK FILES",
+  "INVENTAIRE MMTE — Comparaison de deux fichiers de stock": "MMTE INVENTORY — Comparison of two stock files",
+  "INVENTAIRE MMTE — Bénin Control / MAD-MAE": "MMTE INVENTORY — Bénin Control / MAD-MAE",
+  "Comparaison": "Comparison",
+  "Choisissez deux exports de stock : l'application indique les châssis présents dans les deux fichiers, ceux présents seulement dans le premier et ceux présents seulement dans le second. Cette comparaison est indépendante des inventaires et rien n'est enregistré.": "Choose two stock exports: the app shows the chassis present in both files, those only in the first and those only in the second. This comparison is independent of inventories and nothing is saved.",
+  "Valider et lancer la comparaison": "Confirm and run the comparison",
+  "Modifier les fichiers ou les noms": "Change the files or the names",
+  "Valider le nom": "Confirm the name",
+  "Inverser les deux fichiers": "Swap the two files",
+  "Tout réinitialiser": "Reset everything",
+  "Tout remettre à zéro ? Les deux fichiers, les noms et les résultats seront effacés de cet écran (vos fichiers d'origine ne sont pas touchés). Pensez à avoir fait vos exports.": "Reset everything? Both files, the names and the results will be erased from this screen (your original files are not touched). Remember to make your exports first.",
+  "Présents dans les deux fichiers (communs)": "Present in both files (common)",
+  "Communs aux deux": "Common to both",
+  "Communs aux deux fichiers": "Common to both files",
+  "Communs dont les informations diffèrent": "Common, with different information",
+  "Informations différentes entre les deux fichiers": "Information that differs between the two files",
+  "Différences": "Differences",
+  "Châssis distincts au total": "Distinct chassis in total",
+  "Total des châssis distincts (réunion des deux fichiers)": "Total distinct chassis (union of both files)",
+  "Lignes différentes entre elles": "Lines that differ from each other",
+  "· lignes différentes": "· different lines",
+  "Voir les doublons": "See duplicates",
+  "Masquer les doublons": "Hide duplicates",
+  "Télécharger la comparaison (Excel)": "Download the comparison (Excel)",
+  "Télécharger la liste des doublons (Excel)": "Download the duplicate list (Excel)",
+  "Télécharger la liste sans doublons": "Download the list without duplicates",
+  "Remplacer le fichier": "Replace the file",
+  "Châssis": "Chassis",
+  "Châssis erronés": "Faulty chassis",
+  "Châssis attendus (MMTE)": "Expected chassis (MMTE)",
+  "Véhicule": "Vehicle",
+  "Modèle": "Model",
+  "Date d'entrée": "Entry date",
+  "Date d'entrée en dépôt": "Depot entry date",
+  "Poids du véhicule": "Vehicle weight",
+  "Date de clôture": "Closing date",
+  "Constats d'enlèvement des parcs": "Park removal reports",
+  "Mise à disposition des stocks": "Stock made available",
+  "Inscrit le": "Registered on",
+  "Édité le": "Issued on",
+  "Modifié": "Modified",
+  "Nombre": "Number",
+  "Administration": "Administration",
+  "Retour": "Back",
+  "Comptes actifs": "Active accounts",
+  "En attente": "Pending",
+  "Invités connectés": "Connected guests",
+  "Inventaires en cours": "Ongoing inventories",
+  "Comptes": "Accounts",
+  "Invités": "Guests",
+  "Parcs": "Parks",
+  "Administrateurs": "Administrators",
+  "Quotas": "Quotas",
+  "Journal": "Log",
+  "Actifs": "Active",
+  "Désactivés": "Deactivated",
+  "Refusés": "Refused",
+  "Exporter (Excel)": "Export (Excel)",
+  "Dernière connexion :": "Last sign-in:",
+  "Dernière connexion": "Last sign-in",
+  "Approuver": "Approve",
+  "Refuser": "Refuse",
+  "Passer administrateur": "Make administrator",
+  "Passer agent": "Make agent",
+  "Renommer": "Rename",
+  "Ajouter un nom": "Add a name",
+  "Réinitialiser le mot de passe": "Reset password",
+  "Supprimer": "Delete",
+  "Actif": "Active",
+  "Désactiver": "Deactivate",
+  "Réactiver": "Reactivate",
+  "Désactivé": "Deactivated",
+  "Administrateur principal (protégé)": "Main administrator (protected)",
+  "Un compte désactivé ne peut plus lire ni pointer. Pour effacer définitivement un compte de connexion :": "A deactivated account can no longer read or check. To permanently erase a sign-in account:",
+  "console Firebase ↗": "Firebase console ↗",
+  "Rechercher un nom ou un e-mail…": "Search for a name or e-mail…",
+  "Aucun compte à afficher.": "No account to display.",
+  "Accès invité (sans compte)": "Guest access (no account)",
+  "Accès invité": "Guest access",
+  "Actif : un code et un nom suffisent pour rejoindre un inventaire en cours.": "Active: a code and a name are enough to join an ongoing inventory.",
+  "Désactivé : personne ne peut entrer avec le code.": "Deactivated: nobody can enter with the code.",
+  "Le code a expiré : personne ne peut entrer.": "The code has expired: nobody can enter.",
+  "Code d'accès": "Access code",
+  "Code d'accès invité": "Guest access code",
+  "Générer": "Generate",
+  "Valable jusqu'au (facultatif)": "Valid until (optional)",
+  "Date de fin de validité": "Expiry date",
+  "Enregistrer le code": "Save the code",
+  "Invités connectés (": "Connected guests (",
+  "Tout révoquer": "Revoke all",
+  "Révoquer": "Revoke",
+  "Visiteur": "Visitor",
+  "Connecté le": "Signed in on",
+  "Activer l'accès invité": "Enable guest access",
+  "Aucun invité connecté.": "No guest connected.",
+  "Agent connecté": "Connected agent",
+  "Accès invité activé": "Guest access enabled",
+  "Accès invité activé.": "Guest access enabled.",
+  "Accès invité désactivé": "Guest access disabled",
+  "Accès invité désactivé.": "Guest access disabled.",
+  "Code d'accès invité enregistré.": "Guest access code saved.",
+  "Code d'accès invité modifié": "Guest access code changed",
+  "Le code doit contenir au moins 4 caractères.": "The code must contain at least 4 characters.",
+  "Désactiver l'accès invité ? Plus personne ne pourra entrer avec le code, et les invités connectés seront déconnectés.": "Disable guest access? Nobody will be able to enter with the code, and connected guests will be signed out.",
+  "Invité déconnecté.": "Guest signed out.",
+  "Invité révoqué": "Guest revoked",
+  "Tous les invités révoqués": "All guests revoked",
+  "Ajouter": "Add",
+  "Ajouter ces parcs": "Add these parks",
+  "Ajouter plusieurs parcs à la fois": "Add several parks at once",
+  "Liste de parcs à ajouter": "List of parks to add",
+  "Un parc par ligne": "One park per line",
+  "Nom du nouveau parc": "Name of the new park",
+  "Nouveau nom du parc": "New park name",
+  "Un parc désactivé n'est plus proposé lors de la création d'un inventaire. Les inventaires déjà réalisés ne changent jamais.": "A deactivated park is no longer offered when creating an inventory. Inventories already done never change.",
+  "Ce parc existe déjà (ou le nom est vide).": "This park already exists (or the name is empty).",
+  "Un parc porte déjà ce nom.": "A park already has this name.",
+  "Gardez au moins un parc actif.": "Keep at least one active park.",
+  "Parc activé": "Park enabled",
+  "Parc désactivé": "Park disabled",
+  "Parc renommé": "Park renamed",
+  "Parc renommé (les anciens inventaires gardent l'ancien nom).": "Park renamed (old inventories keep the old name).",
+  "Parc supprimé": "Park deleted",
+  "Parc supprimé.": "Park deleted.",
+  "Parc(s) ajouté(s)": "Park(s) added",
+  "Liste des administrateurs mise à jour.": "Administrator list updated.",
+  "La liste fait autorité dans l'application et dans les règles de sécurité. L'administrateur principal et votre propre adresse ne peuvent pas être désactivés ni retirés.": "The list is authoritative in the app and in the security rules. The main administrator and your own address cannot be deactivated or removed.",
+  "Cette adresse est déjà administrateur.": "This address is already an administrator.",
+  "Administrateur ajouté": "Administrator added",
+  "Administrateur retiré": "Administrator removed",
+  "Administrateur désactivé": "Administrator deactivated",
+  "Administrateur réactivé": "Administrator reactivated",
+  "Rôle administrateur accordé": "Administrator role granted",
+  "Rôle administrateur retiré": "Administrator role removed",
+  "Réinitialisation du mot de passe envoyée": "Password reset sent",
+  "Compte approuvé": "Account approved",
+  "approuvé": "approved",
+  "Compte renommé": "Account renamed",
+  "Compte réactivé": "Account reactivated",
+  "Nom ajouté": "Name added",
+  "Nom enregistré.": "Name saved.",
+  "Aucun nom enregistré : «": "No name saved: “",
+  "» sera utilisé.": "” will be used.",
+  "Le nom ne peut pas être vide.": "The name cannot be empty.",
+  "Nom de la personne": "Person's name",
+  "Aucun historique pour le moment.": "No history yet.",
+  "Aucune action enregistrée pour le moment.": "No action recorded yet.",
+  "Aucune donnée pour le moment.": "No data yet.",
+  "Aucune entrée.": "No entry.",
+  "Dernières actions (50)": "Latest actions (50)",
+  "Derniers jours": "Last days",
+  "Par personne (aujourd'hui)": "Per person (today)",
+  "Lectures": "Reads",
+  "Écritures": "Writes",
+  "Consommation du jour (estimation)": "Today's usage (estimate)",
+  "Jour Firebase du": "Firebase day of",
+  "lectures et": "reads and",
+  "écritures par jour.": "writes per day.",
+  "Plan gratuit :": "Free plan:",
+  "État du compteur sur cet appareil": "Meter state on this device",
+  "En attente d'envoi :": "Waiting to be sent:",
+  "lect. ·": "reads ·",
+  "écr. · Dernier envoi réussi :": "writes · Last successful send:",
+  "jamais": "never",
+  "Envoyer maintenant": "Send now",
+  "Voir l'usage réel (console Firebase) ↗": "See real usage (Firebase console) ↗",
+  "Facturation et plan Blaze ↗": "Billing and Blaze plan ↗",
+  "Attention au quota Firebase du jour": "Mind today's Firebase quota",
+  "Passez au plan Blaze maintenant pour éviter un blocage.": "Switch to the Blaze plan now to avoid a block.",
+  "Évitez les rechargements et les comparaisons d'archives pendant le terrain.": "Avoid reloading and archive comparisons while in the field.",
+  "Action refusée par le serveur : publiez la dernière version du fichier firestore.rules dans Firebase.": "Action refused by the server: publish the latest version of the firestore.rules file in Firebase.",
+  "Envoi refusé par Firestore : publiez le fichier firestore.rules (console Firebase → Firestore → Règles → Publier), puis touchez « Envoyer maintenant ».": "Send refused by Firestore: publish the firestore.rules file (Firebase console → Firestore → Rules → Publish), then tap “Send now”.",
+  "Détail par personne": "Detail per person",
+  "Rechercher": "Search",
+  "Mois": "Month",
+  "Délai de séjour dépassé": "Stay limit exceeded",
+  "Statut": "Status",
+  "Description": "Description",
+  "Marque": "Make",
+  "Âge": "Age",
+  "Photo": "Photo",
+  "Heure": "Time",
+  "Oui": "Yes",
+  "Non": "No",
+  "Retirer": "Remove",
+  "Confirmer": "Confirm",
+  "Enregistrer": "Save",
+  "Modifier": "Edit",
+  "Supprimer ce pointage": "Delete this check",
+  "Restaurer ce pointage": "Restore this check",
+  "Terminer": "Finish",
+  "Suivant": "Next",
+  "Précédent": "Previous",
+  "Réessayez": "Try again",
+  "à l'instant": "just now",
+  "(Joindre le classeur Excel téléchargé depuis l'application.)": "(Attach the Excel workbook downloaded from the app.)",
+  "Attendus MMTE :": "Expected on MMTE:",
+  "Aide": "Help",
+  "Enregistrés (présents sur le parc, absents MMTE)": "Registered (present in the park, absent from MMTE)",
+  "Enregistrés Parc": "Registered in park",
+  "Enregistrés hors MMTE": "Registered, not on MMTE",
+  "Refusé": "Refused",
+  "Préparation...": "Preparing...",
+  "PDF : quantités": "PDF: quantities",
+  "PDF : quantités + listes": "PDF: quantities + lists",
+  "Taux de retrouvés (%)": "Found rate (%)",
+  "Tableau des taux d'utilisation de MMTE": "MMTE usage rates table",
+  "Lundi": "Monday",
+  "Observation": "Remark",
+  "Annexe": "Annex",
+  "· créé par": "· created by"
+});
+const EN_PATTERNS = [
+  ["Supprimer le pointage du châssis {*} ?\n\nCette action reste tracée (auteur + heure) mais retire l'entrée des listes de l'inventaire.", "Delete the check of chassis {*}?\n\nThis action stays traced (author + time) but removes the entry from the inventory lists."],
+  ["Hors connexion · {n} en attente", "Offline · {n} pending"],
+  ["Envoi en cours · {n}", "Sending · {n}"],
+  ["Hors connexion — {n} pointage(s) gardé(s) sur la tablette, envoi dès le retour du réseau.", "Offline — {n} check(s) kept on the tablet, sent as soon as the network returns."],
+  ["Synchronisation en cours ({n} en attente)...", "Synchronising ({n} pending)..."],
+  ["Télécharger le classeur Excel complet ({n} feuilles + résumé)", "Download the full Excel workbook ({n} sheets + summary)"],
+  ["Rapport photos des véhicules hors MMTE ({*})", "Photo report of vehicles not on MMTE ({*})"],
+  ["Nom court du {*}", "Short name of the {*}"],
+  ["Corbeille ({n})", "Trash ({n})"],
+  ["Les inventaires supprimés restent récupérables pendant {n} jours. Passé ce délai, vous pouvez les purger définitivement.", "Deleted inventories can be recovered for {n} days. After that, you can purge them permanently."],
+  ["Purger les éléments de plus de {n} jours", "Purge items older than {n} days"],
+  ["· créé par {*}", "· created by {*}"],
+  ["Comparaison : {n}/{n} inventaire(s) sélectionné(s)", "Comparison: {n}/{n} inventory(ies) selected"],
+  ["Déplacer « {*} » ({*}) dans la corbeille ?\n\nIl restera récupérable pendant 30 jours.", "Move “{*}” ({*}) to the trash?\n\nIt will remain recoverable for 30 days."],
+  ["Rouvrir l'inventaire « {*} » du {*} ?\n\nIl redeviendra « en cours » et les agents pourront de nouveau pointer.", "Reopen the inventory “{*}” of {*}?\n\nIt will become “in progress” again and agents will be able to check vehicles again."],
+  ["{n} inventaire(s) purgé(s).", "{n} inventory(ies) purged."],
+  ["Fichier {n}", "File {n}"],
+  ["Uniquement dans « {*} »", "Only in “{*}”"],
+  ["Châssis dans « {*} »", "Chassis in “{*}”"],
+  ["Doublons ignorés dans « {*} »", "Duplicates ignored in “{*}”"],
+  ["Part de « {*} » retrouvée dans « {*} »", "Share of “{*}” found in “{*}”"],
+  ["Part de « {*} » déjà présente dans « {*} »", "Share of “{*}” already present in “{*}”"],
+  ["« {*} » : chaque châssis n'est compté qu'une seule fois dans la comparaison (la dernière ligne est conservée).", "“{*}”: each chassis is counted only once in the comparison (the last line is kept)."],
+  ["Pour {*} d'entre eux, les lignes ne sont pas identiques : vérifiez le fichier source.", "For {*} of them, the lines are not identical: check the source file."],
+  ["· {*} doublon(s) ignoré(s)", "· {*} duplicate(s) ignored"],
+  ["Vide = pas de date de fin. Chaque session invité dure {n} h au maximum.", "Empty = no end date. Each guest session lasts {n} h at most."],
+  ["Rechercher parmi {n} parcs…", "Search among {n} parks…"],
+  ["{n} parc(s) ajouté(s).", "{n} park(s) added."],
+  ["{*} : {*}.", "{*}: {*}."],
+  ["Supprimer le parc « {*} » de la liste ? Les inventaires déjà réalisés restent intacts.", "Delete the park “{*}” from the list? Inventories already done remain intact."],
+  ["{*} est maintenant administrateur.", "{*} is now an administrator."],
+  ["{*} est maintenant agent.", "{*} is now an agent."],
+  ["Donner le rôle administrateur à {*} ?", "Give the administrator role to {*}?"],
+  ["Retirer le rôle administrateur à {*} ?", "Remove the administrator role from {*}?"],
+  ["Retirer {*} de la liste des administrateurs ?", "Remove {*} from the administrator list?"],
+  ["Envoyer un lien de réinitialisation du mot de passe à {*} ?", "Send a password reset link to {*}?"],
+  ["Lien de réinitialisation envoyé à {*}.", "Reset link sent to {*}."],
+  ["Supprimer la fiche de {*} ? La personne perdra son accès (elle pourra refaire une demande). Son compte de connexion reste dans la console Firebase.", "Delete the record of {*}? The person will lose access (they can make a new request). Their sign-in account remains in the Firebase console."],
+  ["Nom enregistré : « {*} »", "Name saved: “{*}”"],
+  ["Dernières actions ({n})", "Latest actions ({n})"],
+  ["Chiffres estimés d'après ce que mesurent les appareils de l'application (mise à jour toutes les {n} minutes environ). Ils peuvent être en dessous de la réalité si un appareil est hors-ligne ou fermé, et ne comptent pas les autres applications du même projet. La console Firebase fait foi.", "Figures estimated from what the app's devices measure (updated about every {n} minutes). They can be below reality if a device is offline or closed, and do not count other apps of the same project. The Firebase console is the reference."],
+  ["Dernier essai en échec ({*}). Les chiffres reviendront dès que la connexion le permettra.", "Last attempt failed ({*}). The figures will return as soon as the connection allows."],
+  ["Dépassé de {*} j", "Overdue by {*} d"],
+  ["Total ({n})", "Total ({n})"],
+  ["Trouvés ({n})", "Found ({n})"],
+  ["Trouvés MMTE ({n})", "Found on MMTE ({n})"],
+  ["Enregistrés ({n})", "Registered ({n})"],
+  ["Manquants ({n})", "Missing ({n})"],
+  ["Enregistrés hors MMTE : {n}", "Registered, not on MMTE: {n}"],
+  ["Trouvés sur MMTE : {n}", "Found on MMTE: {n}"],
+  ["Total présent sur le parc : {n}", "Total present in the park: {n}"],
+  [": remise à zéro vers {n} h ou {n} h, heure du Bénin. Plan gratuit :", ": reset at about {n} h or {n} h, Benin time. Free plan:"],
+  ["{n} ligne(s) — {*}", "{n} row(s) — {*}"],
+  ["{n} phases — {n} étapes", "{n} phases — {n} steps"],
+  ["Date de l'inventaire : {*}", "Inventory date: {*}"],
+  ["{*} (Invité)", "{*} (Guest)"],
+  ["Impossible de lire « {*} ». Formats acceptés : CSV, XLS, XLSX, avec une colonne « chassis ».", "Unable to read “{*}”. Accepted formats: CSV, XLS, XLSX, with a “chassis” column."],
+  ["{n} ligne(s)", "{n} row(s)"],
+  ["{n}%", "{n}% "],
+  ["{n} régularisé sur {n} · {n} encore manquant", "{n} settled out of {n} · {n} still missing"],
+  ["{n} régularisé sur {n} · {n} encore manquants", "{n} settled out of {n} · {n} still missing"],
+  ["{n} régularisés sur {n} · {n} encore manquant", "{n} settled out of {n} · {n} still missing"],
+  ["{n} régularisés sur {n} · {n} encore manquants", "{n} settled out of {n} · {n} still missing"],
+  ["par {*}", "by {*}"],
+  ["Clôturé le {*} par {*}", "Closed on {*} by {*}"]
+].map(([k, v]) => {
+  const toks = [];
+  const re = new RegExp("^" + k.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\{n\}|\{\*\}/g, (t) => {
+    toks.push(t);
+    return t === "{n}" ? "(\\d+(?:[.,]\\d+)?)" : "([\\s\\S]+?)";
+  }) + "$");
+  return [re, v];
+});
+const FR_MONTHS = [["janvier", "January"], ["février", "February"], ["mars", "March"], ["avril", "April"], ["mai", "May"], ["juin", "June"], ["juillet", "July"], ["août", "August"], ["septembre", "September"], ["octobre", "October"], ["novembre", "November"], ["décembre", "December"], ["lundi", "Monday"], ["mardi", "Tuesday"], ["mercredi", "Wednesday"], ["jeudi", "Thursday"], ["vendredi", "Friday"], ["samedi", "Saturday"], ["dimanche", "Sunday"]];
+function trEN(fr) {
+  const lead = fr.match(/^\s*/)[0], trail = fr.match(/\s*$/)[0];
+  const core = fr.trim();
+  if (!core) return fr;
+  let r = Object.prototype.hasOwnProperty.call(EN_DICT, core) ? EN_DICT[core] : null;
+  if (r == null) {
+    for (let k = 0; k < EN_PATTERNS.length; k++) {
+      const m = core.match(EN_PATTERNS[k][0]);
+      if (m) {
+        let i = 1;
+        r = EN_PATTERNS[k][1].replace(/\{n\}|\{\*\}/g, () => m[i++]);
+        break;
+      }
+    }
+  }
+  if (r == null && /(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)/i.test(core)) {
+    r = core;
+    FR_MONTHS.forEach(([f, e]) => {
+      r = r.replace(new RegExp("\\b" + f + "\\b", "gi"), e);
+    });
+    r = r.replace(/\b(\d{1,2}) (January|February|March|April|May|June|July|August|September|October|November|December)\b/g, "$2 $1").replace(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) (\w+ \d+)/, "$1, $2").replace(/([A-Z][a-z]+ \d{1,2}) (\d{4})/, "$1, $2");
+  }
+  return r == null ? fr : lead + r + trail;
+}
+const I18N_ATTRS = ["placeholder", "title", "aria-label", "alt"];
+const i18nText = /* @__PURE__ */ new Map();
+const i18nAttr = /* @__PURE__ */ new Map();
+let i18nObs = null;
+function i18nNode(n) {
+  if (!n) return;
+  if (n.nodeType === 3) {
+    const p = n.parentElement;
+    if (!p || /^(SCRIPT|STYLE|TEXTAREA)$/.test(p.tagName) || p.closest("[data-i18n-skip]")) return;
+    const e = i18nText.get(n);
+    if (e && n.nodeValue === e.en) return;
+    const fr = n.nodeValue, en = trEN(fr);
+    i18nText.set(n, { fr, en });
+    if (en !== fr) n.nodeValue = en;
+  } else if (n.nodeType === 1) {
+    if (/^(SCRIPT|STYLE|SVG|svg)$/.test(n.tagName) || n.closest("[data-i18n-skip]")) return;
+    I18N_ATTRS.forEach((a) => {
+      const v = n.getAttribute && n.getAttribute(a);
+      if (!v) return;
+      const m = i18nAttr.get(n) || {};
+      if (m[a] && v === m[a].en) return;
+      const en = trEN(v);
+      m[a] = { fr: v, en };
+      i18nAttr.set(n, m);
+      if (en !== v) n.setAttribute(a, en);
+    });
+    n.childNodes.forEach(i18nNode);
+  }
+}
+function i18nStart() {
+  if (i18nObs || typeof MutationObserver === "undefined") return;
+  i18nNode(document.body);
+  i18nObs = new MutationObserver((muts) => {
+    if (LANG !== "en") return;
+    muts.forEach((m) => {
+      if (m.type === "childList") m.addedNodes.forEach(i18nNode);
+      else if (m.type === "characterData") i18nNode(m.target);
+      else if (m.type === "attributes") i18nNode(m.target.nodeType === 1 ? m.target : null);
+    });
+  });
+  i18nObs.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: I18N_ATTRS });
+}
+function i18nStop() {
+  if (i18nObs) {
+    i18nObs.disconnect();
+    i18nObs = null;
+  }
+  i18nText.forEach((e, n) => {
+    if (n.isConnected && n.nodeValue === e.en) n.nodeValue = e.fr;
+  });
+  i18nAttr.forEach((m, el) => {
+    Object.keys(m).forEach((a) => {
+      if (el.isConnected && el.getAttribute(a) === m[a].en) el.setAttribute(a, m[a].fr);
+    });
+  });
+  i18nText.clear();
+  i18nAttr.clear();
+}
+function setLangPref(l) {
+  LANG = l === "en" ? "en" : "fr";
+  try {
+    localStorage.setItem(LANG_KEY, LANG);
+  } catch (e) {
+  }
+  try {
+    document.documentElement.lang = LANG;
+  } catch (e) {
+  }
+  if (LANG === "en") i18nStart();
+  else i18nStop();
+  langListeners.forEach((f) => f(LANG));
+}
+function confirmT(m) {
+  return window.confirm(LANG === "en" ? trEN(m) : m);
+}
+function alertT(m) {
+  return window.alert(LANG === "en" ? trEN(m) : m);
+}
+function useLang() {
+  const [l, setL] = useState(LANG);
+  useEffect(() => {
+    langListeners.add(setL);
+    return () => langListeners.delete(setL);
+  }, []);
+  return l;
+}
+function LangToggle() {
+  const l = useLang();
+  useEffect(() => {
+    try {
+      document.documentElement.lang = LANG;
+    } catch (e) {
+    }
+    if (LANG === "en") i18nStart();
+  }, []);
+  return /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      "data-testid": "lang-toggle",
+      "data-i18n-skip": true,
+      onClick: () => setLangPref(l === "fr" ? "en" : "fr"),
+      "aria-label": "Language",
+      className: "no-print fixed right-3 bottom-3 z-40 rounded-full px-3 py-1.5 text-[11px] font-bold shadow bg-white border-2 flex items-center gap-1",
+      style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP }
+    },
+    /* @__PURE__ */ React.createElement(Globe, { size: 13 }),
+    " ",
+    l === "fr" ? "English" : "Français"
+  );
+}
+function SyncChip({ online, pending }) {
+  const tone = !online ? "bg-amber-500 text-white" : pending > 0 ? "bg-sky-600 text-white" : "bg-emerald-600 text-white";
+  const text = !online ? pending ? `Hors connexion · ${pending} en attente` : "Hors connexion" : pending > 0 ? `Envoi en cours · ${pending}` : "Synchronisé";
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "sync-chip", className: `no-print fixed left-3 bottom-3 z-40 rounded-full px-3 py-1 text-[11px] font-bold shadow ${tone}`, role: "status" }, /* @__PURE__ */ React.createElement("span", { className: "inline-block w-2 h-2 rounded-full bg-white/90 mr-1.5 align-middle" }), text);
+}
+function SyncBadge({ online, pending }) {
+  let tone, text;
+  if (!online) {
+    tone = "bg-amber-50 border-amber-300 text-amber-800";
+    text = pending ? `Hors connexion — ${pending} pointage(s) gardé(s) sur la tablette, envoi dès le retour du réseau.` : "Hors connexion — vos pointages sont gardés sur la tablette et seront envoyés au retour du réseau.";
+  } else if (pending > 0) {
+    tone = "bg-sky-50 border-sky-200 text-sky-800";
+    text = `Synchronisation en cours (${pending} en attente)...`;
+  } else {
+    tone = "bg-emerald-50 border-emerald-200 text-emerald-700";
+    text = "Synchronisé avec le serveur.";
+  }
+  return /* @__PURE__ */ React.createElement("div", { className: `no-print mb-3 rounded-lg border px-3 py-1.5 text-xs font-semibold ${tone}` }, text);
+}
+function extractChassisFromScan(raw, knownMap) {
+  const text = String(raw == null ? "" : raw).trim();
+  if (!text) return "";
+  if (/^[A-Za-z0-9\-]+$/.test(text)) return text;
+  const up = text.toUpperCase();
+  if (knownMap && knownMap.size) {
+    const compact = up.replace(/[^A-Z0-9]/g, "");
+    if (knownMap.has(compact)) return compact;
+    const tokens = up.split(/[^A-Z0-9]+/).filter((t) => t.length >= 5);
+    for (const t of tokens) if (knownMap.has(t)) return t;
+  }
+  const kv = text.match(/(?:vin|ch[aâ]ssis|chassi|chassis_?(?:no|num|number)|num[eé]ro)\s*["']?\s*[:=]\s*["']?([A-Za-z0-9\-]{5,30})/i);
+  if (kv) return kv[1];
+  const vin = up.match(/[A-HJ-NPR-Z0-9]{17}/);
+  if (vin) return vin[0];
+  return text;
+}
+const OCR_CANON = { O: "0", Q: "0", D: "0", I: "1", L: "1", S: "5", B: "8", Z: "2", G: "6" };
+function ocrFold(s) {
+  let o = "";
+  for (const c of String(s)) o += OCR_CANON[c] || c;
+  return o;
+}
+const VIN_VALUES = { A: 1, B: 2, C: 3, D: 4, E: 5, F: 6, G: 7, H: 8, J: 1, K: 2, L: 3, M: 4, N: 5, P: 7, R: 9, S: 2, T: 3, U: 4, V: 5, W: 6, X: 7, Y: 8, Z: 9 };
+function vinCheckOk(v) {
+  if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(v)) return false;
+  const w = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2];
+  let sum = 0;
+  for (let i = 0; i < 17; i++) {
+    const c = v[i];
+    const val = /\d/.test(c) ? +c : VIN_VALUES[c];
+    sum += val * w[i];
+  }
+  const r = sum % 11;
+  return v[8] === (r === 10 ? "X" : String(r));
+}
+const ocrIndexCache = /* @__PURE__ */ new WeakMap();
+function ocrIndex(knownMap) {
+  let idx = ocrIndexCache.get(knownMap);
+  if (idx && idx.size === knownMap.size) return idx;
+  const keys = Array.from(knownMap.keys());
+  const bare = /* @__PURE__ */ new Map();
+  const folded = /* @__PURE__ */ new Map();
+  keys.forEach((k) => {
+    const b = k.replace(/[^A-Z0-9]/g, "");
+    if (!bare.has(b)) bare.set(b, k);
+    const f = ocrFold(b);
+    if (!folded.has(f)) folded.set(f, []);
+    folded.get(f).push(k);
+  });
+  idx = { size: knownMap.size, keys, bare, folded };
+  ocrIndexCache.set(knownMap, idx);
+  return idx;
+}
+function ocrAnalyse(lines, knownMap) {
+  const idx = knownMap && knownMap.size ? ocrIndex(knownMap) : null;
+  const exact = /* @__PURE__ */ new Set();
+  const subOnly = /* @__PURE__ */ new Set();
+  const near = /* @__PURE__ */ new Map();
+  const cands = /* @__PURE__ */ new Map();
+  const addCand = (value, kind, score) => {
+    const cur = cands.get(value);
+    if (!cur || cur.score < score) cands.set(value, { value, kind, score });
+  };
+  (lines || []).forEach((ln) => {
+    const up = String(ln.text || "").toUpperCase();
+    const compact = up.replace(/[^A-Z0-9]/g, "");
+    if (compact.length < 5) return;
+    const toks = new Set(up.split(/[^A-Z0-9\-]+/).filter(Boolean));
+    toks.add(compact);
+    if (idx) {
+      toks.forEach((t) => {
+        const b = t.replace(/[^A-Z0-9]/g, "");
+        if (b.length < 5) return;
+        if (knownMap.has(t)) exact.add(t);
+        else if (idx.bare.has(b)) exact.add(idx.bare.get(b));
+      });
+      idx.keys.forEach((k) => {
+        const b = k.replace(/[^A-Z0-9]/g, "");
+        if (b.length >= 7 && compact.includes(b) && !exact.has(k)) {
+          exact.add(k);
+          subOnly.add(k);
+        }
+      });
+    }
+    if (idx) {
+      toks.forEach((t) => {
+        const b = t.replace(/[^A-Z0-9]/g, "");
+        if (b.length < 8) return;
+        const hit = idx.folded.get(ocrFold(b));
+        if (hit) hit.forEach((k) => near.set(k, true));
+        else if (b.length >= 10) {
+          const fb = ocrFold(b);
+          let best = null, bestScore = 0, tie = false;
+          idx.keys.forEach((k) => {
+            const fk = ocrFold(k.replace(/[^A-Z0-9]/g, ""));
+            if (Math.abs(fk.length - fb.length) > 3) return;
+            let p = 0;
+            while (p < fb.length && p < fk.length && fb[p] === fk[p]) p++;
+            let q = 0;
+            while (q < fb.length - p && q < fk.length - p && fb[fb.length - 1 - q] === fk[fk.length - 1 - q]) q++;
+            const sc = p + q;
+            if (sc >= Math.max(10, fb.length - 2)) {
+              if (sc > bestScore) {
+                best = k;
+                bestScore = sc;
+                tie = false;
+              } else if (sc === bestScore) tie = true;
+            }
+          });
+          if (best && !tie) near.set(best, true);
+        }
+      });
+    }
+    const tokList = /GVWR|GAWR|PRESSURE|TIRE|KPA|PSI|\bKG\b|\bLBS?\b/.test(up) ? [] : Array.from(toks);
+    tokList.forEach((t) => {
+      const b = t.replace(/[^A-Z0-9]/g, "");
+      if (b.length < 6 || b.length > 20) return;
+      if (!/\d/.test(b)) return;
+      if (/^\d+(KG|LB|LBS|PSI|KPA|MM|CM|KW|CC)$/.test(b)) return;
+      if (/\d{3}\/?\d{2}R\d{2}/.test(b)) return;
+      if (/^\d+$/.test(b) && b.length < 8) return;
+      let score = 30;
+      let kind = "autre";
+      if (/-/.test(t) && /^[A-Z]{1,5}\d{0,3}[A-Z]?-\d{5,8}$/.test(t)) {
+        score = 65;
+        kind = "cadre japonais";
+      } else if (b.length >= 9 && b.length <= 12 && /^[A-Z]{1,5}\d{0,3}[A-Z]?\d{5,8}$/.test(b) && /[A-Z]/.test(b)) {
+        score = 45;
+        kind = "numéro de série";
+      } else if (/^[A-Z]{2,3}[0-9]{2}[A-Z0-9]{1,6}$/.test(b) && b.length <= 9) {
+        score = 15;
+        kind = "code modèle";
+      }
+      if (b.length < 8) score -= 10;
+      addCand(kind === "cadre japonais" ? t : b, kind, score);
+    });
+    for (let i = 0; i + 17 <= compact.length; i++) {
+      const w = compact.slice(i, i + 17);
+      const wf = w.replace(/[OQ]/g, "0").replace(/I/g, "1");
+      if (vinCheckOk(w)) {
+        addCand(w, "VIN (clé de contrôle valide)", 100);
+      } else if (wf !== w && vinCheckOk(wf)) {
+        addCand(wf, "VIN (corrigé, clé valide)", 95);
+      } else if (compact.length === 17 && /^[A-HJ-NPR-Z0-9]{17}$/.test(w) && /\d/.test(w) && /[A-Z]/.test(w)) addCand(w, "VIN 17 signes (clé non valide)", 60);
+    }
+  });
+  const vins = Array.from(cands.values()).filter((c) => c.score >= 95).map((c) => c.value);
+  const list = Array.from(cands.values()).filter((c) => !(c.score < 95 && vins.some((v) => v !== c.value && (v.includes(c.value) || c.value.includes(v)))));
+  list.sort((a, b) => b.score - a.score || b.value.length - a.value.length);
+  for (let i = list.length - 1; i >= 0; i--) {
+    const bi = list[i].value.replace(/-/g, "");
+    if (list.some((o, j) => j < i && o.value.replace(/-/g, "") === bi)) list.splice(i, 1);
+  }
+  subOnly.forEach((k) => {
+    if (vins.some((v) => v !== k && v.includes(k))) exact.delete(k);
+  });
+  return { exact: Array.from(exact), near: Array.from(near.keys()), cands: list.slice(0, 6) };
+}
+const ZXING_URL = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
+function loadZXing() {
+  if (window.ZXing) return Promise.resolve(window.ZXing);
+  if (window.__zxingPromise) return window.__zxingPromise;
+  window.__zxingPromise = new Promise((resolve, reject) => {
+    const sc = document.createElement("script");
+    sc.src = ZXING_URL;
+    sc.onload = () => window.ZXing ? resolve(window.ZXing) : reject(new Error("zxing"));
+    sc.onerror = () => {
+      window.__zxingPromise = null;
+      reject(new Error("zxing"));
+    };
+    document.head.appendChild(sc);
+  });
+  return window.__zxingPromise;
+}
+function CamTools({ videoRef }) {
+  const [caps, setCaps] = useState(null);
+  const [torch, setTorch] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const trackOf = () => {
+    const v = videoRef.current;
+    const st = v && v.srcObject;
+    return st && st.getVideoTracks ? st.getVideoTracks()[0] : null;
+  };
+  useEffect(() => {
+    let n = 0;
+    const iv = setInterval(() => {
+      n++;
+      const t = trackOf();
+      if (t && t.getCapabilities) {
+        let c = null;
+        try {
+          c = t.getCapabilities();
+        } catch (e) {
+          c = null;
+        }
+        if (c) {
+          setCaps({ torch: !!c.torch, zoom: c.zoom && c.zoom.max > c.zoom.min ? { min: c.zoom.min, max: c.zoom.max, step: c.zoom.step || 0.1 } : null });
+          if (c.zoom) setZoom(c.zoom.min || 1);
+          clearInterval(iv);
+          return;
+        }
+      }
+      if (n > 20) clearInterval(iv);
+    }, 400);
+    return () => clearInterval(iv);
+  }, []);
+  const apply = async (adv) => {
+    const t = trackOf();
+    if (!t || !t.applyConstraints) return false;
+    try {
+      await t.applyConstraints({ advanced: [adv] });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+  if (!caps || !caps.torch && !caps.zoom) return null;
+  return /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-md mt-2 flex items-center gap-3 rounded-xl bg-white/10 px-3 py-2", "data-testid": "cam-tools" }, caps.torch && /* @__PURE__ */ React.createElement("button", { "data-testid": "cam-torch", onClick: async () => {
+    const nx = !torch;
+    if (await apply({ torch: nx })) setTorch(nx);
+  }, className: "px-3 py-1.5 rounded-lg text-sm font-bold " + (torch ? "bg-amber-300 text-slate-900" : "bg-white text-slate-800") }, torch ? "Éteindre la lampe" : "Allumer la lampe"), caps.zoom && /* @__PURE__ */ React.createElement("label", { className: "flex-1 flex items-center gap-2 text-white text-xs font-bold" }, "Zoom", /* @__PURE__ */ React.createElement("input", { "data-testid": "cam-zoom", type: "range", min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step, value: zoom, onChange: async (e) => {
+    const z = parseFloat(e.target.value);
+    setZoom(z);
+    await apply({ zoom: z });
+  }, className: "flex-1" })));
+}
+function CameraScanner({ onDetect, onClose, knownMap }) {
+  const videoRef = useRef(null);
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState("code");
+  useEffect(() => {
+    if (mode !== "code") return void 0;
+    setErr("");
+    setLoading(true);
+    let stream = null;
+    let timer = null;
+    let reader = null;
+    let stopped = false;
+    const finish = (raw) => {
+      if (stopped) return;
+      stopped = true;
+      const chassis = extractChassisFromScan(raw, knownMap);
+      if (chassis) onDetect(chassis);
+    };
+    const constraints = { video: { facingMode: { ideal: "environment" } }, audio: false };
+    (async () => {
+      try {
+        if (window.BarcodeDetector) {
+          let supported;
+          try {
+            supported = await window.BarcodeDetector.getSupportedFormats();
+          } catch (e) {
+            supported = null;
+          }
+          const wanted = ["code_128", "code_39", "code_93", "codabar", "itf", "data_matrix", "qr_code", "ean_13", "ean_8", "upc_a", "pdf417"];
+          const formats = supported ? wanted.filter((f) => supported.includes(f)) : wanted;
+          const detector = new window.BarcodeDetector({ formats });
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stopped) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          const v = videoRef.current;
+          if (!v) return;
+          v.srcObject = stream;
+          await v.play();
+          setLoading(false);
+          timer = setInterval(async () => {
+            try {
+              const codes = await detector.detect(v);
+              if (codes && codes.length && codes[0].rawValue) {
+                clearInterval(timer);
+                finish(codes[0].rawValue);
+              }
+            } catch (e) {
+            }
+          }, 300);
+        } else {
+          const Z = await loadZXing();
+          if (stopped) return;
+          const hints = /* @__PURE__ */ new Map();
+          hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [
+            Z.BarcodeFormat.CODE_128,
+            Z.BarcodeFormat.CODE_39,
+            Z.BarcodeFormat.CODE_93,
+            Z.BarcodeFormat.ITF,
+            Z.BarcodeFormat.CODABAR,
+            Z.BarcodeFormat.EAN_13,
+            Z.BarcodeFormat.EAN_8,
+            Z.BarcodeFormat.QR_CODE,
+            Z.BarcodeFormat.DATA_MATRIX,
+            Z.BarcodeFormat.PDF_417
+          ]);
+          reader = new Z.BrowserMultiFormatReader(hints, 300);
+          const v = videoRef.current;
+          if (!v) return;
+          await reader.decodeFromConstraints(constraints, v, (result) => {
+            if (result && result.getText) finish(result.getText());
+          });
+          setLoading(false);
+        }
+      } catch (e) {
+        console.warn("Lecteur de codes :", e && (e.message || e));
+        setLoading(false);
+        setErr(
+          window.BarcodeDetector ? "Impossible d'utiliser la caméra. Autorisez son accès dans le navigateur, puis réessayez." : "Impossible de lancer la lecture (réseau nécessaire la première fois, ou accès à la caméra refusé). Réessayez, ou tapez le numéro."
+        );
+      }
+    })();
+    return () => {
+      stopped = true;
+      if (timer) clearInterval(timer);
+      if (reader) {
+        try {
+          reader.reset();
+        } catch (e) {
+        }
+      }
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      const v = videoRef.current;
+      if (v && v.srcObject) {
+        try {
+          v.srcObject.getTracks().forEach((t) => t.stop());
+        } catch (e) {
+        }
+      }
+    };
+  }, [mode]);
+  const tabCls = (m) => `flex-1 px-3 py-2 rounded-lg text-sm font-bold ${mode === m ? "bg-white" : "bg-white/15 text-white"}`;
+  return /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-start sm:justify-center p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 w-full max-w-md mb-3" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-code", onClick: () => setMode("code"), className: tabCls("code"), style: mode === "code" ? { color: BLUE_DEEP } : void 0 }, "Code-barres / QR"), /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-text", onClick: () => setMode("text"), className: tabCls("text"), style: mode === "text" ? { color: BLUE_DEEP } : void 0 }, "Texte du châssis")), mode === "text" ? /* @__PURE__ */ React.createElement(TextScanner, { knownMap, onDetect, onSwitchCode: () => setMode("code") }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1" }, "Visez le code-barres ou le QR code du châssis"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3" }, "Les deux types de codes sont lus automatiquement."), err ? /* @__PURE__ */ React.createElement("div", { className: "max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full max-w-md rounded-xl bg-black" }), loading && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2" }, "Démarrage de la caméra..."), !loading && /* @__PURE__ */ React.createElement(CamTools, { videoRef }))), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "mt-4 px-6 py-3 rounded-xl bg-white font-bold", style: { color: BLUE_DEEP } }, "Fermer"));
+}
+let ocrEnginePromise = null;
+function loadOcrEngine(onStage) {
+  if (window.__mmteOcrEngine) return Promise.resolve(window.__mmteOcrEngine);
+  if (!ocrEnginePromise) {
+    const dynImport = new Function("u", "return import(u)");
+    ocrEnginePromise = dynImport(new URL("ocr/ocr.mjs", document.baseURI).href).then((m) => m.createEngine("ocr/", onStage)).then((e) => {
+      window.__mmteOcrEngine = e;
+      return e;
+    }).catch((e) => {
+      ocrEnginePromise = null;
+      throw e;
+    });
+  }
+  return ocrEnginePromise;
+}
+function TextScanner({ knownMap, onDetect, onSwitchCode }) {
+  const videoRef = useRef(null);
+  const [stage, setStage] = useState("Préparation de la caméra...");
+  const [err, setErr] = useState("");
+  const [cands, setCands] = useState([]);
+  const [nearList, setNearList] = useState([]);
+  const [wide, setWide] = useState(false);
+  const [manual, setManual] = useState("");
+  const [reads, setReads] = useState(0);
+  const [retry, setRetry] = useState(0);
+  const wideRef = useRef(false);
+  wideRef.current = wide;
+  useEffect(() => {
+    let stopped = false;
+    let stream = null;
+    let timer = null;
+    const store = /* @__PURE__ */ new Map();
+    const nearStore = /* @__PURE__ */ new Map();
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } }, audio: false });
+        if (stopped) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        const v = videoRef.current;
+        if (!v) return;
+        v.srcObject = stream;
+        await v.play();
+        setStage("Chargement du lecteur de texte (première fois : quelques secondes)...");
+        const engine = await loadOcrEngine((st) => !stopped && setStage("Chargement du lecteur de texte (" + st + ")..."));
+        if (stopped) return;
+        setStage("");
+        const canvas = document.createElement("canvas");
+        let boost = false;
+        const loop = async () => {
+          if (stopped) return;
+          try {
+            if (document.hidden || !v.videoWidth) {
+              timer = setTimeout(loop, 400);
+              return;
+            }
+            const vw = v.videoWidth, vh = v.videoHeight;
+            const fw = Math.round(vw * 0.94);
+            const fh = Math.round(Math.min(vh * 0.9, wideRef.current ? fw * 0.62 : fw * 0.24));
+            const sx = Math.round((vw - fw) / 2), sy = Math.round((vh - fh) / 2);
+            const k = Math.min(1, 960 / fw);
+            canvas.width = Math.round(fw * k);
+            canvas.height = Math.round(fh * k);
+            const cx = canvas.getContext("2d");
+            try {
+              cx.filter = boost ? "grayscale(1) contrast(1.9) brightness(1.5)" : "none";
+            } catch (e) {
+            }
+            cx.drawImage(v, sx, sy, fw, fh, 0, 0, canvas.width, canvas.height);
+            const lines = await engine.read(canvas);
+            boost = !boost && lines.length === 0 ? true : false;
+            if (stopped) return;
+            setReads((n) => n + 1);
+            const a = ocrAnalyse(lines, knownMap);
+            if (a.exact.length === 1) {
+              stopped = true;
+              onDetect(a.exact[0]);
+              return;
+            }
+            const now = Date.now();
+            if (a.exact.length > 1) a.exact.forEach((c) => store.set(c, { cand: { value: c, kind: "dans la liste MMTE", score: 200 }, ts: now }));
+            a.cands.forEach((c) => store.set(c.value, { cand: c, ts: now }));
+            a.near.forEach((c) => nearStore.set(c, now));
+            for (const [key, e] of store) if (now - e.ts > 6e3) store.delete(key);
+            for (const [key, ts] of nearStore) if (now - ts > 6e3) nearStore.delete(key);
+            setCands(Array.from(store.values()).map((e) => e.cand).sort((x, y) => y.score - x.score).slice(0, 6));
+            setNearList(Array.from(nearStore.keys()).slice(0, 3));
+          } catch (e) {
+            console.warn("Lecture du texte :", e && (e.message || e));
+          }
+          timer = setTimeout(loop, 150);
+        };
+        loop();
+      } catch (e) {
+        console.warn("Lecteur de texte :", e && (e.message || e));
+        if (stopped) return;
+        setStage("");
+        setErr(
+          /Permission|NotAllowed|NotFound|camera/i.test(String(e && e.name + e.message)) ? "Impossible d'utiliser la caméra. Autorisez son accès dans le navigateur, puis réessayez." : "Le lecteur de texte n'a pas pu démarrer (réseau nécessaire la première fois). Réessayez, utilisez le code-barres ou tapez le numéro."
+        );
+      }
+    })();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+      if (stream) stream.getTracks().forEach((t) => t.stop());
+      const v = videoRef.current;
+      if (v && v.srcObject) {
+        try {
+          v.srcObject.getTracks().forEach((t) => t.stop());
+        } catch (e) {
+        }
+      }
+    };
+  }, [retry]);
+  const pick = (v) => {
+    if (v && v.trim()) onDetect(v.trim());
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-md flex flex-col items-stretch", "data-testid": "text-scanner" }, /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1 text-center" }, "Placez le numéro de châssis dans le cadre"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3 text-center" }, "Lecture automatique : dès qu'un numéro correspond à la liste MMTE, il est pointé."), err ? /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err, /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex gap-2 justify-center" }, /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    setErr("");
+    setStage("Préparation de la caméra...");
+    setRetry((n) => n + 1);
+  }, className: "px-4 py-2 rounded-lg text-white font-bold", style: { background: BLUE_DEEP } }, "Réessayer"), /* @__PURE__ */ React.createElement("button", { onClick: onSwitchCode, className: "px-4 py-2 rounded-lg border border-slate-300 font-bold" }, "Code-barres"))) : /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full rounded-xl bg-black" }), /* @__PURE__ */ React.createElement("div", { className: "absolute inset-0 flex items-center justify-center pointer-events-none" }, /* @__PURE__ */ React.createElement("div", { className: `w-[94%] ${wide ? "h-[62%]" : "h-[24%]"} rounded-lg border-2 border-emerald-400`, style: { boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)" } }))), stage && !err && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2 text-center", "data-testid": "ocr-stage" }, stage), !err && !stage && /* @__PURE__ */ React.createElement("div", { className: "text-white/60 text-xs mt-2 text-center", "data-testid": "ocr-reading" }, "Lecture en cours... (", reads, ")"), !err && !stage && /* @__PURE__ */ React.createElement(CamTools, { videoRef }), !err && /* @__PURE__ */ React.createElement("label", { className: "mt-2 flex items-center justify-center gap-2 text-white/80 text-xs" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: wide, onChange: (e) => setWide(e.target.checked) }), "Cadre large (plaquette de portière avec plusieurs lignes)"), (cands.length > 0 || nearList.length > 0) && /* @__PURE__ */ React.createElement("div", { className: "mt-3 rounded-xl bg-white p-3", "data-testid": "ocr-cands" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-slate-800 mb-2" }, cands.length + nearList.length > 1 ? "Plusieurs numéros lus — lequel est le châssis ?" : "Numéro lu — est-ce le châssis ?"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2" }, nearList.map((c) => /* @__PURE__ */ React.createElement("button", { key: "n" + c, "data-testid": "ocr-near", onClick: () => pick(c), className: "text-left px-3 py-2 rounded-lg border-2 border-amber-300 bg-amber-50" }, /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold" }, c), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-amber-800" }, "Proche d'un châssis de la liste MMTE — à confirmer"))), cands.map((c) => /* @__PURE__ */ React.createElement("button", { key: c.value, "data-testid": "ocr-cand", onClick: () => pick(c.value), className: "text-left px-3 py-2 rounded-lg border border-slate-300" }, /* @__PURE__ */ React.createElement("span", { className: "font-mono font-bold" }, c.value), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-slate-500" }, c.kind))))), /* @__PURE__ */ React.createElement("div", { className: "mt-3 flex gap-2" }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      "data-testid": "ocr-manual",
+      value: manual,
+      onChange: (e) => setManual(e.target.value.toUpperCase()),
+      placeholder: "Corriger ou taper le numéro",
+      className: "flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-300 font-mono text-sm bg-white"
+    }
+  ), /* @__PURE__ */ React.createElement("button", { "data-testid": "ocr-manual-ok", disabled: !manual.trim(), onClick: () => pick(manual), className: "px-4 py-2 rounded-lg text-white font-bold disabled:opacity-40", style: { background: BLUE_DEEP } }, "Valider")), /* @__PURE__ */ React.createElement("div", { className: "text-white/50 text-[11px] mt-2 text-center" }, "Si la lecture hésite : rapprochez-vous, évitez les reflets, ou touchez la ligne voulue."));
+}
+function todayISO() {
+  const d = /* @__PURE__ */ new Date();
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 6e4).toISOString().slice(0, 10);
+}
+function formatElapsed(ms) {
+  const s = Math.floor(ms / 1e3);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor(s % 3600 / 60);
+  const sec = s % 60;
+  const pad = (n) => String(n).padStart(2, "0");
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
+}
+function formatTimestamp(ts) {
+  if (!ts) return "à l'instant";
+  try {
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch (e) {
+    return "";
+  }
+}
+function slugify(v) {
+  return String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+function inventoryId(parcName, invDate) {
+  return `${slugify(parcName)}_${invDate}`;
+}
+function downloadBlob(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function toCSV(headers, rows) {
+  const esc = (s) => `"${String(s == null ? "" : s).replace(/"/g, '""')}"`;
+  const lines = [headers.map(esc).join(","), ...rows.map((r) => r.map(esc).join(","))];
+  return lines.join("\n");
+}
+let audioCtx = null;
+function playTone(freq, duration = 0.12, type = "sine") {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(1e-4, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+  } catch (e) {
+  }
+}
+function playFeedbackSound(type) {
+  if (type === "found") playTone(880, 0.13);
+  else if (type === "registered") playTone(660, 0.13);
+  else if (type === "duplicate") {
+    playTone(520, 0.08);
+    setTimeout(() => playTone(520, 0.08), 110);
+  } else if (type === "notfound") playTone(220, 0.22, "square");
+}
+function InventaireMMTEApp() {
+  const [authUser, setAuthUser] = useState(void 0);
+  useEffect(() => auth.onAuthStateChanged((u) => setAuthUser(u)), []);
+  const [remoteConfig, setRemoteConfig] = useState(null);
+  const [remoteAdmins, setRemoteAdmins] = useState([]);
+  const [adminListReady, setAdminListReady] = useState(false);
+  const [guestOk, setGuestOk] = useState(void 0);
+  const [guestFailure, setGuestFailure] = useState("");
+  const guestPendingRef = useRef(false);
+  const isGuest = isGuestUser(authUser);
+  const memberReady = !!authUser && (!isGuest || guestOk === true);
+  useEffect(() => {
+    if (!memberReady) return void 0;
+    const unsub = db.collection("config").doc("app").onSnapshot(
+      (snap) => setRemoteConfig(snap.exists ? snap.data() : {}),
+      () => setRemoteConfig({})
+    );
+    return unsub;
+  }, [authUser && authUser.uid, memberReady]);
+  useEffect(() => {
+    if (!authUser || isGuest) {
+      setRemoteAdmins([]);
+      setAdminListReady(false);
+      return void 0;
+    }
+    setAdminListReady(false);
+    const unsub = db.collection("config").doc("admins").onSnapshot(
+      (snap) => {
+        setRemoteAdmins(snap.exists && Array.isArray(snap.data().emails) ? snap.data().emails : []);
+        setAdminListReady(true);
+      },
+      () => {
+        setRemoteAdmins([]);
+        setAdminListReady(true);
+      }
+    );
+    return unsub;
+  }, [authUser && authUser.uid, isGuest]);
+  useEffect(() => {
+    if (!authUser || !isGuest) {
+      setGuestOk(void 0);
+      return void 0;
+    }
+    if (guestPendingRef.current) return void 0;
+    let cancelled = false;
+    db.collection("guestSessions").doc(authUser.uid).get().then((snap) => {
+      if (cancelled) return;
+      const d = snap.exists ? snap.data() : null;
+      const t = d && d.createdAt && d.createdAt.toMillis ? d.createdAt.toMillis() : 0;
+      if (d && Date.now() - t < GUEST_SESSION_MS) setGuestOk(true);
+      else {
+        setGuestOk(false);
+        auth.signOut();
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setGuestOk(false);
+        auth.signOut();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser && authUser.uid, isGuest]);
+  useEffect(() => {
+    if (!authUser || !isGuest || guestOk !== true) return void 0;
+    return db.collection("guestSessions").doc(authUser.uid).onSnapshot(
+      (snap) => {
+        const cached = snap.metadata && snap.metadata.fromCache;
+        if (!snap.exists && !cached) {
+          setGuestOk(false);
+          auth.signOut();
+        }
+      },
+      () => {
+        setGuestOk(false);
+        auth.signOut();
+      }
+    );
+  }, [authUser && authUser.uid, isGuest, guestOk]);
+  const PARCS_LIST = remoteConfig && Array.isArray(remoteConfig.parcsList) && remoteConfig.parcsList.length ? remoteConfig.parcsList : DEFAULT_PARCS_LIST;
+  const ADMIN_EMAILS = Array.from(new Set([
+    ...FALLBACK_ADMIN_EMAILS,
+    ...remoteAdmins,
+    ...remoteConfig && Array.isArray(remoteConfig.adminEmails) ? remoteConfig.adminEmails : []
+  ].map((x) => String(x).toLowerCase())));
+  const isAdmin = !isGuest && isAdminEmail(authUser && authUser.email, ADMIN_EMAILS);
+  const [localDisplayName, setLocalDisplayName] = useState("");
+  useEffect(() => {
+    if (!authUser || isGuest || !isAdmin || remoteConfig === null) return;
+    let cancelled = false;
+    db.collection("config").doc("guest").get().then((snap) => {
+      if (cancelled || snap.exists) return;
+      const legacy = remoteConfig && typeof remoteConfig.guestAccessCode === "string" ? remoteConfig.guestAccessCode : "";
+      const code = String(legacy || DEFAULT_GUEST_ACCESS_CODE).trim().toUpperCase();
+      return db.collection("config").doc("guest").set({ code });
+    }).catch(() => {
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [authUser && authUser.uid, isAdmin, remoteConfig === null]);
+  const [userDocState, setUserDocState] = useState({ uid: null, doc: void 0 });
+  const userDoc = authUser && userDocState.uid === authUser.uid ? userDocState.doc : void 0;
+  const [adminWaitExpired, setAdminWaitExpired] = useState(false);
+  useEffect(() => {
+    setAdminWaitExpired(false);
+    if (!authUser) return void 0;
+    const t = setTimeout(() => setAdminWaitExpired(true), 6e3);
+    return () => clearTimeout(t);
+  }, [authUser && authUser.uid]);
+  const adminCheckDone = adminWaitExpired || adminListReady && remoteConfig !== null || isAdminEmail(authUser && authUser.email, FALLBACK_ADMIN_EMAILS);
+  const adminSetName = userDoc && userDoc.displayName && authUser && !authUser.isAnonymous ? userDoc.displayName : "";
+  const currentAgent = authUser ? { name: localDisplayName || adminSetName || agentDisplayName(authUser) } : null;
+  useEffect(() => {
+    if (!authUser || isGuest) {
+      setUserDocState({ uid: authUser ? authUser.uid : null, doc: null });
+      return;
+    }
+    const uid = authUser.uid;
+    const setUserDoc = (doc) => setUserDocState({ uid, doc });
+    const ref = db.collection("users").doc(authUser.uid);
+    const unsub = ref.onSnapshot(
+      async (snap) => {
+        if (snap.exists) {
+          setUserDoc(snap.data());
+        } else {
+          if (!adminCheckDone) return;
+          const approved = isAdminEmail(authUser.email, ADMIN_EMAILS);
+          const data = {
+            email: authUser.email,
+            displayName: authUser.displayName || "",
+            role: approved ? "admin" : "agent",
+            status: approved ? "approved" : "pending",
+            createdAt: FieldValue.serverTimestamp()
+          };
+          try {
+            await ref.set(data, { merge: true });
+          } catch (e) {
+          }
+          setUserDoc(data);
+        }
+      },
+      () => setUserDoc(null)
+    );
+    return unsub;
+  }, [authUser && authUser.uid, isGuest, adminCheckDone]);
+  const isApproved = isGuest && guestOk === true || isAdmin || userDoc && userDoc.status === "approved";
+  const lastLoginDone = useRef("");
+  useEffect(() => {
+    if (!authUser || isGuest || !isApproved || !userDoc || lastLoginDone.current === authUser.uid) return;
+    lastLoginDone.current = authUser.uid;
+    db.collection("users").doc(authUser.uid).update({ lastLoginAt: FieldValue.serverTimestamp() }).catch(() => {
+    });
+  }, [authUser && authUser.uid, isApproved, !!userDoc]);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+    const handler = () => setUpdateAvailable(true);
+    navigator.serviceWorker.addEventListener("controllerchange", handler);
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener("statechange", () => {
+          if (nw.state === "installed" && navigator.serviceWorker.controller) {
+            setUpdateAvailable(true);
+          }
+        });
+      });
+    });
+    return () => navigator.serviceWorker.removeEventListener("controllerchange", handler);
+  }, []);
+  const [phase, setPhase] = useState("setup");
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [appModeRaw, setAppModeRaw] = useState(() => { try { return sessionStorage.getItem("mmte-app") || null; } catch (e) { return null; } });
+  const setAppMode = (m) => { setAppModeRaw(m); try { if (m) sessionStorage.setItem("mmte-app", m); else sessionStorage.removeItem("mmte-app"); } catch (e) {} };
+  const [stockSection, setStockSection] = useState("dash");
+  useEffect(() => { if (authUser === null) { setAppModeRaw(null); try { sessionStorage.removeItem("mmte-app"); } catch (e) {} } }, [authUser]);
+  const [parcName, setParcName] = useState("");
+  const [invDate, setInvDate] = useState(todayISO());
+  const [importMode, setImportMode] = useState("file");
+  const [pasteText, setPasteText] = useState("");
+  const [importError, setImportError] = useState("");
+  const [importedFileName, setImportedFileName] = useState("");
+  const [importDup, setImportDup] = useState(null);
+  const [starting, setStarting] = useState(false);
+  const [existingClosedInv, setExistingClosedInv] = useState(null);
+  const [activeInventories, setActiveInventories] = useState([]);
+  useEffect(() => {
+    if (!authUser || !isApproved) return void 0;
+    const unsub = db.collection("inventories").where("status", "==", "in_progress").onSnapshot(
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        list.sort((a, b) => {
+          const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+          const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+          return tb - ta;
+        });
+        setActiveInventories(list);
+      },
+      () => {
+      }
+    );
+    return unsub;
+  }, [authUser && authUser.uid, isApproved]);
+  const [isOnline, setIsOnline] = useState(typeof navigator === "undefined" || navigator.onLine !== false);
+  const [pendingCount, setPendingCount] = useState(0);
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
+  const [invId, setInvId] = useState(null);
+  const [invMeta, setInvMeta] = useState(null);
+  const [mmteMap, setMmteMap] = useState(/* @__PURE__ */ new Map());
+  const [scans, setScans] = useState([]);
+  const [followups, setFollowups] = useState([]);
+  const [startedAt, setStartedAt] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  const [inputVal, setInputVal] = useState("");
+  const [feedback, setFeedback] = useState(null);
+  const [pendingNotFound, setPendingNotFound] = useState(null);
+  const [regForm, setRegForm] = useState({ age: "", name: "", model: "", photo: "", busy: false, error: "" });
+  const [activeTab, setActiveTab] = useState("total");
+  const [listFilter, setListFilter] = useState("");
+  const [stampAnim, setStampAnim] = useState(null);
+  const [confirmNewParc, setConfirmNewParc] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const [restoredBanner, setRestoredBanner] = useState(false);
+  const inputRef = useRef(null);
+  const stampTimeout = useRef(null);
+  useEffect(() => {
+    if (!invId) {
+      setScans([]);
+      setPendingCount(0);
+      return;
+    }
+    const unsub = db.collection("inventories").doc(invId).collection("scans").onSnapshot({ includeMetadataChanges: true }, (snap) => {
+      setScans(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      setPendingCount(snap.docs.filter((d) => d.metadata && d.metadata.hasPendingWrites).length);
+    }, () => {
+    });
+    return unsub;
+  }, [invId]);
+  useEffect(() => {
+    if (!invId || isGuest) {
+      setFollowups([]);
+      return;
+    }
+    const unsub = db.collection("inventories").doc(invId).collection("followups").onSnapshot((snap) => setFollowups(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setFollowups([]));
+    return unsub;
+  }, [invId, isGuest]);
+  const followMissing = (norm, chassis, status, note) => {
+    if (!invId || !authUser) return;
+    db.collection("inventories").doc(invId).collection("followups").doc(norm).set({
+      norm,
+      chassis,
+      status,
+      note: note || "",
+      byUid: authUser.uid,
+      byName: currentAgent ? currentAgent.name : "",
+      at: FieldValue.serverTimestamp()
+    }).catch(() => {
+    });
+    logAuditFor(invId, "followup", { norm, chassis });
+  };
+  const unfollowMissing = (norm) => {
+    if (!invId) return;
+    db.collection("inventories").doc(invId).collection("followups").doc(norm).delete().catch(() => {
+    });
+  };
+  const activeScans = useMemo(() => scans.filter((s) => !s.deleted), [scans]);
+  const foundList = useMemo(() => activeScans.filter((s) => s.source === "mmte"), [activeScans]);
+  const registeredList = useMemo(() => activeScans.filter((s) => s.source === "parc"), [activeScans]);
+  const foundSet = useMemo(() => new Set(foundList.map((f) => f.norm)), [foundList]);
+  const registeredSet = useMemo(() => new Set(registeredList.map((r) => r.norm)), [registeredList]);
+  const missingList = useMemo(() => {
+    const out = [];
+    mmteMap.forEach((info, norm) => {
+      if (!foundSet.has(norm)) out.push({ norm, chassis: info.chassis, info });
+    });
+    return out;
+  }, [mmteMap, foundSet]);
+  const totalList = useMemo(() => {
+    return [...foundList, ...registeredList].sort((a, b) => {
+      const ta = a.scannedAt && a.scannedAt.toMillis ? a.scannedAt.toMillis() : 0;
+      const tb = b.scannedAt && b.scannedAt.toMillis ? b.scannedAt.toMillis() : 0;
+      return ta - tb;
+    });
+  }, [foundList, registeredList]);
+  const contributors = useMemo(() => {
+    const map = /* @__PURE__ */ new Map();
+    [...foundList, ...registeredList].forEach((s) => {
+      if (s.agentUid && !map.has(s.agentUid)) map.set(s.agentUid, s.agentName || s.agentUid);
+    });
+    return Array.from(map.values()).sort();
+  }, [foundList, registeredList]);
+  const progressPct = useMemo(() => {
+    if (mmteMap.size === 0) return 0;
+    return Math.min(100, Math.round(foundList.length / mmteMap.size * 100));
+  }, [foundList.length, mmteMap.size]);
+  useEffect(() => {
+    if (phase !== "inventory") return;
+    const id = setInterval(() => setNow(Date.now()), 1e3);
+    return () => clearInterval(id);
+  }, [phase]);
+  const applyImportedList = (rawValues) => {
+    const cleaned = rawValues.map((v) => String(v).trim()).filter(Boolean).filter((v) => !isHeaderLike(v));
+    if (cleaned.length === 0) {
+      setImportError("Aucun numéro de châssis détecté. Vérifiez le fichier ou le texte collé.");
+      return;
+    }
+    setMmteMap(buildMap(cleaned));
+    setImportError("");
+    const d = findDuplicates(cleaned.map((v) => ({ chassis: v, sig: normalize(v) })));
+    setImportDup(d.length ? { items: d, name: "liste_collee" } : null);
+  };
+  const handleFileChange = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setImportedFileName(file.name);
+    setImportDup(null);
+    parseStockFile(file).then((r) => setImportDup(r.dupItems && r.dupItems.length ? { items: r.dupItems, name: file.name } : null)).catch(() => {
+    });
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const isCsv = /\.(csv|txt)$/i.test(file.name);
+        const wb = XLSX.read(data, { type: "array", raw: isCsv });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: "" });
+        let headerRowIdx = -1;
+        for (let r = 0; r < Math.min(5, rows.length); r++) {
+          const row = rows[r] || [];
+          if (row.some((cell) => isHeaderLike(cell) || matchFieldAlias(cell))) {
+            headerRowIdx = r;
+            break;
+          }
+        }
+        if (headerRowIdx !== -1) {
+          const headers = rows[headerRowIdx];
+          const dataRows = rows.slice(headerRowIdx + 1);
+          const richMap = buildRichMap(headers, dataRows);
+          if (richMap) {
+            setMmteMap(richMap);
+            setImportError("");
+            return;
+          }
+        }
+        let colIdx = 0;
+        let startRow = 0;
+        let found = false;
+        for (let r = 0; r < Math.min(5, rows.length) && !found; r++) {
+          const row = rows[r] || [];
+          for (let c = 0; c < row.length; c++) {
+            if (isHeaderLike(row[c])) {
+              colIdx = c;
+              startRow = r + 1;
+              found = true;
+              break;
+            }
+          }
+        }
+        const values = rows.slice(startRow).map((r) => r && r[colIdx] !== void 0 ? String(r[colIdx]) : "").filter(Boolean);
+        applyImportedList(values);
+      } catch (err) {
+        setImportError("Impossible de lire ce fichier. Formats acceptés : CSV, XLS, XLSX.");
+      }
+    };
+    reader.onerror = () => setImportError("Échec de la lecture du fichier.");
+    reader.readAsArrayBuffer(file);
+  };
+  const handleLoadPaste = () => applyImportedList(pasteText.split(/\r?\n/));
+  useEffect(() => {
+    setExistingClosedInv(null);
+  }, [parcName, invDate]);
+  const canStart = parcName.trim().length > 0 && invDate && mmteMap.size > 0;
+  const joinInventoryById = async (id) => {
+    setStarting(true);
+    setImportError("");
+    try {
+      const ref = db.collection("inventories").doc(id);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        setImportError("Cet inventaire n'est plus disponible (peut-être déjà clôturé).");
+        setStarting(false);
+        return;
+      }
+      const meta = snap.data();
+      if (meta.status !== "in_progress") {
+        setImportError("Cet inventaire n'est pas encore prêt (création en cours par son créateur) ou a été clôturé. Réessayez dans un instant.");
+        setStarting(false);
+        return;
+      }
+      const map = await loadMmteMap(ref);
+      setMmteMap(map);
+      setInvMeta(meta);
+      setParcName(meta.parcName);
+      setInvDate(meta.invDate);
+      setRestoredBanner(true);
+      setInvId(id);
+      setStartedAt(Date.now());
+      setFeedback(null);
+      setPendingNotFound(null);
+      setPhase("inventory");
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
+    } catch (err) {
+      setImportError("Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.");
+    } finally {
+      setStarting(false);
+    }
+  };
+  const deleteDocsInBatches = async (docs) => {
+    for (let i = 0; i < docs.length; i += 450) {
+      const batch = db.batch();
+      docs.slice(i, i + 450).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  };
+  const startInventory = async () => {
+    if (!parcName.trim() || !invDate) return;
+    if (mmteMap.size === 0) {
+      setImportError("Merci d'importer la liste des châssis MMTE avant de démarrer.");
+      return;
+    }
+    setStarting(true);
+    setImportError("");
+    const id = inventoryId(parcName, invDate);
+    const ref = db.collection("inventories").doc(id);
+    try {
+      const snap = await ref.get();
+      if (snap.exists) {
+        const existingMeta = snap.data();
+        if (existingMeta.status === "completed") {
+          setExistingClosedInv({ id, meta: existingMeta });
+          setStarting(false);
+          return;
+        }
+        if (existingMeta.status === "trashed") {
+          setImportError("Cet inventaire est dans la corbeille des archives. Demandez à l'administrateur de le restaurer ou de le supprimer définitivement.");
+          setStarting(false);
+          return;
+        }
+        if (existingMeta.status !== "creating" || existingMeta.createdByUid !== authUser.uid) {
+          setImportError(
+            "Un inventaire pour ce parc et cette date existe déjà et est en cours. Utilisez « Rejoindre un inventaire en cours » ci-dessus."
+          );
+          setStarting(false);
+          return;
+        }
+      }
+      const meta = {
+        parcName: parcName.trim(),
+        invDate,
+        status: "creating",
+        mmteCount: mmteMap.size,
+        createdByUid: authUser.uid,
+        createdByName: currentAgent.name,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      };
+      await ref.set(meta);
+      await writeMmteChunks(ref, Array.from(mmteMap.entries()));
+      await ref.update({ status: "in_progress" });
+      meta.status = "in_progress";
+      setInvMeta(meta);
+      setInvId(id);
+      setStartedAt(Date.now());
+      setFeedback(null);
+      setPendingNotFound(null);
+      setPhase("inventory");
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
+    } catch (err) {
+      setImportError("Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.");
+      try {
+        await ref.delete();
+      } catch (e) {
+      }
+    } finally {
+      setStarting(false);
+    }
+  };
+  const reopenClosedInventory = async () => {
+    if (!existingClosedInv) return;
+    setStarting(true);
+    setImportError("");
+    try {
+      const ref = db.collection("inventories").doc(existingClosedInv.id);
+      await ref.update({
+        status: "in_progress",
+        reopenedAt: FieldValue.serverTimestamp(),
+        reopenedByUid: authUser.uid,
+        reopenedByName: currentAgent.name
+      });
+      logAuditFor(existingClosedInv.id, "reopen", {});
+      const map = await loadMmteMap(ref);
+      setMmteMap(map);
+      setInvMeta({ ...existingClosedInv.meta, status: "in_progress" });
+      setInvId(existingClosedInv.id);
+      setStartedAt(Date.now());
+      setRestoredBanner(true);
+      setFeedback(null);
+      setPendingNotFound(null);
+      setExistingClosedInv(null);
+      setPhase("inventory");
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
+    } catch (err) {
+      setImportError("Erreur de connexion au serveur. Réessayez.");
+    } finally {
+      setStarting(false);
+    }
+  };
+  const replaceClosedInventory = async () => {
+    if (!existingClosedInv || mmteMap.size === 0) return;
+    setStarting(true);
+    setImportError("");
+    try {
+      const ref = db.collection("inventories").doc(existingClosedInv.id);
+      await purgeInventoryData(ref, false);
+      logAuditFor(existingClosedInv.id, "replace", {});
+      const meta = {
+        parcName: parcName.trim(),
+        invDate,
+        status: "creating",
+        mmteCount: mmteMap.size,
+        createdByUid: authUser.uid,
+        createdByName: currentAgent.name,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        replacedPreviousClosureAt: existingClosedInv.meta.completedAt || null
+      };
+      await ref.set(meta);
+      await writeMmteChunks(ref, Array.from(mmteMap.entries()));
+      await ref.update({ status: "in_progress" });
+      meta.status = "in_progress";
+      setInvMeta(meta);
+      setInvId(existingClosedInv.id);
+      setStartedAt(Date.now());
+      setFeedback(null);
+      setPendingNotFound(null);
+      setExistingClosedInv(null);
+      setPhase("inventory");
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
+    } catch (err) {
+      setImportError("Erreur de connexion au serveur. Réessayez.");
+    } finally {
+      setStarting(false);
+    }
+  };
+  const logAuditFor = (id, action, extra) => {
+    if (!id || !authUser) return;
+    db.collection("inventories").doc(id).collection("audit").add({
+      action,
+      byUid: authUser.uid,
+      byName: currentAgent ? currentAgent.name : "",
+      at: FieldValue.serverTimestamp(),
+      ...extra || {}
+    }).catch(() => {
+    });
+  };
+  const loadPhoto = React.useCallback(async (norm) => {
+    if (!invId || !norm) return null;
+    try {
+      const d = await db.collection("inventories").doc(invId).collection("photos").doc(norm).get();
+      return d.exists ? d.data().data : null;
+    } catch (e) {
+      return null;
+    }
+  }, [invId]);
+  const triggerStamp = (kind) => {
+    setStampAnim(kind);
+    if (stampTimeout.current) clearTimeout(stampTimeout.current);
+    stampTimeout.current = setTimeout(() => setStampAnim(null), 650);
+  };
+  const submitChassis = async (overrideValue) => {
+    const raw = (overrideValue !== void 0 ? overrideValue : inputVal).trim();
+    if (!raw || !invId) return;
+    const norm = normalize(raw);
+    const ref = db.collection("inventories").doc(invId).collection("scans").doc(norm);
+    if (mmteMap.has(norm)) {
+      if (foundSet.has(norm)) {
+        setFeedback({ type: "duplicate", chassis: raw, message: "Déjà pointé comme trouvé sur MMTE." });
+        if (soundOn) playFeedbackSound("duplicate");
+      } else {
+        const info = mmteMap.get(norm);
+        const original = info.chassis;
+        setFeedback({ type: "found", chassis: original, message: "Trouvé sur MMTE.", description: info.description });
+        triggerStamp("found");
+        if (soundOn) playFeedbackSound("found");
+        const prevDeleted = scans.find((x) => x.norm === norm && x.deleted);
+        ref.set({
+          norm,
+          chassis: original,
+          source: "mmte",
+          agentUid: authUser.uid,
+          agentName: currentAgent.name,
+          scannedAt: FieldValue.serverTimestamp(),
+          deleted: false,
+          description: info.description || "",
+          registredAt: info.registredAt || "",
+          depotDate: info.depotDate || "",
+          entryDate: info.entryDate || "",
+          atp: info.atp || "",
+          shipName: info.shipName || "",
+          weight: info.weight || "",
+          companyNumber: info.companyNumber || "",
+          bl: info.bl || "",
+          extra: info.extra || {},
+          ...prevDeleted ? { restoredFrom: { by: prevDeleted.deletedBy || "", at: prevDeleted.deletedAt || null } } : {}
+        }).catch((e) => setFeedback({ type: "notfound", chassis: raw, message: writeErrorMessage(e) }));
+        if (prevDeleted) logAuditFor(invId, "restore", { norm, chassis: original });
+      }
+      setPendingNotFound(null);
+    } else if (registeredSet.has(norm)) {
+      setFeedback({ type: "duplicate", chassis: raw, message: "Déjà enregistré comme présent sur le parc (hors MMTE)." });
+      if (soundOn) playFeedbackSound("duplicate");
+      setPendingNotFound(null);
+    } else {
+      setRegForm({ age: "", name: "", model: "", photo: "", busy: false, error: "" });
+      setPendingNotFound({ norm, chassis: raw, suggestions: suggestChassis(norm, mmteMap, foundSet) });
+      setFeedback({ type: "notfound", chassis: raw, message: "Introuvable sur la liste MMTE." });
+      if (soundOn) playFeedbackSound("notfound");
+    }
+    setInputVal("");
+    inputRef.current && inputRef.current.focus();
+  };
+  const confirmRegister = () => {
+    if (!pendingNotFound || !invId) return;
+    const p = pendingNotFound;
+    const invRef = db.collection("inventories").doc(invId);
+    const ref = invRef.collection("scans").doc(p.norm);
+    const prevDeleted = scans.find((x) => x.norm === p.norm && x.deleted);
+    const hasPhoto = !!regForm.photo;
+    setFeedback({ type: "registered", chassis: p.chassis, message: "Enregistré comme présent sur le parc." });
+    triggerStamp("registered");
+    if (soundOn) playFeedbackSound("registered");
+    const batch = db.batch();
+    batch.set(ref, {
+      norm: p.norm,
+      chassis: p.chassis,
+      source: "parc",
+      agentUid: authUser.uid,
+      agentName: currentAgent.name,
+      scannedAt: FieldValue.serverTimestamp(),
+      deleted: false,
+      // Champs facultatifs saisis par l'agent (seul le châssis est obligatoire)
+      vehicleAge: regForm.age || "",
+      vehicleName: regForm.name.trim(),
+      vehicleModel: regForm.model.trim(),
+      description: [regForm.name.trim(), regForm.model.trim()].filter(Boolean).join(" "),
+      hasPhoto,
+      ...prevDeleted ? { restoredFrom: { by: prevDeleted.deletedBy || "", at: prevDeleted.deletedAt || null } } : {}
+    });
+    if (hasPhoto) {
+      batch.set(invRef.collection("photos").doc(p.norm), {
+        data: regForm.photo,
+        agentUid: authUser.uid,
+        createdAt: FieldValue.serverTimestamp()
+      });
+    }
+    batch.commit().catch((e) => setFeedback({ type: "notfound", chassis: p.chassis, message: writeErrorMessage(e) }));
+    if (prevDeleted) logAuditFor(invId, "restore", { norm: p.norm, chassis: p.chassis });
+    setPendingNotFound(null);
+    inputRef.current && inputRef.current.focus();
+  };
+  const cancelPending = () => {
+    setPendingNotFound(null);
+    setFeedback(null);
+    inputRef.current && inputRef.current.focus();
+  };
+  const softDelete = async (norm) => {
+    if (!invId) return;
+    const target = scans.find((x) => x.norm === norm);
+    try {
+      await db.collection("inventories").doc(invId).collection("scans").doc(norm).update({
+        deleted: true,
+        deletedBy: currentAgent ? currentAgent.name : "",
+        deletedByUid: authUser ? authUser.uid : "",
+        deletedAt: FieldValue.serverTimestamp()
+      });
+      logAuditFor(invId, "delete", { norm, chassis: target ? target.chassis : norm });
+    } catch (e) {
+      setFeedback({ type: "notfound", chassis: target ? target.chassis : norm, message: "Suppression impossible (droits insuffisants ou connexion). Réessayez." });
+    }
+  };
+  const handleEmailLogin = (email, password) => auth.signInWithEmailAndPassword(email, password);
+  const handleSignup = async (email, password, displayName) => {
+    const cred = await auth.createUserWithEmailAndPassword(email, password);
+    if (displayName) {
+      setLocalDisplayName(displayName);
+      cred.user.updateProfile({ displayName }).catch(() => {
+      });
+    }
+    try {
+      await cred.user.sendEmailVerification();
+    } catch (e) {
+    }
+    return cred;
+  };
+  const handleGuestAccess = async (name, code) => {
+    guestPendingRef.current = true;
+    let cred;
+    let stage = "auth";
+    try {
+      cred = await auth.signInAnonymously();
+      stage = "session";
+      await db.collection("guestSessions").doc(cred.user.uid).set({
+        code: String(code || "").trim().toUpperCase(),
+        name: String(name || "").trim().slice(0, 80),
+        createdAt: FieldValue.serverTimestamp()
+      });
+    } catch (err) {
+      const e2 = new Error("guest");
+      const c = err && err.code || "";
+      if (stage === "auth" && (c === "auth/operation-not-allowed" || c === "auth/admin-restricted-operation")) e2.code = "guest/not-enabled";
+      else if (c === "permission-denied") e2.code = "guest/bad-code";
+      else e2.code = c;
+      setGuestFailure(friendlyAuthError(e2));
+      try {
+        await auth.signOut();
+      } catch (e) {
+      }
+      guestPendingRef.current = false;
+      throw e2;
+    }
+    if (name && name.trim()) {
+      setLocalDisplayName(name.trim());
+      cred.user.updateProfile({ displayName: name.trim() }).catch(() => {
+      });
+    }
+    guestPendingRef.current = false;
+    setGuestFailure("");
+    setGuestOk(true);
+    return cred;
+  };
+  const handlePasswordReset = (email) => auth.sendPasswordResetEmail(email);
+  const handleLogout = async () => {
+    setLocalDisplayName("");
+    setAppMode(null);
+    setStockSection("dash");
+    if (authUser && isGuest) {
+      try {
+        await db.collection("guestSessions").doc(authUser.uid).delete();
+      } catch (e) {
+      }
+    }
+    return auth.signOut();
+  };
+  const resetAll = () => {
+    setReadOnly(false);
+    setPhase("setup");
+    setParcName("");
+    setInvDate(todayISO());
+    setMmteMap(/* @__PURE__ */ new Map());
+    setInvId(null);
+    setInvMeta(null);
+    setPasteText("");
+    setImportedFileName("");
+    setImportDup(null);
+    setFeedback(null);
+    setPendingNotFound(null);
+    setConfirmNewParc(false);
+    setStartedAt(null);
+    setRestoredBanner(false);
+  };
+  const closeInventory = async () => {
+    if (!invId) {
+      resetAll();
+      return;
+    }
+    try {
+      await db.collection("inventories").doc(invId).update({
+        status: "completed",
+        completedAt: FieldValue.serverTimestamp(),
+        completedByName: currentAgent ? currentAgent.name : "",
+        completedByUid: authUser ? authUser.uid : "",
+        stats: {
+          expected: mmteMap.size,
+          found: foundList.length,
+          registered: registeredList.length,
+          total: totalList.length,
+          missing: missingList.length
+        }
+      });
+      logAuditFor(invId, "close", { found: foundList.length, registered: registeredList.length, missing: missingList.length });
+    } catch (e) {
+      alertT("La clôture n'a pas pu être enregistrée (connexion ou droits). L'inventaire reste ouvert : réessayez dans un instant.");
+      return;
+    }
+    resetAll();
+  };
+  const [readOnly, setReadOnly] = useState(false);
+  const [archiveList, setArchiveList] = useState([]);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [archiveError, setArchiveError] = useState("");
+  const loadArchive = async () => {
+    setArchiveLoading(true);
+    setArchiveError("");
+    try {
+      const snap = await db.collection("inventories").get();
+      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((x) => x.status === "completed" || x.status === "in_progress" || isAdmin && x.status === "trashed");
+      list.sort((a, b) => String(b.invDate || "").localeCompare(String(a.invDate || "")));
+      setArchiveList(list);
+    } catch (e) {
+      setArchiveError("Impossible de charger les archives. Vérifiez votre connexion et réessayez.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+  const leaveSetupSafely = () => {
+    if (phase !== "setup") resetAll();
+  };
+  const openStockCompare = () => {
+    leaveSetupSafely();
+    setShowAdmin(false);
+    setPhase("stockcompare");
+  };
+  const openHelp = () => {
+    leaveSetupSafely();
+    setShowAdmin(false);
+    setPhase("help");
+  };
+  const openDocs = () => {
+    leaveSetupSafely();
+    setShowAdmin(false);
+    setPhase("docs");
+  };
+  const openArchives = () => {
+    leaveSetupSafely();
+    setShowAdmin(false);
+    setPhase("archives");
+    loadArchive();
+  };
+  const openArchivedInventory = async (inv) => {
+    setArchiveLoading(true);
+    setArchiveError("");
+    try {
+      const map = await loadMmteMap(db.collection("inventories").doc(inv.id));
+      setMmteMap(map);
+      setInvMeta(inv);
+      setParcName(inv.parcName);
+      setInvDate(inv.invDate);
+      setInvId(inv.id);
+      setReadOnly(true);
+      setPhase("summary");
+    } catch (e) {
+      setArchiveError("Impossible d'ouvrir cet inventaire. Réessayez.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+  const closeArchivedView = () => {
+    resetAll();
+    setPhase("archives");
+    loadArchive();
+  };
+  const trashArchived = async (inv) => {
+    try {
+      const patch = {
+        status: "trashed",
+        statusBeforeTrash: inv.status,
+        trashedAt: FieldValue.serverTimestamp(),
+        trashedByName: currentAgent ? currentAgent.name : "",
+        trashedByUid: authUser ? authUser.uid : ""
+      };
+      await db.collection("inventories").doc(inv.id).update(patch);
+      logAuditFor(inv.id, "trash", {});
+      setArchiveList((l) => l.map((x) => x.id === inv.id ? { ...x, ...patch, trashedAt: { toMillis: () => Date.now() } } : x));
+      return true;
+    } catch (e) {
+      setArchiveError("Impossible de déplacer cet inventaire dans la corbeille (droits ou connexion).");
+      return false;
+    }
+  };
+  const restoreArchived = async (inv) => {
+    try {
+      const back = inv.statusBeforeTrash === "in_progress" ? "in_progress" : "completed";
+      await db.collection("inventories").doc(inv.id).update({ status: back });
+      logAuditFor(inv.id, "restore-archive", {});
+      setArchiveList((l) => l.map((x) => x.id === inv.id ? { ...x, status: back } : x));
+      return true;
+    } catch (e) {
+      setArchiveError("Impossible de restaurer cet inventaire.");
+      return false;
+    }
+  };
+  const purgeArchived = async (inv) => {
+    try {
+      const ref = db.collection("inventories").doc(inv.id);
+      await purgeInventoryData(ref, true);
+      await ref.delete();
+      setArchiveList((l) => l.filter((x) => x.id !== inv.id));
+      return true;
+    } catch (e) {
+      setArchiveError("La suppression définitive a échoué (droits ou connexion). Rouvrez la corbeille pour vérifier l'état.");
+      return false;
+    }
+  };
+  const purgeExpiredArchives = async () => {
+    const limit = Date.now() - 30 * 24 * 3600 * 1e3;
+    const expired = archiveList.filter((x) => x.status === "trashed" && x.trashedAt && x.trashedAt.toMillis && x.trashedAt.toMillis() < limit);
+    for (const inv of expired) await purgeArchived(inv);
+    return expired.length;
+  };
+  const reopenArchived = async (inv) => {
+    if (!confirmT(`Rouvrir l'inventaire « ${inv.parcName} » du ${String(inv.invDate || "").split("-").reverse().join("/")} ?
+
+Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) return;
+    setArchiveLoading(true);
+    setArchiveError("");
+    try {
+      const ref = db.collection("inventories").doc(inv.id);
+      if (inv.status === "completed") {
+        await ref.update({
+          status: "in_progress",
+          reopenedAt: FieldValue.serverTimestamp(),
+          reopenedByUid: authUser.uid,
+          reopenedByName: currentAgent ? currentAgent.name : ""
+        });
+        logAuditFor(inv.id, "reopen", {});
+      }
+      const map = await loadMmteMap(ref);
+      setMmteMap(map);
+      setInvMeta({ ...inv, status: "in_progress" });
+      setParcName(inv.parcName);
+      setInvDate(inv.invDate);
+      setInvId(inv.id);
+      setStartedAt(Date.now());
+      setRestoredBanner(true);
+      setFeedback(null);
+      setPendingNotFound(null);
+      setReadOnly(false);
+      setPhase("inventory");
+      setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
+    } catch (e) {
+      setArchiveError("Impossible de rouvrir cet inventaire. Réessayez.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+  const [compareData, setCompareData] = useState(null);
+  const compareInventories = async (x, y) => {
+    setArchiveLoading(true);
+    setArchiveError("");
+    try {
+      const [older, newer] = String(x.invDate) <= String(y.invDate) ? [x, y] : [y, x];
+      const load = async (inv) => {
+        const snap = await db.collection("inventories").doc(inv.id).collection("scans").get();
+        const m = /* @__PURE__ */ new Map();
+        snap.forEach((d) => {
+          const s = d.data();
+          if (!s.deleted) m.set(d.id, { norm: d.id, chassis: s.chassis || d.id, description: s.description || "", source: s.source });
+        });
+        return m;
+      };
+      const [ma, mb] = await Promise.all([load(older), load(newer)]);
+      const onlyOld = [], onlyNew = [], both = [];
+      ma.forEach((v, k) => mb.has(k) ? both.push(v) : onlyOld.push(v));
+      mb.forEach((v, k) => {
+        if (!ma.has(k)) onlyNew.push(v);
+      });
+      setCompareData({ older, newer, onlyOld, onlyNew, both, countOld: ma.size, countNew: mb.size });
+      setPhase("compare");
+    } catch (e) {
+      setArchiveError("Impossible de comparer ces inventaires. Réessayez.");
+    } finally {
+      setArchiveLoading(false);
+    }
+  };
+  const exportComparison = () => {
+    if (!compareData) return;
+    const d = compareData;
+    const wb = XLSX.utils.book_new();
+    const add = (name, rows) => {
+      const aoa = [["Châssis", "Véhicule", "Origine"], ...rows.map((r) => [r.chassis, r.description, r.source === "mmte" ? "MMTE" : "Hors MMTE"])];
+      wb.SheetNames.push(name);
+      wb.Sheets[name] = XLSX.utils.aoa_to_sheet(aoa);
+    };
+    const fd = (i) => String(i.invDate || "").split("-").reverse().join("/");
+    const sum = [
+      ["INVENTAIRE MMTE — Comparaison de deux inventaires"],
+      [],
+      ["Parc", d.newer.parcName],
+      ["Inventaire ancien", fd(d.older)],
+      ["Inventaire récent", fd(d.newer)],
+      ["Présents à l'ancien inventaire", d.countOld],
+      ["Présents au récent inventaire", d.countNew],
+      ["Nouveaux (absents avant, présents maintenant)", d.onlyNew.length],
+      ["Sortis (présents avant, absents maintenant)", d.onlyOld.length],
+      ["Présents aux deux dates", d.both.length]
+    ];
+    wb.SheetNames.push("Résumé");
+    wb.Sheets["Résumé"] = XLSX.utils.aoa_to_sheet(sum);
+    add("Nouveaux", d.onlyNew);
+    add("Sortis", d.onlyOld);
+    add("Présents aux deux dates", d.both);
+    XLSX.writeFile(wb, `Comparaison_${d.newer.parcName || "parc"}_${d.older.invDate}_${d.newer.invDate}.xlsx`);
+  };
+  const exportArchiveSummary = (list) => {
+    const head = ["Parc", "Date de l'inventaire", "Statut", "Attendus MMTE", "Trouvés MMTE", "Enregistrés hors MMTE", "Total présent", "Manquants", "Taux de retrouvés (%)", "Créé par", "Clôturé par", "Date de clôture"];
+    const rows = list.map((x) => {
+      const st = x.stats || {};
+      const rate = st.expected ? Math.round(st.found / st.expected * 100) : "";
+      return [
+        x.parcName || "",
+        String(x.invDate || "").split("-").reverse().join("/"),
+        x.status === "completed" ? "Clôturé" : "En cours",
+        st.expected != null ? st.expected : x.mmteCount != null ? x.mmteCount : "",
+        st.found != null ? st.found : "",
+        st.registered != null ? st.registered : "",
+        st.total != null ? st.total : "",
+        st.missing != null ? st.missing : "",
+        rate,
+        x.createdByName || "",
+        x.completedByName || "",
+        x.completedAt ? formatTimestamp(x.completedAt) : ""
+      ];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
+    applyDateCells(ws, [1]);
+    const wb = XLSX.utils.book_new();
+    wb.SheetNames.push("Archives");
+    wb.Sheets["Archives"] = ws;
+    XLSX.writeFile(wb, `Archives_inventaires_${todayISO()}.xlsx`);
+  };
+  const EXPORT_INFO_HEADERS = [
+    "Châssis",
+    "Véhicule",
+    FIELD_LABELS.registredAt,
+    FIELD_LABELS.depotDate,
+    "Jours restants",
+    FIELD_LABELS.entryDate,
+    FIELD_LABELS.atp,
+    FIELD_LABELS.shipName,
+    FIELD_LABELS.weight,
+    FIELD_LABELS.companyNumber,
+    FIELD_LABELS.bl,
+    "Âge du véhicule",
+    "Photo jointe"
+  ];
+  const infoCells = (chassis, i) => [
+    chassis,
+    i.description || "",
+    i.registredAt || "",
+    i.depotDate || "",
+    formatJoursRestantText(i.depotDate),
+    i.entryDate || "",
+    i.atp || "",
+    i.shipName || "",
+    i.weight || "",
+    i.companyNumber || "",
+    i.bl || "",
+    VEHICLE_AGE_LABELS[i.vehicleAge] || "",
+    i.photo || i.hasPhoto ? "Oui" : ""
+  ];
+  const exportCSVList = (kind) => {
+    let rows = [];
+    let name = "";
+    const headers = [...EXPORT_INFO_HEADERS, "Agent", "Horodatage"];
+    const withMeta = (arr) => arr.map((x) => [...infoCells(x.chassis, x), x.agentName || "", formatTimestamp(x.scannedAt)]);
+    if (kind === "found") {
+      rows = withMeta(foundList);
+      name = "trouves_MMTE";
+    } else if (kind === "registered") {
+      rows = withMeta(registeredList);
+      name = "enregistres_parc";
+    } else if (kind === "total") {
+      rows = withMeta(totalList);
+      name = "total_parc";
+    } else if (kind === "missing") {
+      rows = missingList.map((m) => [...infoCells(m.chassis, m.info || {}), "", ""]);
+      name = "manquants_MMTE";
+    }
+    downloadBlob(`${name}_${parcName || "parc"}_${invDate}.csv`, toCSV(headers, rows), "text/csv;charset=utf-8");
+  };
+  const exportExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const summary = [
+      ["INVENTAIRE MMTE — Bénin Control / MAD-MAE"],
+      [],
+      ["Parc", parcName],
+      ["Date de l'inventaire", invDate],
+      ["Agent connecté", currentAgent ? currentAgent.name : ""],
+      ["Agents ayant participé", contributors.join(", ")],
+      ["Châssis attendus (MMTE)", mmteMap.size],
+      ["Trouvés sur MMTE", foundList.length],
+      ["Enregistrés (présents sur le parc, absents MMTE)", registeredList.length],
+      ["Total présent sur le parc", totalList.length],
+      ["Manquants (sur MMTE, absents du parc)", missingList.length]
+    ];
+    wb.SheetNames.push("Résumé");
+    wb.Sheets["Résumé"] = XLSX.utils.aoa_to_sheet(summary);
+    const invSerial = dmyToExcelSerial(String(invDate).split("-").reverse().join("/"));
+    if (invSerial !== null) wb.Sheets["Résumé"]["B4"] = { t: "n", v: invSerial, z: "dd/mm/yyyy" };
+    const cols = [...EXPORT_INFO_HEADERS, "Agent", "Horodatage"];
+    const addSheet = (name, rows) => {
+      const aoa = [cols, ...rows.map((r) => [...infoCells(r.chassis, r), r.agentName || "", formatTimestamp(r.scannedAt)])];
+      wb.SheetNames.push(name);
+      wb.Sheets[name] = XLSX.utils.aoa_to_sheet(aoa);
+      applyDateCells(wb.Sheets[name], [2, 3, 5]);
+      const ws = wb.Sheets[name];
+      rows.forEach((r, idx) => {
+        const serial = timestampToExcelSerial(r.scannedAt);
+        if (serial !== null) ws[XLSX.utils.encode_cell({ r: idx + 1, c: cols.length - 1 })] = { t: "n", v: serial, z: "dd/mm/yyyy hh:mm" };
+      });
+    };
+    addSheet("Trouvés MMTE", foundList);
+    addSheet("Enregistrés Parc", registeredList);
+    addSheet("Total Parc", totalList);
+    const aoaMissing = [
+      EXPORT_INFO_HEADERS,
+      ...missingList.map((m) => infoCells(m.chassis, m.info || {}))
+    ];
+    wb.SheetNames.push("Manquants MMTE");
+    wb.Sheets["Manquants MMTE"] = XLSX.utils.aoa_to_sheet(aoaMissing);
+    applyDateCells(wb.Sheets["Manquants MMTE"], [2, 3, 5]);
+    XLSX.writeFile(wb, `Inventaire_${parcName || "parc"}_${invDate}.xlsx`);
+  };
+  const feedbackStyle = {
+    found: { bg: "bg-emerald-50", border: "border-emerald-300", text: "text-emerald-800", Icon: CheckCircle2 },
+    registered: { bg: "bg-blue-50", border: "border-blue-300", text: "text-blue-800", Icon: CheckCircle2 },
+    duplicate: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-800", Icon: AlertTriangle },
+    notfound: { bg: "bg-rose-50", border: "border-rose-300", text: "text-rose-800", Icon: XCircle }
+  };
+  const canInv = isGuest || isAdmin || !(userDoc && userDoc.inventoryAccess === false);
+  const appMode = isGuest ? "inventaire" : appModeRaw === "inventaire" && !canInv ? null : appModeRaw;
+  const appChoosing = !!(authUser && isApproved && currentAgent && !isGuest && !appMode);
+  const inStockApp = !!(authUser && isApproved && currentAgent && !isGuest && appMode === "stock");
+  const invVisible = !appChoosing && !inStockApp;
+  const appNav = !!(authUser && isApproved && currentAgent) && !appChoosing;
+  return /* @__PURE__ */ React.createElement(PhotoCtx.Provider, { value: loadPhoto }, /* @__PURE__ */ React.createElement("div", { className: "mmte-app min-h-screen w-full" + (appNav ? " mmte-has-side" : ""), style: { fontFamily: "'Manrope', 'IBM Plex Sans', system-ui, sans-serif" } }, /* @__PURE__ */ React.createElement("style", null, `
+        @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
+        .font-plex-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+        @keyframes stampIn {
+          0% { opacity: 0; transform: scale(1.6) rotate(-16deg); }
+          40% { opacity: 1; transform: scale(0.95) rotate(-10deg); }
+          100% { opacity: 0; transform: scale(1) rotate(-10deg); }
+        }
+        .stamp-anim { animation: stampIn 0.65s ease-out forwards; }
+        @media print { .no-print { display: none !important; } .print-only { display: block !important; } }
+        .print-only { display: none; }
+      `), /* @__PURE__ */ React.createElement("style", null, THEME_CSS), /* @__PURE__ */ React.createElement(
+    AppHeader,
+    {
+      currentAgent,
+      onLogout: handleLogout,
+      isAdmin,
+      isGuest,
+      showAdmin,
+      setShowAdmin,
+      onOpenArchives: authUser && isApproved && !isGuest ? openArchives : null,
+      onOpenStockCompare: authUser && isApproved && !isGuest ? openStockCompare : null,
+      onOpenDocs: authUser && isApproved && !isGuest ? openDocs : null,
+      onOpenHelp: authUser && isApproved ? openHelp : null,
+      onHome: () => {
+        setShowAdmin(false);
+        if (phase === "stockcompare" || phase === "archives" || phase === "compare" || phase === "docs" || phase === "help") setPhase("setup");
+      },
+      phase,
+      withNav: appNav,
+      appMode,
+      stockSection,
+      setStockSection: (k) => { setShowAdmin(false); setStockSection(k); },
+      onSwitchApp: !isGuest && canInv ? () => { setShowAdmin(false); setAppMode(appMode === "stock" ? "inventaire" : "stock"); } : null
+    }
+  ), appChoosing && /* @__PURE__ */ React.createElement(StkAppChooser, { canInventory: canInv, name: firstNameOf(localDisplayName || adminSetName || authUser.displayName || authUser.email), onChoose: (m) => { setShowAdmin(false); setAppMode(m); } }), inStockApp && /* @__PURE__ */ React.createElement(StkApp, { parcsList: PARCS_LIST, isAdmin, section: stockSection, setSection: setStockSection, userName: currentAgent && currentAgent.name }), authUser === void 0 && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Chargement..."), authUser === null && /* @__PURE__ */ React.createElement(
+    LoginScreen,
+    {
+      onLogin: handleEmailLogin,
+      onSignup: handleSignup,
+      onGuest: handleGuestAccess,
+      guestFailure,
+      onReset: handlePasswordReset
+    }
+  ), authUser && !isGuest && (userDoc === void 0 || !isApproved && !adminCheckDone) && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Chargement du profil..."), authUser && isGuest && guestOk === void 0 && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Vérification de l'accès invité..."), authUser && !isGuest && !isApproved && userDoc !== void 0 && adminCheckDone && /* @__PURE__ */ React.createElement(PendingApprovalScreen, { onLogout: handleLogout, status: userDoc && userDoc.status }), invVisible && authUser && isApproved && isAdmin && showAdmin && /* @__PURE__ */ React.createElement(
+    AdminPanel,
+    {
+      onClose: () => setShowAdmin(false),
+      parcsList: PARCS_LIST,
+      currentUserEmail: authUser.email,
+      currentUid: authUser.uid,
+      activeInvCount: activeInventories.length
+    }
+  ), invVisible && authUser && isAdmin && isApproved && !showAdmin && /* @__PURE__ */ React.createElement(QuotaBanner, null), invVisible && authUser && isApproved && currentAgent && !(isAdmin && showAdmin) && phase === "setup" && /* @__PURE__ */ React.createElement(WelcomeBar, { uid: authUser.uid, name: firstNameOf(localDisplayName || adminSetName || authUser.displayName || authUser.email) }), invVisible && authUser && isApproved && !(isAdmin && showAdmin) && phase === "setup" && /* @__PURE__ */ React.createElement(
+    SetupScreen,
+    {
+      parcName,
+      setParcName,
+      invDate,
+      setInvDate,
+      importMode,
+      setImportMode,
+      pasteText,
+      setPasteText,
+      handleFileChange,
+      handleLoadPaste,
+      importError,
+      importedFileName,
+      mmteSize: mmteMap.size,
+      canStart,
+      starting,
+      startInventory,
+      parcsList: PARCS_LIST,
+      activeInventories,
+      joinInventoryById,
+      isGuest,
+      existingClosedInv,
+      reopenClosedInventory,
+      replaceClosedInventory,
+      onCancelClosedInvChoice: () => setExistingClosedInv(null),
+      onOpenStockCompare: openStockCompare,
+      onOpenDocs: openDocs,
+      importDup,
+      onLoadParcStock: (map, mode, label) => {
+        setMmteMap(mode === "merge" ? stkMergeInventoryLists(mmteMap, map) : map);
+        setImportedFileName(label);
+        setImportError("");
+        setImportDup(null);
+      }
+    }
+  ), invVisible && authUser && isApproved && !(isAdmin && showAdmin) && phase === "inventory" && /* @__PURE__ */ React.createElement(
+    InventoryScreen,
+    {
+      parcName,
+      invDate,
+      mmteSize: mmteMap.size,
+      foundList,
+      registeredList,
+      totalList,
+      missingList,
+      inputVal,
+      setInputVal,
+      inputRef,
+      submitChassis,
+      feedback,
+      feedbackStyle,
+      pendingNotFound,
+      confirmRegister,
+      regForm,
+      setRegForm,
+      cancelPending,
+      activeTab,
+      setActiveTab,
+      listFilter,
+      setListFilter,
+      softDelete,
+      stampAnim,
+      confirmNewParc,
+      setConfirmNewParc,
+      resetAll,
+      goSummary: () => setPhase("summary"),
+      progressPct,
+      elapsed: startedAt ? formatElapsed(now - startedAt) : "00:00",
+      soundOn,
+      setSoundOn,
+      restoredBanner,
+      setRestoredBanner,
+      isGuest,
+      syncInfo: { online: isOnline, pending: pendingCount }
+    }
+  ), invVisible && authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "archives" && /* @__PURE__ */ React.createElement(
+    ArchiveScreen,
+    {
+      list: archiveList,
+      loading: archiveLoading,
+      error: archiveError,
+      onOpen: openArchivedInventory,
+      onTrash: trashArchived,
+      onRestore: restoreArchived,
+      onPurge: purgeArchived,
+      onPurgeExpired: purgeExpiredArchives,
+      onRefresh: loadArchive,
+      onExport: exportArchiveSummary,
+      onBack: () => setPhase("setup"),
+      isAdmin,
+      parcsList: PARCS_LIST,
+      onReopen: reopenArchived,
+      onCompare: compareInventories
+    }
+  ), invVisible && authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "stockcompare" && /* @__PURE__ */ React.createElement(StockCompareScreen, { onBack: () => setPhase("setup") }), invVisible && authUser && isApproved && !(isAdmin && showAdmin) && phase === "help" && /* @__PURE__ */ React.createElement(HelpScreen, { onBack: () => setPhase("setup") }), invVisible && authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "docs" && /* @__PURE__ */ React.createElement(DocsScreen, { parcsList: PARCS_LIST }), invVisible && authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "compare" && compareData && /* @__PURE__ */ React.createElement(CompareScreen, { data: compareData, onBack: () => {
+    setPhase("archives");
+  }, onExport: exportComparison }), invVisible && authUser && isApproved && !(isAdmin && showAdmin) && phase === "summary" && /* @__PURE__ */ React.createElement(
+    SummaryScreen,
+    {
+      followups,
+      onFollow: isApproved ? followMissing : null,
+      onUnfollow: unfollowMissing,
+      readOnly,
+      invMeta,
+      onReopen: isAdmin && readOnly && invMeta && invMeta.status === "completed" ? () => reopenArchived({ ...invMeta, id: invId }) : null,
+      parcName,
+      invDate,
+      mmteSize: mmteMap.size,
+      foundList,
+      registeredList,
+      totalList,
+      missingList,
+      contributors,
+      exportCSVList,
+      exportExcel,
+      backToInventory: readOnly ? closeArchivedView : () => setPhase("inventory"),
+      resetAll,
+      closeInventory,
+      isGuest
+    }
+  ), !inStockApp && /* @__PURE__ */ React.createElement(LangToggle, null), currentAgent && /* @__PURE__ */ React.createElement(SyncChip, { online: isOnline, pending: pendingCount }), /* @__PURE__ */ React.createElement(AppFooter, null)));
+}
+/* STOCK-MODULE-DEBUT (généré depuis stock-src, ne pas modifier ici) */
+
+/* STOCK-MODULE-FIN */
+function InventaireMMTE() {
+  return /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(InventaireMMTEApp, null));
+}
+const THEME_CSS = String.raw`
+/* ===== Thème « Nuit & Lumière » ===== */
+.mmte-app{background:#EEF4FB;color:#0F2A47;-webkit-font-smoothing:antialiased}
+.mmte-app h1,.mmte-app h2,.mmte-app h3{font-family:'Sora','Manrope',system-ui,sans-serif;letter-spacing:-.01em}
+.mmte-app .rounded-2xl{border-radius:20px}
+.mmte-app .rounded-xl{border-radius:16px}
+.mmte-app .rounded-lg{border-radius:13px}
+.mmte-app .shadow-sm,.mmte-app .shadow{box-shadow:0 1px 2px rgba(11,31,56,.05),0 16px 32px -24px rgba(18,58,102,.32)}
+.mmte-app .border-slate-200{border-color:#DFE9F5}
+.mmte-app input:not([type=checkbox]):not([type=radio]):not([type=file]),.mmte-app textarea,.mmte-app select{border-radius:13px;background-color:#F7FAFE;border-color:#D5E2F0}
+.mmte-app input:focus,.mmte-app textarea:focus,.mmte-app select:focus{background-color:#fff;border-color:#1B4F8C;outline:none;box-shadow:0 0 0 4px rgba(46,125,193,.16)}
+.mmte-app button{transition:transform .08s ease,box-shadow .15s ease,background-color .15s ease}
+.mmte-app button:active:not(:disabled){transform:scale(.985)}
+.mmte-app button.bg-\[\#1B4F8C\]{background-image:linear-gradient(180deg,#2E7DC1,#1B4F8C);box-shadow:0 12px 22px -14px rgba(27,79,140,.9),inset 0 1px 0 rgba(255,255,255,.2)}
+.mmte-app button.bg-\[\#123A66\]{background-image:linear-gradient(160deg,#0B1F38,#123A66);box-shadow:0 12px 22px -14px rgba(11,31,56,.9)}
+.mmte-app .bg-\[\#EAF1FA\]{background-color:#EAF1FA}
+.mmte-app .max-w-2xl{max-width:42rem}
+@media(min-width:768px){.mmte-app .max-w-2xl{max-width:52rem}.mmte-app .max-w-sm{max-width:26rem}}
+@media(min-width:1280px){.mmte-app .max-w-2xl{max-width:56rem}}
+
+/* --- En-tête : barre du haut (téléphone/tablette) ou menu latéral (ordinateur) --- */
+.mmte-head{background:linear-gradient(160deg,#0B1F38 0%,#123A66 70%,#1B4F8C 150%);color:#fff;padding:14px 18px;border-radius:0 0 24px 24px;position:relative;overflow:hidden;box-shadow:0 18px 30px -26px rgba(11,31,56,.9);display:grid;grid-template-columns:1fr auto;grid-template-areas:"brand logos" "nav nav" "user user";align-items:center;gap:12px 12px}
+.mmte-head::after{content:"";position:absolute;right:-70px;top:-70px;width:220px;height:220px;border-radius:50%;border:1px solid rgba(127,194,255,.18);pointer-events:none}
+.mmte-brand{grid-area:brand;position:relative}
+.mmte-title{font-family:'Sora',system-ui,sans-serif;font-weight:600;font-size:20px;letter-spacing:-.01em;line-height:1.15}
+.mmte-title span{color:#7FC2FF}
+.mmte-gold{width:30px;height:2px;background:#C9A96A;margin:7px 0 6px}
+.mmte-sub{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#9DC4EA;font-weight:700}
+.mmte-logos{grid-area:logos;display:flex;align-items:center;gap:10px;position:relative}
+.mmte-logos img{box-sizing:content-box;height:44px;width:auto;max-width:none;object-fit:contain;background:#fff;border-radius:12px;padding:6px 10px}
+.mmte-navs{grid-area:nav;display:flex;flex-wrap:wrap;gap:5px;position:relative}
+.mmte-nav-label{display:none}
+.mmte-nav{flex:none;display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(127,194,255,.22);background:rgba(255,255,255,.07);color:#D6E6F6;font-weight:700;font-size:12px;padding:7px 10px;border-radius:12px;white-space:nowrap}
+.mmte-nav svg{width:16px;height:16px}
+.mmte-nav.is-active{background:rgba(127,194,255,.2);color:#fff;border-color:rgba(127,194,255,.45)}
+.mmte-nav-out{margin-left:auto}
+.mmte-user{grid-area:user;display:flex;align-items:center;gap:9px;position:relative;font-size:12px;color:#A9C9EA}
+.mmte-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(145deg,#2E7DC1,#1B4F8C);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;flex:none}
+.mmte-user-txt{display:flex;align-items:baseline;gap:8px;min-width:0;flex-wrap:wrap}
+.mmte-user-name{color:#fff;font-weight:800;font-size:13px}
+.mmte-user-role{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(127,194,255,.2);border:1px solid rgba(127,194,255,.35);color:#fff;border-radius:99px;padding:2px 9px}
+.mmte-user-role.is-guest{background:rgba(240,180,50,.2);border-color:rgba(240,180,50,.5);color:#FFE3A1}
+@media(min-width:768px){.mmte-head{padding:16px 28px}.mmte-logos img{height:48px}.mmte-title{font-size:24px}}
+@media(min-width:1024px){
+  .mmte-has-side{padding-left:272px}
+  .mmte-head.is-auth{position:fixed;left:0;top:0;bottom:0;width:272px;z-index:20;border-radius:0;display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:26px 18px 20px;overflow-y:auto;box-shadow:none}
+  .mmte-head.is-auth::after{right:auto;top:auto;left:-120px;bottom:-120px;width:340px;height:340px}
+  .mmte-head.is-auth .mmte-logos{order:1;flex-direction:column;align-items:stretch;gap:10px}
+  .mmte-head.is-auth .mmte-logos img{height:58px;width:calc(100% - 28px);padding:10px 14px;border-radius:14px}
+  .mmte-head.is-auth .mmte-logos img:nth-child(2){height:84px;width:auto;align-self:stretch;object-fit:contain;padding:8px 14px}
+  .mmte-head.is-auth .mmte-brand{order:2;padding:20px 10px 12px}
+  .mmte-head.is-auth .mmte-title{font-size:23px}
+  .mmte-head.is-auth .mmte-navs{order:3;flex-direction:column;flex-wrap:nowrap;gap:6px;flex:1}
+  .mmte-head.is-auth .mmte-nav-label{display:block;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:#6F8FB3;padding:4px 14px;font-weight:800}
+  .mmte-head.is-auth .mmte-nav{width:100%;border-color:transparent;background:transparent;color:#A9C0DB;padding:12px 14px;font-size:14px}
+  .mmte-head.is-auth .mmte-nav svg{width:18px;height:18px}
+  .mmte-head.is-auth .mmte-nav:hover{background:rgba(255,255,255,.07);color:#fff}
+  .mmte-head.is-auth .mmte-nav.is-active{background:rgba(127,194,255,.14);border-color:rgba(127,194,255,.24);color:#fff}
+  .mmte-head.is-auth .mmte-nav.is-active svg{color:#7FC2FF}
+  .mmte-head.is-auth .mmte-nav-out{margin-left:0;margin-top:auto;color:#8FB0D6}
+  .mmte-head.is-auth .mmte-user{order:4;padding:13px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);gap:11px}
+  .mmte-head.is-auth .mmte-avatar{width:38px;height:38px;font-size:15px}
+  .mmte-head.is-auth .mmte-user-txt{flex-direction:column;align-items:flex-start;gap:2px}
+  .mmte-head.is-auth .mmte-user-role{background:none;border:0;padding:0;color:#7FC2FF;font-size:11.5px;letter-spacing:0;text-transform:none}
+  .mmte-head.is-auth .mmte-user-role.is-guest{color:#FFE3A1}
+}
+@media(min-width:1024px){.mmte-has-side .mmte-bottombar{left:272px}}
+.mmte-bottombar{background:rgba(255,255,255,.92);backdrop-filter:blur(8px);box-shadow:0 -12px 28px -22px rgba(11,31,56,.5)}
+
+/* --- En-tête centré (connexion) : logo à gauche, titre au milieu, logo à droite --- */
+.mmte-head:not(.is-auth){grid-template-columns:auto 1fr auto;grid-template-areas:"lg brand rg";align-items:center;gap:14px;padding:18px 18px 20px;text-align:center}
+.mmte-head:not(.is-auth) .mmte-logos{display:contents}
+.mmte-head:not(.is-auth) .mmte-logos img:first-child{grid-area:lg}
+.mmte-head:not(.is-auth) .mmte-logos img:last-child{grid-area:rg}
+.mmte-head:not(.is-auth) .mmte-logos img{height:46px;position:relative;box-shadow:0 10px 22px -12px rgba(0,0,0,.5)}
+.mmte-head:not(.is-auth) .mmte-brand{text-align:center}
+.mmte-head:not(.is-auth) .mmte-title{font-size:clamp(17px,5vw,38px);font-weight:700;letter-spacing:.14em;text-transform:uppercase;line-height:1.15}
+.mmte-head:not(.is-auth) .mmte-gold{margin:9px auto 8px;width:56px;height:2px}
+.mmte-head:not(.is-auth) .mmte-sub{font-size:clamp(9px,2.4vw,12px);letter-spacing:.22em}
+@media(min-width:768px){.mmte-head:not(.is-auth){padding:22px 40px 24px}.mmte-head:not(.is-auth) .mmte-logos img{height:72px;padding:8px 14px}}
+/* --- Interrupteur (panneau admin) --- */
+.mmte-switch{flex:none;width:54px;height:30px;border-radius:99px;background:#B7C6D8;position:relative;transition:background .15s}
+.mmte-switch span{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(11,31,56,.35);transition:transform .15s}
+.mmte-switch.is-on{background:#1E9E5A}
+.mmte-switch.is-on span{transform:translateX(24px)}
+/* --- Salutation et date --- */
+.mmte-date{margin-top:9px;font-size:12px;font-weight:700;color:#C9DCF0;letter-spacing:.01em}
+.mmte-welcome{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #DFE9F5;border-radius:20px;padding:18px 22px;box-shadow:0 1px 2px rgba(11,31,56,.05),0 16px 32px -26px rgba(18,58,102,.35);border-left:4px solid #C9A96A}
+.mmte-welcome-hi{font-family:'Sora',system-ui,sans-serif;font-size:22px;font-weight:600;color:#0B1F38;letter-spacing:-.01em}
+.mmte-welcome-date{font-size:13px;font-weight:600;color:#5B6F86;margin-top:3px}
+.mmte-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:60;background:#0B1F38;color:#fff;font-weight:700;font-size:14px;padding:12px 22px;border-radius:99px;box-shadow:0 18px 36px -16px rgba(11,31,56,.7);border:1px solid rgba(127,194,255,.35);animation:mmteToast 6s ease forwards;max-width:90vw}
+@keyframes mmteToast{0%{opacity:0;transform:translate(-50%,10px)}8%{opacity:1;transform:translate(-50%,0)}88%{opacity:1}100%{opacity:0}}
+/* --- Champ mot de passe (œil) --- */
+.mmte-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;color:#5B6F86;background:transparent}
+.mmte-eye:hover{color:#1B4F8C;background:#EAF1FA}
+/* --- Liste de propositions (pointage) : lisible et défilable au doigt --- */
+.mmte-dd{position:absolute;z-index:30;left:0;right:0;margin-top:8px;background:#fff;border:2px solid #1B4F8C;border-radius:16px;box-shadow:0 28px 50px -18px rgba(11,31,56,.5);max-height:min(46vh,22rem);overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+.mmte-dd-head{position:sticky;top:0;z-index:1;background:#EAF1FA;color:#123A66;font-size:12px;font-weight:800;letter-spacing:.04em;padding:9px 16px;border-bottom:1px solid #D5E2F0}
+.mmte-dd-row{display:block;width:100%;text-align:left;padding:13px 16px;min-height:56px;border-bottom:1px solid #E6EEF7;background:#fff}
+.mmte-dd-row:last-of-type{border-bottom:0}
+.mmte-dd-row.is-hl{background:#EAF1FA;box-shadow:inset 4px 0 0 #1B4F8C}
+.mmte-dd-chassis{font-size:16px;font-weight:700;color:#0B1F38;letter-spacing:.02em;word-break:break-all}
+.mmte-dd-desc{font-size:14px;color:#334E68;margin-top:3px;font-weight:600}
+/* --- Page de connexion --- */
+.mmte-login{max-width:26rem;margin:0 auto;padding:28px 20px 36px}
+.mmte-login-hero{display:none}
+.mmte-login-form{position:relative}
+.mmte-login-form form{border-radius:22px;padding:26px 24px;border-color:#DFE9F5;box-shadow:0 1px 2px rgba(11,31,56,.05),0 30px 56px -34px rgba(18,58,102,.45)}
+@media(min-width:1024px){
+  .mmte-login{max-width:70rem;display:grid;grid-template-columns:1.15fr 1fr;gap:64px;align-items:center;padding:48px 36px;min-height:calc(100vh - 130px)}
+  .mmte-login-hero{display:block;position:relative;overflow:hidden;border-radius:28px;padding:56px 52px;color:#fff;min-height:480px;background:linear-gradient(160deg,#0B1F38 0%,#123A66 62%,#1B4F8C 150%);box-shadow:0 40px 70px -40px rgba(11,31,56,.75)}
+  .mmte-login-hero::before,.mmte-login-hero::after{content:"";position:absolute;border-radius:50%;border:1px solid rgba(127,194,255,.16);pointer-events:none}
+  .mmte-login-hero::before{right:-170px;bottom:-170px;width:520px;height:520px}
+  .mmte-login-hero::after{right:-80px;bottom:-80px;width:340px;height:340px}
+  .mmte-login-kicker{font-size:12.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:#7FC2FF}
+  .mmte-login-title{font-family:'Sora',system-ui,sans-serif;font-size:56px;line-height:1.04;font-weight:600;letter-spacing:-.025em}
+  .mmte-login-text{margin-top:22px;font-size:17px;line-height:1.65;color:#C9DCF0;max-width:30rem}
+  .mmte-login-stats{display:flex;gap:36px;margin-top:44px;font-size:13px;color:#A9C9EA;position:relative}
+  .mmte-login-stats b{display:block;font-family:'IBM Plex Mono',monospace;font-size:19px;color:#fff;font-weight:600;margin-bottom:2px}
+  .mmte-login-form{max-width:26rem;width:100%}
+}
+@media print{.mmte-has-side{padding-left:0!important}.mmte-head{display:none!important}.mmte-app{background:#fff!important}}
+`;
+function greetingWord(d) {
+  return d.getHours() < 12 ? "Bonjour" : "Bonsoir";
+}
+function formatDateFr(d) {
+  const t = d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function firstNameOf(raw) {
+  let n = String(raw || "").replace(/\s*\(Invité\)\s*$/i, "").trim();
+  if (n.includes("@")) n = n.split("@")[0].replace(/[._-]+/g, " ").trim();
+  if (!n) return "";
+  const words = n.split(/\s+/);
+  const given = words.filter((w) => !(w.length > 1 && w === w.toUpperCase() && w !== w.toLowerCase()));
+  const out = (given.length ? given : words).join(" ");
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+function useNow() {
+  const [now, setNow] = useState(() => /* @__PURE__ */ new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(/* @__PURE__ */ new Date()), 6e4);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+function usagePct(n, quota) {
+  return Math.min(100, Math.round((n || 0) / quota * 1e3) / 10);
+}
+function QuotaBanner() {
+  const now = useNow();
+  const day = usageDayKey(now);
+  const [u, setU] = useState(null);
+  const [hiddenLevel, setHiddenLevel] = useState(0);
+  useEffect(() => {
+    const off = db.collection("usage").doc(day).onSnapshot((snap) => setU(snap.exists ? snap.data() : null), () => {
+    });
+    return () => {
+      try {
+        off();
+      } catch (e) {
+      }
+    };
+  }, [day]);
+  if (!u) return null;
+  const pr = usagePct(u.reads, USAGE_READ_QUOTA);
+  const pw = usagePct(u.writes, USAGE_WRITE_QUOTA);
+  const top = Math.max(pr, pw);
+  const level = top >= 90 ? 2 : top >= 70 ? 1 : 0;
+  if (level === 0 || hiddenLevel >= level) return null;
+  const red = level === 2;
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 pt-4 no-print" }, /* @__PURE__ */ React.createElement("div", { className: `rounded-xl border-2 px-4 py-3 text-sm flex items-start gap-3 ${red ? "bg-rose-50 border-rose-300 text-rose-800" : "bg-amber-50 border-amber-300 text-amber-900"}`, role: "alert" }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 18, className: "mt-0.5 shrink-0" }), /* @__PURE__ */ React.createElement("div", { className: "flex-1" }, /* @__PURE__ */ React.createElement("b", null, red ? "Quota Firebase presque atteint" : "Attention au quota Firebase du jour"), " (estimation) : lectures ", pr, " %, écritures ", pw, " %.", red ? " Passez au plan Blaze maintenant pour éviter un blocage." : " Évitez les rechargements et les comparaisons d'archives pendant le terrain."), /* @__PURE__ */ React.createElement("button", { onClick: () => setHiddenLevel(level), className: "text-xs font-bold underline shrink-0" }, "Masquer")));
+}
+function QuotaDiag() {
+  const [, bump] = useState(0);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const t = setInterval(() => bump((n) => n + 1), 3e3);
+    return () => clearInterval(t);
+  }, []);
+  const m = usageMeter;
+  const hm = (t) => t ? new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "jamais";
+  const denied = /permission|PERMISSION/.test(m.lastErr);
+  const flushNow = async () => {
+    setBusy(true);
+    try {
+      await Promise.race([usageFlush(), new Promise((r) => setTimeout(r, 8e3))]);
+    } catch (e) {
+    }
+    setBusy(false);
+    bump((n) => n + 1);
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "rounded-xl bg-slate-50 border-2 border-slate-100 p-3 text-xs text-slate-600", "data-testid": "quota-diag" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-1" }, "État du compteur sur cet appareil"), /* @__PURE__ */ React.createElement("div", null, "En attente d'envoi : ", m.r, " lect. · ", m.w, " écr. · Dernier envoi réussi : ", hm(m.lastOk)), m.lastErr && /* @__PURE__ */ React.createElement("div", { className: "mt-1 text-rose-700 font-bold" }, denied ? "Envoi refusé par Firestore : publiez le fichier firestore.rules (console Firebase → Firestore → Règles → Publier), puis touchez « Envoyer maintenant »." : `Dernier essai en échec (${m.lastErr}). Les chiffres reviendront dès que la connexion le permettra.`), /* @__PURE__ */ React.createElement("button", { "data-testid": "quota-flush", disabled: busy, onClick: flushNow, className: "mt-2 px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-[#1B4F8C] text-[#1B4F8C] bg-white disabled:opacity-60" }, busy ? "Envoi..." : "Envoyer maintenant"));
+}
+function QuotaTab({ docs, projectId }) {
+  const today = usageDayKey();
+  const cur = docs.find((d) => d.day === today) || {};
+  const pr = usagePct(cur.reads, USAGE_READ_QUOTA);
+  const pw = usagePct(cur.writes, USAGE_WRITE_QUOTA);
+  const tone = (p) => p >= 90 ? "#dc2626" : p >= 70 ? "#f59e0b" : "#16a34a";
+  const nf = (n) => (n || 0).toLocaleString("fr-FR");
+  const byUser = Object.values(cur.byUser || {}).sort((a, b) => (b.reads || 0) - (a.reads || 0)).slice(0, 8);
+  const Gauge = ({ label, n, quota, pct }) => /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between text-sm font-bold text-slate-700 mb-1" }, /* @__PURE__ */ React.createElement("span", null, label), /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono" }, nf(n), " / ", nf(quota), " · ", pct, " %")), /* @__PURE__ */ React.createElement("div", { className: "h-3 rounded-full bg-slate-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full", style: { width: `${Math.max(pct, n ? 1 : 0)}%`, background: tone(pct) } })));
+  const linkCls = "inline-block px-3 py-2 rounded-lg text-xs font-bold border-2 border-[#1B4F8C] text-[#1B4F8C] bg-white";
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700" }, "Consommation du jour (estimation)"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500" }, "Jour Firebase du ", today, " : remise à zéro vers 8 h ou 9 h, heure du Bénin. Plan gratuit : ", nf(USAGE_READ_QUOTA), " lectures et ", nf(USAGE_WRITE_QUOTA), " écritures par jour.")), /* @__PURE__ */ React.createElement(Gauge, { label: "Lectures", n: cur.reads, quota: USAGE_READ_QUOTA, pct: pr }), /* @__PURE__ */ React.createElement(Gauge, { label: "Écritures", n: cur.writes, quota: USAGE_WRITE_QUOTA, pct: pw }), /* @__PURE__ */ React.createElement(QuotaDiag, null), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, "Chiffres estimés d'après ce que mesurent les appareils de l'application (mise à jour toutes les 5 minutes environ). Ils peuvent être en dessous de la réalité si un appareil est hors-ligne ou fermé, et ne comptent pas les autres applications du même projet. La console Firebase fait foi."), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, /* @__PURE__ */ React.createElement("a", { className: linkCls, href: `https://console.firebase.google.com/project/${projectId}/firestore/databases/-default-/usage`, target: "_blank", rel: "noopener noreferrer" }, "Voir l'usage réel (console Firebase) ↗"), /* @__PURE__ */ React.createElement("a", { className: linkCls, href: `https://console.firebase.google.com/project/${projectId}/usage/details`, target: "_blank", rel: "noopener noreferrer" }, "Facturation et plan Blaze ↗"))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2" }, "Par personne (aujourd'hui)"), byUser.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucune donnée pour le moment."), byUser.map((x, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "flex justify-between text-sm border-b border-slate-100 py-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-700 truncate pr-3" }, x.name || "—"), /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono text-slate-500 shrink-0" }, nf(x.reads), " lect. · ", nf(x.writes), " écr.")))), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2" }, "Derniers jours"), docs.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucun historique pour le moment."), docs.map((d) => /* @__PURE__ */ React.createElement("div", { key: d.day, className: "flex justify-between text-sm border-b border-slate-100 py-1.5" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-700" }, d.day, d.day === today ? " (aujourd'hui)" : ""), /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono text-slate-500" }, nf(d.reads), " lect. · ", nf(d.writes), " écr.")))));
+}
+const welcomedUids = /* @__PURE__ */ new Set();
+function WelcomeBar({ uid, name }) {
+  const now = useNow();
+  const [toast, setToast] = useState(() => !welcomedUids.has(uid));
+  useEffect(() => {
+    if (!toast) return void 0;
+    welcomedUids.add(uid);
+    const id = setTimeout(() => setToast(false), 6e3);
+    return () => clearTimeout(id);
+  }, [toast, uid]);
+  if (!name) return null;
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, toast && /* @__PURE__ */ React.createElement("div", { className: "mmte-toast no-print", role: "status" }, "Bienvenue, ", name), /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 pt-6 no-print" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-hi" }, greetingWord(now), ", ", name), /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-date" }, formatDateFr(now))))));
+}
+function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin, onOpenArchives, onOpenStockCompare, onOpenDocs, onOpenHelp, onHome, phase, withNav, appMode, stockSection, setStockSection, onSwitchApp }) {
+  const now = useNow();
+  const inArchives = phase === "archives" || phase === "compare";
+  const inStock = phase === "stockcompare";
+  const inDocs = phase === "docs";
+  const inHelp = phase === "help";
+  const nav = [];
+  if (currentAgent && withNav && appMode === "stock") {
+    STK_SECTIONS.filter((x) => !x.admin || isAdmin).forEach((x) => nav.push({ key: "stk-" + x.key, label: x.label, Icon: x.Ic, onClick: () => setStockSection(x.key), active: stockSection === x.key || x.key === "dash" && stockSection === "parc" }));
+  } else if (currentAgent && withNav) {
+    nav.push({ key: "home", label: "Inventaire", Icon: Home, onClick: onHome, active: !showAdmin && !inArchives && !inStock && !inDocs && !inHelp });
+    if (onOpenArchives) nav.push({ key: "arch", label: "Mes données / Archives", Icon: Archive, onClick: onOpenArchives, active: !showAdmin && inArchives });
+    if (onOpenStockCompare) nav.push({ key: "cmp", label: "Comparer deux stocks", Icon: Columns, onClick: onOpenStockCompare, active: !showAdmin && inStock });
+    if (onOpenDocs) nav.push({ key: "docs", label: "Fiches et rapports", Icon: FileSpreadsheet, onClick: onOpenDocs, active: !showAdmin && inDocs });
+    if (onOpenHelp) nav.push({ key: "help", label: "Aide et guide d'utilisation", Icon: HelpCircle, onClick: onOpenHelp, active: !showAdmin && inHelp });
+    if (isAdmin) nav.push({ key: "adm", label: showAdmin ? "Fermer le panneau admin" : "Panneau admin", Icon: ShieldCheck, onClick: () => setShowAdmin((x) => !x), active: showAdmin });
+  }
+  if (currentAgent && withNav && onSwitchApp) nav.push({ key: "switch", label: appMode === "stock" ? "Passer à Inventaire MMTE" : "Passer au suivi des stocks", Icon: StkIc.Apps, onClick: onSwitchApp, active: false });
+  const initial = currentAgent && currentAgent.name ? String(currentAgent.name).trim().charAt(0).toUpperCase() : "";
+  const role = isAdmin ? "Administrateur" : isGuest ? "Invité" : "Agent";
+  return /* @__PURE__ */ React.createElement("header", { className: "mmte-head no-print" + (currentAgent && withNav ? " is-auth" : "") }, /* @__PURE__ */ React.createElement("div", { className: "mmte-brand" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-title" }, appMode === "stock" && withNav ? "Suivi des " : "Inventaire ", /* @__PURE__ */ React.createElement("span", null, appMode === "stock" && withNav ? "stocks" : "MMTE")), /* @__PURE__ */ React.createElement("div", { className: "mmte-gold" }), /* @__PURE__ */ React.createElement("div", { className: "mmte-sub" }, "Bénin Control / MAD-MAE" + (appMode === "stock" && withNav ? " · MMTE" : "")), currentAgent && withNav && /* @__PURE__ */ React.createElement("div", { className: "mmte-date" }, formatDateFr(now))), /* @__PURE__ */ React.createElement("div", { className: "mmte-logos" }, /* @__PURE__ */ React.createElement("img", { src: LOGO_BC, alt: "Bénin Control" }), /* @__PURE__ */ React.createElement("img", { src: LOGO_DOUANES, alt: "Douanes Béninoises" })), currentAgent && withNav && /* @__PURE__ */ React.createElement("nav", { className: "mmte-navs", "aria-label": "Navigation" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-nav-label" }, "Navigation"), nav.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: n.onClick, className: "mmte-nav" + (n.active ? " is-active" : "") }, /* @__PURE__ */ React.createElement(n.Icon, { size: 18 }), " ", n.label)), /* @__PURE__ */ React.createElement("button", { onClick: onLogout, className: "mmte-nav mmte-nav-out" }, /* @__PURE__ */ React.createElement(LogOut, { size: 18 }), " Déconnexion")), currentAgent && withNav && /* @__PURE__ */ React.createElement("div", { className: "mmte-user" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-avatar" }, initial), /* @__PURE__ */ React.createElement("div", { className: "mmte-user-txt" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-user-name" }, currentAgent.name), /* @__PURE__ */ React.createElement("div", { className: "mmte-user-role" + (isGuest ? " is-guest" : "") }, role))));
+}
+function AppFooter() {
+  return /* @__PURE__ */ React.createElement("footer", { className: "no-print max-w-3xl mx-auto px-5 py-3 mt-2" }, /* @__PURE__ */ React.createElement("div", { className: "text-center text-[10px] text-slate-300", "aria-hidden": "true" }, " "));
+}
+function PendingApprovalScreen({ onLogout, status }) {
+  const disabled = status === "disabled";
+  const rejected = status === "rejected" || disabled;
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center" }, /* @__PURE__ */ React.createElement("div", { className: `mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center ${rejected ? "bg-rose-100" : "bg-amber-100"}` }, rejected ? /* @__PURE__ */ React.createElement(XCircle, { size: 26, className: "text-rose-600" }) : /* @__PURE__ */ React.createElement(ShieldCheck, { size: 26, className: "text-amber-600" })), /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-extrabold", style: { color: BLUE_DEEP } }, disabled ? "Compte désactivé" : rejected ? "Accès refusé" : "Compte en attente de validation"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mt-2" }, disabled ? "Votre compte a été désactivé par un administrateur. Contactez le service MAD-MAE pour le réactiver." : rejected ? "Votre demande de compte agent n'a pas été approuvée. Contactez un administrateur MAD-MAE si vous pensez qu'il s'agit d'une erreur." : "Un administrateur doit approuver votre compte avant que vous puissiez accéder à l'application. Contactez le service MAD-MAE si l'attente se prolonge."), /* @__PURE__ */ React.createElement("button", { onClick: onLogout, className: "mt-6 text-sm font-semibold text-[#1B4F8C] hover:underline" }, "Se déconnecter"));
+}
+function AdminPanel({ onClose, parcsList, currentUserEmail, currentUid, activeInvCount }) {
+  const projectId = firebaseConfig.projectId;
+  const selfEmail = String(currentUserEmail || "").toLowerCase();
+  const fallbackLower = FALLBACK_ADMIN_EMAILS.map((e) => e.toLowerCase());
+  const [tab, setTab] = useState("accounts");
+  const [users, setUsers] = useState(null);
+  const [adminsDoc, setAdminsDoc] = useState({ emails: [], disabledEmails: [] });
+  const [guestCfg, setGuestCfg] = useState(void 0);
+  const [sessions, setSessions] = useState([]);
+  const [appCfg, setAppCfg] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [usageDocs, setUsageDocs] = useState([]);
+  const [msg, setMsg] = useState(null);
+  const flash = (text, kind) => {
+    setMsg({ text, kind: kind || "ok" });
+    setTimeout(() => setMsg((m) => m && m.text === text ? null : m), 6e3);
+  };
+  useEffect(() => {
+    const subs = [];
+    subs.push(db.collection("users").onSnapshot((s) => setUsers(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setUsers([])));
+    subs.push(db.collection("config").doc("admins").onSnapshot((s) => {
+      const d = s.exists ? s.data() : {};
+      setAdminsDoc({ emails: Array.isArray(d.emails) ? d.emails : [], disabledEmails: Array.isArray(d.disabledEmails) ? d.disabledEmails : [] });
+    }, () => {
+    }));
+    subs.push(db.collection("config").doc("guest").onSnapshot((s) => setGuestCfg(s.exists ? s.data() : null), () => setGuestCfg(null)));
+    subs.push(db.collection("guestSessions").onSnapshot((s) => setSessions(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => {
+    }));
+    subs.push(db.collection("config").doc("app").onSnapshot((s) => setAppCfg(s.exists ? s.data() : {}), () => setAppCfg({})));
+    subs.push(db.collection("usage").orderBy("day", "desc").limit(7).onSnapshot((s) => setUsageDocs(s.docs.map((d) => d.data())), () => {
+    }));
+    subs.push(db.collection("adminLog").orderBy("at", "desc").limit(50).onSnapshot((s) => setLogs(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => {
+    }));
+    return () => subs.forEach((u) => {
+      try {
+        u();
+      } catch (e) {
+      }
+    });
+  }, []);
+  const log = (action, target) => {
+    db.collection("adminLog").add({ action, target: String(target || ""), byEmail: selfEmail, at: FieldValue.serverTimestamp() }).catch(() => {
+    });
+  };
+  const fail = (e) => {
+    const denied = e && e.code === "permission-denied";
+    flash(denied ? "Action refusée par le serveur : publiez la dernière version du fichier firestore.rules dans Firebase." : "Une erreur est survenue. Réessayez.", "err");
+  };
+  const tsMs = (t) => t && t.toMillis ? t.toMillis() : typeof t === "number" ? t : 0;
+  const fmtDate = (ms) => ms ? new Date(ms).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+  const adminSet = useMemo(() => /* @__PURE__ */ new Set([...fallbackLower, ...adminsDoc.emails.map((e) => String(e).toLowerCase())]), [adminsDoc]);
+  const disabledAdminSet = useMemo(() => new Set(adminsDoc.disabledEmails.map((e) => String(e).toLowerCase())), [adminsDoc]);
+  const isProtected = (email) => fallbackLower.includes(String(email || "").toLowerCase()) || String(email || "").toLowerCase() === selfEmail;
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const setStatus = async (u, status, label) => {
+    try {
+      await db.collection("users").doc(u.id).update({ status });
+      log(label, u.email);
+      flash(`${u.displayName || u.email} : ${label.toLowerCase()}.`);
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const resetPassword = async (u) => {
+    if (!u.email || !confirmT(`Envoyer un lien de réinitialisation du mot de passe à ${u.email} ?`)) return;
+    try {
+      await auth.sendPasswordResetEmail(u.email);
+      log("Réinitialisation du mot de passe envoyée", u.email);
+      flash(`Lien de réinitialisation envoyé à ${u.email}.`);
+    } catch (e) {
+      flash("Impossible d'envoyer le lien (adresse inconnue ou réseau).", "err");
+    }
+  };
+  const writeAdmins = async (emails, disabled) => {
+    await db.collection("config").doc("admins").set({ emails, disabledEmails: disabled });
+  };
+  const toggleRole = async (u) => {
+    const email = String(u.email || "").toLowerCase();
+    const makeAdmin = !adminSet.has(email);
+    if (isProtected(email)) return;
+    if (!confirmT(makeAdmin ? `Donner le rôle administrateur à ${u.email} ?` : `Retirer le rôle administrateur à ${u.email} ?`)) return;
+    try {
+      const emails = adminsDoc.emails.map((e) => String(e).toLowerCase()).filter((e) => e !== email);
+      const disabled = adminsDoc.disabledEmails.map((e) => String(e).toLowerCase()).filter((e) => e !== email);
+      if (makeAdmin) emails.push(email);
+      await writeAdmins(emails, disabled);
+      await db.collection("users").doc(u.id).update(makeAdmin ? { role: "admin", status: "approved" } : { role: "agent" });
+      log(makeAdmin ? "Rôle administrateur accordé" : "Rôle administrateur retiré", u.email);
+      flash(makeAdmin ? `${u.email} est maintenant administrateur.` : `${u.email} est maintenant agent.`);
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const [editUser, setEditUser] = useState(null);
+  const saveUserName = async () => {
+    const v = (editUser && editUser.value || "").trim();
+    if (!v) return flash("Le nom ne peut pas être vide.", "err");
+    const u = (users || []).find((x) => x.id === editUser.id);
+    try {
+      await db.collection("users").doc(editUser.id).update({ displayName: v });
+      log(u && u.displayName ? "Compte renommé" : "Nom ajouté", `${u && u.displayName || ""}${u && u.displayName ? " → " : ""}${v} (${u ? u.email : ""})`);
+      flash("Nom enregistré.");
+      setEditUser(null);
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const deleteUser = async (u) => {
+    if (isProtected(u.email)) return;
+    if (!confirmT(`Supprimer la fiche de ${u.email} ? La personne perdra son accès (elle pourra refaire une demande). Son compte de connexion reste dans la console Firebase.`)) return;
+    try {
+      await db.collection("users").doc(u.id).delete();
+      log("Fiche supprimée", u.email);
+      flash("Fiche supprimée.");
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const exportUsers = () => {
+    const rows = (users || []).map((u) => [u.displayName || "", u.email || "", adminSet.has(String(u.email || "").toLowerCase()) ? "Administrateur" : "Agent", statusLabel(u.status), fmtDate(tsMs(u.createdAt)), fmtDate(tsMs(u.lastLoginAt))]);
+    const ws = XLSX.utils.aoa_to_sheet([["Nom", "E-mail", "Rôle", "Statut", "Inscrit le", "Dernière connexion"], ...rows]);
+    ws["!cols"] = [{ wch: 26 }, { wch: 34 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 18 }];
+    const wb = XLSX.utils.book_new();
+    wb.SheetNames.push("Comptes");
+    wb.Sheets["Comptes"] = ws;
+    XLSX.writeFile(wb, `Comptes_MMTE_${todayISO()}.xlsx`);
+  };
+  const statusLabel = (s) => ({ approved: "Actif", pending: "En attente", disabled: "Désactivé", rejected: "Refusé" })[s] || "—";
+  const statusTone = (s) => ({ approved: "bg-emerald-100 text-emerald-800", pending: "bg-amber-100 text-amber-800", disabled: "bg-slate-200 text-slate-700", rejected: "bg-rose-100 text-rose-700" })[s] || "bg-slate-100 text-slate-500";
+  const filteredUsers = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return (users || []).filter((u) => statusFilter === "all" ? true : u.status === statusFilter).filter((u) => !t || String(u.displayName || "").toLowerCase().includes(t) || String(u.email || "").toLowerCase().includes(t)).sort((a, b) => (a.status === "pending" ? -1 : 0) - (b.status === "pending" ? -1 : 0) || String(a.displayName || a.email).localeCompare(String(b.displayName || b.email)));
+  }, [users, q, statusFilter]);
+  const [codeInput, setCodeInput] = useState("");
+  const [expiryInput, setExpiryInput] = useState("");
+  useEffect(() => {
+    if (guestCfg === void 0) return;
+    setCodeInput(guestCfg && guestCfg.code || DEFAULT_GUEST_ACCESS_CODE);
+    setExpiryInput(guestCfg && guestCfg.expiresAtMs ? new Date(guestCfg.expiresAtMs).toISOString().slice(0, 10) : "");
+  }, [guestCfg]);
+  const guestEnabled = !guestCfg || guestCfg.enabled !== false;
+  const guestExpired = !!(guestCfg && guestCfg.expiresAtMs && Date.now() > guestCfg.expiresAtMs);
+  const liveSessions = sessions.filter((s) => Date.now() - tsMs(s.createdAt) < GUEST_SESSION_MS);
+  const revokeSession = async (s) => {
+    try {
+      await db.collection("guestSessions").doc(s.id).delete();
+      log("Invité révoqué", s.name || s.id);
+      flash("Invité déconnecté.");
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const revokeAll = async (silent) => {
+    try {
+      await Promise.all(sessions.map((s) => db.collection("guestSessions").doc(s.id).delete()));
+      if (!silent) {
+        log("Tous les invités révoqués", "");
+        flash("Tous les invités ont été déconnectés.");
+      }
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const setGuestEnabled = async (on) => {
+    if (!on && !confirmT("Désactiver l'accès invité ? Plus personne ne pourra entrer avec le code, et les invités connectés seront déconnectés.")) return;
+    try {
+      await db.collection("config").doc("guest").set({ code: guestCfg && guestCfg.code || codeInput || DEFAULT_GUEST_ACCESS_CODE, enabled: on }, { merge: true });
+      if (!on) await revokeAll(true);
+      log(on ? "Accès invité activé" : "Accès invité désactivé", "");
+      flash(on ? "Accès invité activé." : "Accès invité désactivé.");
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const generateCode = () => {
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const bytes = new Uint32Array(8);
+    (window.crypto || window.msCrypto).getRandomValues(bytes);
+    setCodeInput(Array.from(bytes).map((b) => alphabet[b % alphabet.length]).join(""));
+  };
+  const saveGuestCode = async () => {
+    const code = codeInput.trim().toUpperCase();
+    if (code.length < 4) return flash("Le code doit contenir au moins 4 caractères.", "err");
+    try {
+      const data = { code, enabled: guestEnabled };
+      data.expiresAtMs = expiryInput ? (/* @__PURE__ */ new Date(expiryInput + "T23:59:59")).getTime() : FieldValue.delete();
+      await db.collection("config").doc("guest").set(data, { merge: true });
+      log("Code d'accès invité modifié", "");
+      flash("Code d'accès invité enregistré.");
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const activeParcs = appCfg && Array.isArray(appCfg.parcsList) && appCfg.parcsList.length ? appCfg.parcsList : parcsList;
+  const disabledParcs = appCfg && Array.isArray(appCfg.parcsDisabled) ? appCfg.parcsDisabled : [];
+  const [parcQ, setParcQ] = useState("");
+  const [newParc, setNewParc] = useState("");
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState("");
+  const [editing, setEditing] = useState(null);
+  const allParcs = useMemo(() => [...activeParcs.map((n) => ({ name: n, active: true })), ...disabledParcs.map((n) => ({ name: n, active: false }))].filter((p) => !parcQ.trim() || p.name.toLowerCase().includes(parcQ.trim().toLowerCase())).sort((a, b) => a.name.localeCompare(b.name)), [activeParcs, disabledParcs, parcQ]);
+  const writeParcs = async (act, dis, label, target) => {
+    if (act.length === 0) return flash("Gardez au moins un parc actif.", "err");
+    try {
+      await db.collection("config").doc("app").set({ parcsList: act, parcsDisabled: dis }, { merge: true });
+      if (label) log(label, target);
+      return true;
+    } catch (e) {
+      fail(e);
+      return false;
+    }
+  };
+  const exists = (name, except) => [...activeParcs, ...disabledParcs].some((p) => p.toLowerCase() === name.toLowerCase() && p !== except);
+  const addParcs = async (names) => {
+    const clean = [];
+    names.map((n) => n.trim()).filter(Boolean).forEach((n) => {
+      if (!exists(n) && !clean.some((c) => c.toLowerCase() === n.toLowerCase())) clean.push(n);
+    });
+    if (clean.length === 0) return flash("Ce parc existe déjà (ou le nom est vide).", "err");
+    if (await writeParcs([...activeParcs, ...clean], disabledParcs, "Parc(s) ajouté(s)", clean.join(", "))) flash(`${clean.length} parc(s) ajouté(s).`);
+  };
+  const toggleParc = async (p) => {
+    const act = p.active ? activeParcs.filter((n) => n !== p.name) : [...activeParcs, p.name];
+    const dis = p.active ? [...disabledParcs, p.name] : disabledParcs.filter((n) => n !== p.name);
+    if (await writeParcs(act, dis, p.active ? "Parc désactivé" : "Parc activé", p.name)) flash(`${p.name} : ${p.active ? "désactivé" : "activé"}.`);
+  };
+  const deleteParc = async (p) => {
+    if (!confirmT(`Supprimer le parc « ${p.name} » de la liste ? Les inventaires déjà réalisés restent intacts.`)) return;
+    const act = activeParcs.filter((n) => n !== p.name);
+    const dis = disabledParcs.filter((n) => n !== p.name);
+    if (await writeParcs(act, dis, "Parc supprimé", p.name)) flash("Parc supprimé.");
+  };
+  const renameParc = async () => {
+    const v = (editing && editing.value || "").trim();
+    if (!v) return setEditing(null);
+    if (exists(v, editing.name)) return flash("Un parc porte déjà ce nom.", "err");
+    const act = activeParcs.map((n) => n === editing.name ? v : n);
+    const dis = disabledParcs.map((n) => n === editing.name ? v : n);
+    if (await writeParcs(act, dis, "Parc renommé", `${editing.name} → ${v}`)) {
+      flash("Parc renommé (les anciens inventaires gardent l'ancien nom).");
+      setEditing(null);
+    }
+  };
+  const [newAdmin, setNewAdmin] = useState("");
+  const adminRows = useMemo(() => {
+    const act = Array.from(/* @__PURE__ */ new Set([...fallbackLower, ...adminsDoc.emails.map((e) => String(e).toLowerCase())]));
+    return [...act.map((e) => ({ email: e, active: true })), ...adminsDoc.disabledEmails.map((e) => ({ email: String(e).toLowerCase(), active: false }))];
+  }, [adminsDoc]);
+  const saveAdminsFrom = async (rows, label, target) => {
+    const emails = rows.filter((r) => r.active && !fallbackLower.includes(r.email)).map((r) => r.email);
+    const disabled = rows.filter((r) => !r.active).map((r) => r.email);
+    try {
+      await writeAdmins(emails, disabled);
+      log(label, target);
+      flash("Liste des administrateurs mise à jour.");
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const addAdmin = async () => {
+    const e = newAdmin.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return flash("Adresse e-mail invalide.", "err");
+    if (adminRows.some((r) => r.email === e && r.active)) return flash("Cette adresse est déjà administrateur.", "err");
+    await saveAdminsFrom([...adminRows.filter((r) => r.email !== e), { email: e, active: true }], "Administrateur ajouté", e);
+    setNewAdmin("");
+  };
+  const toggleAdminRow = async (r) => {
+    if (isProtected(r.email)) return;
+    await saveAdminsFrom(adminRows.map((x) => x.email === r.email ? { ...x, active: !x.active } : x), r.active ? "Administrateur désactivé" : "Administrateur réactivé", r.email);
+  };
+  const removeAdminRow = async (r) => {
+    if (isProtected(r.email)) return;
+    if (!confirmT(`Retirer ${r.email} de la liste des administrateurs ?`)) return;
+    await saveAdminsFrom(adminRows.filter((x) => x.email !== r.email), "Administrateur retiré", r.email);
+  };
+  const counts = useMemo(() => ({
+    active: (users || []).filter((u) => u.status === "approved").length,
+    pending: (users || []).filter((u) => u.status === "pending").length
+  }), [users]);
+  const tabs = [
+    { id: "accounts", label: "Comptes", badge: counts.pending },
+    { id: "guests", label: "Invités" },
+    { id: "parcs", label: "Parcs" },
+    { id: "admins", label: "Administrateurs" },
+    { id: "quota", label: "Quotas" },
+    { id: "log", label: "Journal" }
+  ];
+  const card = "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5";
+  const btn = "px-3 py-1.5 rounded-lg text-xs font-bold";
+  const input = "w-full rounded-lg border-2 border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:border-[#1B4F8C]";
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 py-8" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-5" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-[0.2em] font-bold", style: { color: BLUE_LIGHT } }, "Administration"), /* @__PURE__ */ React.createElement("h1", { className: "text-2xl font-extrabold", style: { color: BLUE_DEEP } }, "Panneau admin")), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "text-sm font-bold text-slate-500 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " Retour")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5" }, [
+    ["Comptes actifs", counts.active],
+    ["En attente", counts.pending],
+    ["Invités connectés", guestEnabled ? liveSessions.length : 0],
+    ["Inventaires en cours", activeInvCount || 0]
+  ].map(([l, v]) => /* @__PURE__ */ React.createElement("div", { key: l, className: "rounded-xl bg-white border-2 border-[#1B4F8C]/15 px-3 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-2xl font-bold font-plex-mono", style: { color: BLUE_DEEP } }, v), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] uppercase tracking-wide font-semibold text-slate-500" }, l)))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 overflow-x-auto pb-1 mb-4" }, tabs.map((t) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: t.id,
+      onClick: () => setTab(t.id),
+      className: `shrink-0 px-4 py-2 rounded-xl text-sm font-bold border-2 ${tab === t.id ? "text-white border-transparent" : "bg-white text-slate-600 border-slate-200"}`,
+      style: tab === t.id ? { background: BLUE_DEEP } : void 0
+    },
+    t.label,
+    t.badge ? /* @__PURE__ */ React.createElement("span", { className: "ml-2 px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[11px]" }, t.badge) : null
+  ))), msg && /* @__PURE__ */ React.createElement("div", { className: `mb-4 rounded-xl px-4 py-3 text-sm font-semibold border-2 ${msg.kind === "err" ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-emerald-50 border-emerald-200 text-emerald-800"}`, role: "status" }, msg.text), tab === "accounts" && /* @__PURE__ */ React.createElement("div", { className: card + " space-y-3" }, /* @__PURE__ */ React.createElement(StkAccountTools, { users, adminEmails: (adminsDoc.emails || []).concat(FALLBACK_ADMIN_EMAILS) }), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col sm:flex-row gap-2" }, /* @__PURE__ */ React.createElement("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: "Rechercher un nom ou un e-mail…", className: input }), /* @__PURE__ */ React.createElement("select", { value: statusFilter, onChange: (e) => setStatusFilter(e.target.value), className: input + " sm:w-48" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Tous les statuts"), /* @__PURE__ */ React.createElement("option", { value: "pending" }, "En attente"), /* @__PURE__ */ React.createElement("option", { value: "approved" }, "Actifs"), /* @__PURE__ */ React.createElement("option", { value: "disabled" }, "Désactivés"), /* @__PURE__ */ React.createElement("option", { value: "rejected" }, "Refusés")), /* @__PURE__ */ React.createElement("button", { onClick: exportUsers, className: btn + " border-2 border-[#1B4F8C] text-[#1B4F8C] bg-white whitespace-nowrap" }, "Exporter (Excel)")), users === null && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, "Chargement..."), users !== null && filteredUsers.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucun compte à afficher."), filteredUsers.map((u) => {
+    const email = String(u.email || "").toLowerCase();
+    const isAdm = adminSet.has(email);
+    const prot = isProtected(email);
+    return /* @__PURE__ */ React.createElement("div", { key: u.id, className: "border-2 border-slate-100 rounded-xl px-3 py-3 space-y-2", "data-user": email }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, editUser && editUser.id === u.id ? /* @__PURE__ */ React.createElement("div", { className: "flex gap-1.5 mb-1" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        autoFocus: true,
+        value: editUser.value,
+        onChange: (e) => setEditUser({ ...editUser, value: e.target.value }),
+        onKeyDown: (e) => {
+          if (e.key === "Enter") saveUserName();
+          if (e.key === "Escape") setEditUser(null);
+        },
+        className: input,
+        "aria-label": "Nom de la personne",
+        placeholder: "Prénom NOM"
+      }
+    ), /* @__PURE__ */ React.createElement("button", { onClick: saveUserName, className: btn + " bg-emerald-600 text-white" }, "Valider"), /* @__PURE__ */ React.createElement("button", { onClick: () => setEditUser(null), className: btn + " bg-slate-100 text-slate-600" }, "Annuler")) : /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-slate-700 truncate" }, u.displayName || "(sans nom)"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-400 font-plex-mono truncate" }, u.email), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-slate-400 mt-0.5" }, "Dernière connexion : ", fmtDate(tsMs(u.lastLoginAt)))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col items-end gap-1 shrink-0" }, /* @__PURE__ */ React.createElement("span", { className: `text-[11px] font-bold px-2 py-0.5 rounded-full ${statusTone(u.status)}` }, statusLabel(u.status)), /* @__PURE__ */ React.createElement("span", { className: `text-[11px] font-bold px-2 py-0.5 rounded-full ${isAdm ? "bg-[#123A66] text-white" : "bg-slate-100 text-slate-600"}` }, isAdm ? "Administrateur" : "Agent"))), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, u.status === "pending" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { onClick: () => setStatus(u, "approved", "Compte approuvé"), className: btn + " bg-emerald-600 text-white" }, "Approuver"), /* @__PURE__ */ React.createElement("button", { onClick: () => setStatus(u, "rejected", "Compte refusé"), className: btn + " bg-rose-100 text-rose-700" }, "Refuser")), u.status === "approved" && !isAdm && /* @__PURE__ */ React.createElement("button", { onClick: () => setStatus(u, "disabled", "Compte désactivé"), className: btn + " bg-slate-200 text-slate-700" }, "Désactiver"), (u.status === "disabled" || u.status === "rejected") && /* @__PURE__ */ React.createElement("button", { onClick: () => setStatus(u, "approved", "Compte réactivé"), className: btn + " bg-emerald-600 text-white" }, "Réactiver"), !prot && /* @__PURE__ */ React.createElement("button", { onClick: () => toggleRole(u), className: btn + " bg-[#EAF1FA] text-[#123A66]" }, isAdm ? "Passer agent" : "Passer administrateur"), /* @__PURE__ */ React.createElement("button", { onClick: () => setEditUser({ id: u.id, value: u.displayName || "" }), className: btn + " bg-[#EAF1FA] text-[#123A66]" }, u.displayName ? "Renommer" : "Ajouter un nom"), /* @__PURE__ */ React.createElement("button", { onClick: () => resetPassword(u), className: btn + " bg-[#EAF1FA] text-[#123A66]" }, "Réinitialiser le mot de passe"), !prot && /* @__PURE__ */ React.createElement("button", { onClick: () => deleteUser(u), className: btn + " bg-rose-50 text-rose-700" }, "Supprimer")));
+  }), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, "Un compte désactivé ne peut plus lire ni pointer. Pour effacer définitivement un compte de connexion :", " ", /* @__PURE__ */ React.createElement("a", { className: "underline", href: `https://console.firebase.google.com/project/${projectId}/authentication/users`, target: "_blank", rel: "noopener noreferrer" }, "console Firebase ↗"))), tab === "guests" && /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: card + " space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700" }, "Accès invité (sans compte)"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500" }, !guestEnabled ? "Désactivé : personne ne peut entrer avec le code." : guestExpired ? "Le code a expiré : personne ne peut entrer." : "Actif : un code et un nom suffisent pour rejoindre un inventaire en cours.")), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      role: "switch",
+      "aria-checked": guestEnabled,
+      "aria-label": "Activer l'accès invité",
+      onClick: () => setGuestEnabled(!guestEnabled),
+      className: `mmte-switch ${guestEnabled ? "is-on" : ""}`
+    },
+    /* @__PURE__ */ React.createElement("span", null)
+  )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-1" }, "Code d'accès"), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement("input", { value: codeInput, onChange: (e) => setCodeInput(e.target.value), className: input + " font-plex-mono uppercase", "aria-label": "Code d'accès invité" }), /* @__PURE__ */ React.createElement("button", { onClick: generateCode, className: btn + " bg-[#EAF1FA] text-[#123A66] whitespace-nowrap" }, "Générer"))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-1" }, "Valable jusqu'au (facultatif)"), /* @__PURE__ */ React.createElement("input", { type: "date", value: expiryInput, onChange: (e) => setExpiryInput(e.target.value), className: input, "aria-label": "Date de fin de validité" }), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400 mt-1" }, "Vide = pas de date de fin. Chaque session invité dure 24 h au maximum.")), /* @__PURE__ */ React.createElement("button", { onClick: saveGuestCode, className: "w-full py-3 rounded-xl text-white font-extrabold text-sm", style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }, "Enregistrer le code")), /* @__PURE__ */ React.createElement("div", { className: card + " space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700" }, "Invités connectés (", liveSessions.length, ")"), liveSessions.length > 0 && /* @__PURE__ */ React.createElement("button", { onClick: () => revokeAll(false), className: btn + " bg-rose-100 text-rose-700" }, "Tout révoquer")), liveSessions.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucun invité connecté."), liveSessions.map((s) => /* @__PURE__ */ React.createElement("div", { key: s.id, className: "flex items-center justify-between border-2 border-slate-100 rounded-lg px-3 py-2" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-semibold text-slate-700" }, s.name || "(sans nom)"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-400" }, "Connecté le ", fmtDate(tsMs(s.createdAt)))), /* @__PURE__ */ React.createElement("button", { onClick: () => revokeSession(s), className: btn + " bg-rose-50 text-rose-700" }, "Révoquer"))))), tab === "parcs" && /* @__PURE__ */ React.createElement("div", { className: card + " space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement("input", { value: newParc, onChange: (e) => setNewParc(e.target.value), onKeyDown: (e) => {
+    if (e.key === "Enter") {
+      addParcs([newParc]);
+      setNewParc("");
+    }
+  }, placeholder: "Nom du nouveau parc", className: input, "aria-label": "Nouveau parc" }), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    addParcs([newParc]);
+    setNewParc("");
+  }, className: btn + " text-white whitespace-nowrap", style: { background: BLUE_DEEP } }, "Ajouter")), /* @__PURE__ */ React.createElement("button", { onClick: () => setBulkOpen((o) => !o), className: "text-xs font-bold text-[#1B4F8C] underline" }, bulkOpen ? "Fermer l'ajout en masse" : "Ajouter plusieurs parcs à la fois"), bulkOpen && /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("textarea", { value: bulkText, onChange: (e) => setBulkText(e.target.value), rows: 4, placeholder: "Un parc par ligne", className: input + " font-plex-mono", "aria-label": "Liste de parcs à ajouter" }), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    addParcs(bulkText.split("\n"));
+    setBulkText("");
+    setBulkOpen(false);
+  }, className: btn + " text-white", style: { background: BLUE_DEEP } }, "Ajouter ces parcs")), /* @__PURE__ */ React.createElement("input", { value: parcQ, onChange: (e) => setParcQ(e.target.value), placeholder: `Rechercher parmi ${activeParcs.length + disabledParcs.length} parcs…`, className: input }), allParcs.map((p) => /* @__PURE__ */ React.createElement("div", { key: p.name, className: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-2 border-slate-100 rounded-lg px-3 py-2", "data-parc": p.name }, editing && editing.name === p.name ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("input", { autoFocus: true, value: editing.value, onChange: (e) => setEditing({ ...editing, value: e.target.value }), onKeyDown: (e) => {
+    if (e.key === "Enter") renameParc();
+    if (e.key === "Escape") setEditing(null);
+  }, className: input, "aria-label": "Nouveau nom du parc" }), /* @__PURE__ */ React.createElement("button", { onClick: renameParc, className: btn + " bg-emerald-600 text-white" }, "OK"), /* @__PURE__ */ React.createElement("button", { onClick: () => setEditing(null), className: btn + " bg-slate-100 text-slate-600" }, "Annuler")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "min-w-0 flex items-center gap-2 flex-wrap" }, /* @__PURE__ */ React.createElement("span", { className: `text-sm font-semibold break-words ${p.active ? "text-slate-700" : "text-slate-400 line-through"}` }, p.name), !p.active && /* @__PURE__ */ React.createElement("span", { className: "text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600" }, "Désactivé")), /* @__PURE__ */ React.createElement("div", { className: "flex gap-1.5 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setEditing({ name: p.name, value: p.name }), className: btn + " bg-[#EAF1FA] text-[#123A66]" }, "Renommer"), /* @__PURE__ */ React.createElement("button", { onClick: () => toggleParc(p), className: btn + " bg-slate-200 text-slate-700" }, p.active ? "Désactiver" : "Activer"), /* @__PURE__ */ React.createElement("button", { onClick: () => deleteParc(p), className: btn + " bg-rose-50 text-rose-700" }, "Supprimer"))))), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, "Un parc désactivé n'est plus proposé lors de la création d'un inventaire. Les inventaires déjà réalisés ne changent jamais.")), tab === "admins" && /* @__PURE__ */ React.createElement("div", { className: card + " space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement("input", { value: newAdmin, onChange: (e) => setNewAdmin(e.target.value), onKeyDown: (e) => {
+    if (e.key === "Enter") addAdmin();
+  }, placeholder: "adresse@exemple.com", type: "email", className: input, "aria-label": "Nouvel administrateur" }), /* @__PURE__ */ React.createElement("button", { onClick: addAdmin, className: btn + " text-white whitespace-nowrap", style: { background: BLUE_DEEP } }, "Ajouter")), adminRows.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.email, className: "flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-2 border-slate-100 rounded-lg px-3 py-2", "data-admin": r.email }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: `text-sm font-plex-mono truncate ${r.active ? "text-slate-700" : "text-slate-400 line-through"}` }, r.email), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-slate-400" }, fallbackLower.includes(r.email) ? "Administrateur principal (protégé)" : r.email === selfEmail ? "Vous" : r.active ? "Administrateur" : "Désactivé")), !isProtected(r.email) && /* @__PURE__ */ React.createElement("div", { className: "flex gap-1.5 shrink-0" }, /* @__PURE__ */ React.createElement("button", { onClick: () => toggleAdminRow(r), className: btn + " bg-slate-200 text-slate-700" }, r.active ? "Désactiver" : "Réactiver"), /* @__PURE__ */ React.createElement("button", { onClick: () => removeAdminRow(r), className: btn + " bg-rose-50 text-rose-700" }, "Retirer")))), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, "La liste fait autorité dans l'application et dans les règles de sécurité. L'administrateur principal et votre propre adresse ne peuvent pas être désactivés ni retirés.")), tab === "quota" && /* @__PURE__ */ React.createElement(QuotaTab, { docs: usageDocs, projectId }), tab === "log" && /* @__PURE__ */ React.createElement("div", { className: card + " space-y-2" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700" }, "Dernières actions (50)"), logs.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucune action enregistrée pour le moment."), logs.map((l) => /* @__PURE__ */ React.createElement("div", { key: l.id, className: "border-b border-slate-100 py-2 text-sm" }, /* @__PURE__ */ React.createElement("div", { className: "font-semibold text-slate-700" }, l.action, l.target ? /* @__PURE__ */ React.createElement("span", { className: "font-normal text-slate-500" }, " — ", l.target) : null), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-400" }, fmtDate(tsMs(l.at)), " · ", l.byEmail)))));
+}
+function LoginScreen({ onLogin, onSignup, onGuest, onReset, guestFailure }) {
+  const [mode, setMode] = useState(guestFailure ? "guest" : "login");
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [guestCode, setGuestCode] = useState("");
+  const [guestStep, setGuestStep] = useState("code");
+  const [guestName, setGuestName] = useState("");
+  const [error, setError] = useState(guestFailure || "");
+  const [info, setInfo] = useState("");
+  const [busy, setBusy] = useState(false);
+  const switchMode = (m) => {
+    setMode(m);
+    setGuestStep("code");
+    setError("");
+    setInfo("");
+  };
+  const handleSubmit = async (e) => {
+    if (e) e.preventDefault();
+    setError("");
+    setInfo("");
+    if (mode === "login") {
+      if (!email.trim() || !password) return setError("Merci de renseigner l'e-mail et le mot de passe.");
+      setBusy(true);
+      try {
+        await onLogin(email.trim(), password);
+      } catch (err) {
+        setError(friendlyAuthError(err));
+      } finally {
+        setBusy(false);
+      }
+    } else if (mode === "signup") {
+      if (!displayName.trim() || !email.trim() || !password) return setError("Merci de remplir tous les champs.");
+      if (password.length < 6) return setError("Le mot de passe doit contenir au moins 6 caractères.");
+      if (password !== confirmPassword) return setError("Les deux mots de passe ne correspondent pas.");
+      setBusy(true);
+      try {
+        await onSignup(email.trim(), password, displayName.trim());
+      } catch (err) {
+        setError(friendlyAuthError(err));
+      } finally {
+        setBusy(false);
+      }
+    } else if (mode === "reset") {
+      if (!email.trim()) return setError("Merci de renseigner votre e-mail.");
+      setBusy(true);
+      try {
+        await onReset(email.trim());
+        setInfo("Un e-mail de réinitialisation a été envoyé si ce compte existe.");
+      } catch (err) {
+        setError(friendlyAuthError(err));
+      } finally {
+        setBusy(false);
+      }
+    }
+  };
+  const handleGuestCodeSubmit = (e) => {
+    if (e) e.preventDefault();
+    setError("");
+    if (!guestCode.trim()) {
+      setError("Merci de saisir le code d'accès.");
+      return;
+    }
+    setGuestStep("name");
+  };
+  const handleGuestNameSubmit = async (e) => {
+    if (e) e.preventDefault();
+    setError("");
+    if (!guestName.trim()) return setError("Merci de renseigner votre nom.");
+    setBusy(true);
+    try {
+      await onGuest(guestName.trim(), guestCode.trim());
+    } catch (err) {
+      setError(friendlyAuthError(err));
+      if (err && err.code === "guest/bad-code") setGuestStep("code");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const titles = { login: "Connexion agent", signup: "Créer un compte", reset: "Mot de passe oublié", guest: "Accès invité" };
+  const subtitles = {
+    login: "Réservé aux agents du département MAD-MAE.",
+    signup: "Votre compte devra être validé par un administrateur.",
+    reset: "Recevez un lien pour réinitialiser votre mot de passe.",
+    guest: "Réservé aux personnes disposant d'un code d'accès temporaire."
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "mmte-login" }, /* @__PURE__ */ React.createElement("aside", { className: "mmte-login-hero", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-login-kicker" }, "Inventaire physique annuel"), /* @__PURE__ */ React.createElement("div", { className: "mmte-gold", style: { width: 44, margin: "16px 0 20px" } }), /* @__PURE__ */ React.createElement("div", { className: "mmte-login-title" }, "Inventaire", /* @__PURE__ */ React.createElement("br", null), "MMTE"), /* @__PURE__ */ React.createElement("p", { className: "mmte-login-text" }, "Pointez les véhicules de chaque parc, rapprochez-les du stock MMTE et suivez l'avancement en temps réel."), /* @__PURE__ */ React.createElement("div", { className: "mmte-login-stats" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, "QR"), "et codes-barres"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, "Hors-ligne"), "sur le terrain"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, "Temps réel"), "entre agents"))), /* @__PURE__ */ React.createElement("div", { className: "mmte-login-form" }, /* @__PURE__ */ React.createElement("div", { className: "text-center lg:text-left mb-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-extrabold", style: { color: BLUE_DEEP } }, titles[mode]), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mt-1" }, subtitles[mode])), mode !== "guest" && /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-4" }, mode === "signup" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-1" }, "Nom complet"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: displayName,
+      onChange: (e) => setDisplayName(e.target.value),
+      autoComplete: "name",
+      placeholder: "Ex : Jean KOSSOU",
+      className: "w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+    }
+  )), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-1" }, "E-mail"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "email",
+      value: email,
+      onChange: (e) => setEmail(e.target.value),
+      autoCapitalize: "none",
+      autoCorrect: "off",
+      autoComplete: "email",
+      className: "w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+    }
+  )), mode !== "reset" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-1" }, "Mot de passe"), /* @__PURE__ */ React.createElement(
+    PasswordInput,
+    {
+      value: password,
+      onChange: (e) => setPassword(e.target.value),
+      autoComplete: mode === "signup" ? "new-password" : "current-password"
+    }
+  )), mode === "signup" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-1" }, "Confirmer le mot de passe"), /* @__PURE__ */ React.createElement(
+    PasswordInput,
+    {
+      value: confirmPassword,
+      onChange: (e) => setConfirmPassword(e.target.value),
+      autoComplete: "new-password"
+    }
+  )), mode === "login" && /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => switchMode("reset"), className: "text-sm font-semibold text-[#1B4F8C] hover:underline" }, "Mot de passe oublié ?"), error && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-600 font-semibold" }, error), info && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-emerald-700 font-semibold" }, info), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "submit",
+      disabled: busy,
+      className: "w-full py-3.5 rounded-xl text-white font-extrabold text-base shadow-md disabled:opacity-60",
+      style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }
+    },
+    busy ? "Veuillez patienter..." : mode === "login" ? "Se connecter" : mode === "signup" ? "Créer mon compte" : "Envoyer le lien"
+  ), /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-500" }, mode === "login" && /* @__PURE__ */ React.createElement(React.Fragment, null, "Pas encore de compte ?", " ", /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => switchMode("signup"), className: "font-semibold text-[#1B4F8C] hover:underline" }, "Créer un compte")), mode !== "login" && /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => switchMode("login"), className: "font-semibold text-[#1B4F8C] hover:underline" }, "Retour à la connexion"))), mode === "guest" && guestStep === "code" && /* @__PURE__ */ React.createElement("form", { onSubmit: handleGuestCodeSubmit, className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-1" }, "Code d'accès"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: guestCode,
+      onChange: (e) => setGuestCode(e.target.value),
+      autoCapitalize: "characters",
+      autoCorrect: "off",
+      autoComplete: "off",
+      placeholder: "Code communiqué par le service",
+      className: "w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base font-plex-mono focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+    }
+  )), error && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-600 font-semibold" }, error), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "submit",
+      className: "w-full py-3.5 rounded-xl text-white font-extrabold text-base shadow-md",
+      style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }
+    },
+    "Continuer"
+  ), /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-500" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => switchMode("login"), className: "font-semibold text-[#1B4F8C] hover:underline" }, "Retour à la connexion"))), mode === "guest" && guestStep === "name" && /* @__PURE__ */ React.createElement("form", { onSubmit: handleGuestNameSubmit, className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-1" }, "Votre nom"), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mb-2" }, "Utilisé pour vous identifier dans les rapports, comme pour les agents MAD-MAE."), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: guestName,
+      onChange: (e) => setGuestName(e.target.value),
+      autoComplete: "name",
+      placeholder: "Ex : Jean KOSSOU",
+      className: "w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+    }
+  )), error && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-600 font-semibold" }, error), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "submit",
+      disabled: busy,
+      className: "w-full py-3.5 rounded-xl text-white font-extrabold text-base shadow-md disabled:opacity-60",
+      style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }
+    },
+    busy ? "Veuillez patienter..." : "Accéder à l'application"
+  ), /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-500" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setGuestStep("code"), className: "font-semibold text-[#1B4F8C] hover:underline" }, "Retour"))), mode !== "guest" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3 my-5" }, /* @__PURE__ */ React.createElement("div", { className: "h-px flex-1 bg-slate-200" }), /* @__PURE__ */ React.createElement("span", { className: "text-xs uppercase tracking-wide text-slate-400 font-semibold" }, "ou"), /* @__PURE__ */ React.createElement("div", { className: "h-px flex-1 bg-slate-200" })), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => switchMode("guest"),
+      disabled: busy,
+      className: "w-full py-3.5 rounded-xl border-2 font-bold text-sm disabled:opacity-60",
+      style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP }
+    },
+    "Utiliser sans compte (accès temporaire)"
+  ), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400 text-center mt-2" }, "Pour les personnes hors MAD-MAE disposant d'un code d'accès ponctuel."))));
+}
+function PasswordInput({ value, onChange, autoComplete, placeholder }) {
+  const [show, setShow] = useState(false);
+  return /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: show ? "text" : "password",
+      value,
+      onChange,
+      autoComplete,
+      placeholder,
+      autoCapitalize: "none",
+      autoCorrect: "off",
+      spellCheck: false,
+      className: "w-full rounded-lg border-2 border-slate-200 px-3 py-3 pr-12 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+    }
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      onClick: () => setShow((v) => !v),
+      "aria-label": show ? "Masquer le mot de passe" : "Afficher le mot de passe",
+      "aria-pressed": show,
+      className: "mmte-eye"
+    },
+    show ? /* @__PURE__ */ React.createElement(EyeOff, { size: 20 }) : /* @__PURE__ */ React.createElement(Eye, { size: 20 })
+  ));
+}
+function ParcAutocomplete({ value, onChange, parcsList }) {
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const wrapRef = useRef(null);
+  const suggestions = useMemo(() => {
+    const q = value.trim().toUpperCase();
+    if (!q) return parcsList.slice(0, 8);
+    const starts = parcsList.filter((p) => p.toUpperCase().startsWith(q));
+    const contains = parcsList.filter((p) => !p.toUpperCase().startsWith(q) && p.toUpperCase().includes(q));
+    return [...starts, ...contains].slice(0, 8);
+  }, [value, parcsList]);
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, []);
+  const select = (name) => {
+    onChange(name);
+    setOpen(false);
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "relative", ref: wrapRef }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value,
+      onChange: (e) => {
+        onChange(e.target.value);
+        setOpen(true);
+        setHighlight(0);
+      },
+      onFocus: () => setOpen(true),
+      onKeyDown: (e) => {
+        if (!open) return;
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setHighlight((h) => Math.min(h + 1, suggestions.length - 1));
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setHighlight((h) => Math.max(h - 1, 0));
+        } else if (e.key === "Enter" && suggestions[highlight]) {
+          e.preventDefault();
+          select(suggestions[highlight]);
+        } else if (e.key === "Escape") {
+          setOpen(false);
+        }
+      },
+      placeholder: "Ex : ZF, HOVAS, GTS...",
+      autoComplete: "off",
+      className: "w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+    }
+  ), open && suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "absolute z-20 mt-1 w-full bg-white border-2 border-[#1B4F8C]/20 rounded-lg shadow-lg max-h-56 overflow-y-auto" }, suggestions.map((p, i) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      key: p,
+      onMouseDown: (e) => e.preventDefault(),
+      onClick: () => select(p),
+      className: "w-full text-left px-3 py-2.5 text-sm font-medium",
+      style: i === highlight ? { background: "#EAF1FA", color: BLUE_DEEP } : { color: "#334155" }
+    },
+    p
+  ))));
+}
+function ChassisAutocomplete({ value, onChange, inputRef, missingList, onSelect, onEnter }) {
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const wrapRef = useRef(null);
+  const listRef = useRef(null);
+  const navigatedRef = useRef(false);
+  const { suggestions, chassisHits, textHits, totalHits } = useMemo(() => {
+    const none = { suggestions: [], chassisHits: 0, textHits: 0, totalHits: 0 };
+    const q = normalize(value);
+    const terms = searchTerms(value);
+    if (terms.join("").length < 2) return none;
+    const starts = [];
+    const contains = [];
+    const texts = [];
+    for (const m of missingList) {
+      const n = normalize(m.chassis);
+      const desc = m.info && m.info.description || "";
+      if (q.length >= 2 && n.startsWith(q)) starts.push({ chassis: m.chassis, description: desc, byChassis: true });
+      else if (q.length >= 2 && n.includes(q)) contains.push({ chassis: m.chassis, description: desc, byChassis: true });
+      else if (matchesAllTerms(value, m)) texts.push({ chassis: m.chassis, description: desc, byChassis: false });
+    }
+    const all = [...starts, ...contains, ...texts];
+    return {
+      suggestions: all.slice(0, 8),
+      chassisHits: starts.length + contains.length,
+      textHits: texts.length,
+      totalHits: all.length
+    };
+  }, [value, missingList]);
+  useEffect(() => {
+    setHighlight(0);
+    navigatedRef.current = false;
+  }, [value]);
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handleOutside);
+    document.addEventListener("touchstart", handleOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleOutside);
+      document.removeEventListener("touchstart", handleOutside);
+    };
+  }, []);
+  const hasList = open && suggestions.length > 0;
+  useEffect(() => {
+    if (hasList && wrapRef.current && typeof wrapRef.current.scrollIntoView === "function") {
+      try {
+        wrapRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
+      } catch (e) {
+      }
+    }
+  }, [hasList]);
+  const select = (item) => {
+    setOpen(false);
+    onSelect(item.chassis);
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "relative", ref: wrapRef }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      ref: inputRef,
+      value,
+      onChange: (e) => {
+        onChange(e.target.value);
+        setOpen(true);
+      },
+      onFocus: () => setOpen(true),
+      onKeyDown: (e) => {
+        if (open && suggestions.length > 0) {
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            navigatedRef.current = true;
+            setHighlight((h) => Math.min(h + 1, suggestions.length - 1));
+            return;
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            navigatedRef.current = true;
+            setHighlight((h) => Math.max(h - 1, 0));
+            return;
+          }
+          if (e.key === "Enter" && highlight >= 0) {
+            const sel = suggestions[highlight];
+            if (sel && (sel.byChassis || navigatedRef.current)) {
+              e.preventDefault();
+              select(sel);
+              return;
+            }
+            if (chassisHits === 0 && textHits > 0 && (/\s/.test(String(value).trim()) || !/\d/.test(value))) {
+              e.preventDefault();
+              return;
+            }
+          }
+          if (e.key === "Escape") {
+            setOpen(false);
+            return;
+          }
+        }
+        if (e.key === "Enter") {
+          setOpen(false);
+          onEnter();
+        }
+      },
+      autoCapitalize: "characters",
+      autoCorrect: "off",
+      autoComplete: "off",
+      spellCheck: false,
+      placeholder: "Châssis, ou marque / modèle (ex : TOYOTA COROLLA)",
+      className: "w-full rounded-xl border-2 border-slate-300 px-4 py-4 text-2xl font-plex-mono tracking-wide focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+    }
+  ), open && suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mmte-dd", ref: listRef }, /* @__PURE__ */ React.createElement("div", { className: "mmte-dd-head" }, totalHits, " résultat", totalHits > 1 ? "s" : "", " · touchez pour pointer"), suggestions.map((s, i) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      type: "button",
+      key: s.chassis,
+      onMouseDown: (e) => e.preventDefault(),
+      onClick: () => select(s),
+      className: "mmte-dd-row" + (i === highlight ? " is-hl" : "")
+    },
+    /* @__PURE__ */ React.createElement("div", { className: "mmte-dd-chassis font-plex-mono" }, s.chassis),
+    s.description && /* @__PURE__ */ React.createElement("div", { className: "mmte-dd-desc" }, s.description)
+  )), totalHits > suggestions.length && /* @__PURE__ */ React.createElement("div", { className: "px-3 py-2 text-xs text-slate-500 bg-slate-50" }, totalHits, " résultats : ajoutez un mot (marque, modèle, année…) pour affiner."), chassisHits === 0 && textHits > 0 && /* @__PURE__ */ React.createElement("div", { className: "px-3 py-2 text-xs text-slate-500 bg-slate-50" }, "Touchez un véhicule pour le pointer.")));
+}
+function StatChip({ label, value, tone }) {
+  const tones = { navy: "text-white", emerald: "bg-emerald-600 text-white", sky: "bg-[#2E7DC1] text-white", rose: "bg-rose-600 text-white" };
+  const style = tone === "navy" ? { background: BLUE_DEEP } : void 0;
+  return /* @__PURE__ */ React.createElement("div", { className: `rounded-xl px-4 py-3 min-w-[110px] ${tones[tone]}`, style }, /* @__PURE__ */ React.createElement("div", { className: "text-2xl font-bold font-plex-mono leading-none" }, value), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] uppercase tracking-wide opacity-90 mt-1 font-semibold" }, label));
+}
+function SetupScreen({
+  onLoadParcStock,
+  parcName,
+  setParcName,
+  invDate,
+  setInvDate,
+  importMode,
+  setImportMode,
+  pasteText,
+  setPasteText,
+  handleFileChange,
+  handleLoadPaste,
+  importError,
+  importedFileName,
+  mmteSize,
+  canStart,
+  starting,
+  startInventory,
+  parcsList,
+  activeInventories,
+  joinInventoryById,
+  isGuest,
+  existingClosedInv,
+  reopenClosedInventory,
+  replaceClosedInventory,
+  onCancelClosedInvChoice,
+  onOpenStockCompare,
+  onOpenDocs,
+  importDup
+}) {
+  const parcGuesses = useMemo(
+    () => importMode === "file" && importedFileName ? guessParcsFromFileName(importedFileName, parcsList).filter(
+      (g) => stripAccents(g).trim() !== stripAccents(parcName).trim()
+    ) : [],
+    [importMode, importedFileName, parcsList, parcName]
+  );
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 py-8" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-3 mb-6" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700" }, "Rejoindre un inventaire en cours"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucune liste à charger : vous récupérez directement les données d'un collègue et vos pointages se synchronisent en temps réel."), activeInventories.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400 italic" }, "Aucun inventaire en cours pour le moment."), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, activeInventories.map((inv) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: inv.id,
+      onClick: () => joinInventoryById(inv.id),
+      disabled: starting,
+      className: "w-full text-left flex items-center justify-between border-2 border-slate-100 rounded-lg px-3 py-2.5 hover:bg-blue-50/40 disabled:opacity-60"
+    },
+    /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-sm", style: { color: BLUE_DEEP } }, inv.parcName), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-400" }, inv.invDate, " · démarré par ", inv.createdByName, " · ", inv.mmteCount, " châssis attendus")),
+    /* @__PURE__ */ React.createElement("span", { className: "text-xs font-bold px-3 py-1.5 rounded-lg text-white", style: { background: BLUE } }, "Rejoindre")
+  )))), isGuest ? activeInventories.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 text-sm text-amber-800" }, "Aucun inventaire disponible à rejoindre pour l'instant. Contactez un agent MAD-MAE pour qu'il en démarre un.") : /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-5" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700" }, "Démarrer un nouvel inventaire"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-1" }, "Nom du parc"), /* @__PURE__ */ React.createElement(ParcAutocomplete, { value: parcName, onChange: setParcName, parcsList }), parcGuesses.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-2 rounded-lg border-2 border-emerald-200 bg-emerald-50 px-3 py-2" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold text-emerald-800" }, "D'après le fichier « ", importedFileName, " », le parc serait :"), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2 mt-1.5" }, parcGuesses.map((g) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: g,
+      type: "button",
+      onClick: () => setParcName(g),
+      className: "px-3 py-1.5 rounded-lg bg-white border-2 border-emerald-300 text-sm font-bold text-emerald-800"
+    },
+    "Utiliser « ",
+    g,
+    " »"
+  ))), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-emerald-700 mt-1" }, "Ou continuez en saisissant le nom vous-même."))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-1" }, "Date de l'inventaire"), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "date",
+      value: invDate,
+      onChange: (e) => setInvDate(e.target.value),
+      className: "w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+    }
+  ))), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-2" }, "Liste des châssis MMTE pour ce parc"), /* @__PURE__ */ React.createElement("div", { className: "flex rounded-lg overflow-hidden border-2 border-slate-200 mb-3 w-fit" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setImportMode("file"),
+      className: `px-4 py-2 text-sm font-bold flex items-center gap-2 ${importMode === "file" ? "text-white" : "bg-white text-slate-600"}`,
+      style: importMode === "file" ? { background: BLUE_DEEP } : void 0
+    },
+    /* @__PURE__ */ React.createElement(Upload, { size: 16 }),
+    " Fichier"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setImportMode("paste"),
+      className: `px-4 py-2 text-sm font-bold flex items-center gap-2 border-l-2 border-slate-200 ${importMode === "paste" ? "text-white" : "bg-white text-slate-600"}`,
+      style: importMode === "paste" ? { background: BLUE_DEEP } : void 0
+    },
+    /* @__PURE__ */ React.createElement(ClipboardPaste, { size: 16 }),
+    " Coller"
+  ), !isGuest && /* @__PURE__ */ React.createElement("button", { onClick: () => setImportMode("stock"), className: `px-4 py-2 text-sm font-bold flex items-center gap-2 border-l-2 border-slate-200 ${importMode === "stock" ? "text-white" : "bg-white text-slate-600"}`, style: importMode === "stock" ? { background: BLUE_DEEP } : void 0 }, /* @__PURE__ */ React.createElement(StkIc.Layers, { size: 16 }), " Stock du parc")), importMode === "stock" ? /* @__PURE__ */ React.createElement(StkInvStockSource, { parcName, mmteSize, onLoaded: onLoadParcStock }) : importMode === "file" ? /* @__PURE__ */ React.createElement("div", { className: "rounded-lg border-2 border-dashed border-[#2E7DC1]/40 bg-blue-50/40 p-5 text-center" }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { className: "mx-auto text-[#2E7DC1] mb-2", size: 28 }), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mb-3" }, "Fichier CSV ou Excel (.csv, .xlsx, .xls)"), /* @__PURE__ */ React.createElement("label", { className: "inline-block px-4 py-2 rounded-lg text-white font-bold text-sm cursor-pointer", style: { background: BLUE_DEEP } }, "Choisir un fichier", /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.xlsx,.xls", className: "hidden", onChange: handleFileChange })), importedFileName && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mt-2" }, "Fichier chargé : ", importedFileName)) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
+    "textarea",
+    {
+      value: pasteText,
+      onChange: (e) => setPasteText(e.target.value),
+      placeholder: "Collez la liste des châssis, un par ligne",
+      rows: 6,
+      className: "w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-sm font-plex-mono focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
+    }
+  ), /* @__PURE__ */ React.createElement("button", { onClick: handleLoadPaste, className: "mt-2 px-4 py-2 rounded-lg text-white font-bold text-sm", style: { background: BLUE_DEEP } }, "Charger la liste collée")), importError && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-600 mt-2 font-semibold" }, importError), mmteSize > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-3 inline-flex items-center gap-2 text-emerald-700 bg-emerald-50 border-2 border-emerald-200 rounded-lg px-3 py-2 text-sm font-bold" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16 }), " ", mmteSize, " châssis chargés depuis MMTE"), importDup && /* @__PURE__ */ React.createElement(DuplicatesNotice, { items: importDup.items, sourceName: importDup.name })), existingClosedInv ? /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-amber-300 bg-amber-50 p-4 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-amber-900" }, "Un inventaire clôturé existe déjà pour ce parc à cette date"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-amber-800" }, "Clôturé ", existingClosedInv.meta.completedAt ? "le " + formatTimestamp(existingClosedInv.meta.completedAt) : "", existingClosedInv.meta.completedByName ? " par " + existingClosedInv.meta.completedByName : "", ". Que voulez-vous faire ?"), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: reopenClosedInventory,
+      disabled: starting,
+      className: "w-full py-3 rounded-lg text-white font-bold text-sm disabled:opacity-60",
+      style: { background: BLUE_DEEP }
+    },
+    "Rouvrir cet inventaire (garder son ancienne liste MMTE et ses pointages)"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: replaceClosedInventory,
+      disabled: starting || mmteSize === 0,
+      className: "w-full py-3 rounded-lg border-2 border-rose-300 text-rose-700 font-bold text-sm disabled:opacity-40"
+    },
+    "Remplacer par la liste que je viens de charger ci-dessus (efface l'ancienne liste et les anciens pointages)"
+  ), mmteSize === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-amber-700" }, "Chargez d'abord un fichier ou collez une liste ci-dessus pour pouvoir remplacer."), /* @__PURE__ */ React.createElement("button", { onClick: onCancelClosedInvChoice, className: "w-full py-2 text-sm font-semibold text-slate-500" }, "Annuler")) : /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      disabled: !canStart || starting,
+      onClick: startInventory,
+      className: `w-full py-4 rounded-xl font-extrabold text-base flex items-center justify-center gap-2 transition ${canStart && !starting ? "text-white shadow-md" : "bg-slate-200 text-slate-400"}`,
+      style: canStart && !starting ? { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } : void 0
+    },
+    /* @__PURE__ */ React.createElement(ScanLine, { size: 20 }),
+    " ",
+    starting ? "Connexion..." : "Démarrer ce nouvel inventaire"
+  )), !isGuest && onOpenStockCompare && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: onOpenStockCompare,
+      className: "w-full mt-5 py-3.5 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2 bg-white",
+      style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP }
+    },
+    /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 18 }),
+    " Comparer deux fichiers de stock"
+  ), !isGuest && onOpenDocs && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      "data-testid": "setup-docs",
+      onClick: onOpenDocs,
+      className: "w-full mt-3 py-3.5 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2 bg-white",
+      style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP }
+    },
+    /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 18 }),
+    " Fiche de clôture ou rapport sans inventaire"
+  ));
+}
+function InventoryScreen(props) {
+  const {
+    parcName,
+    invDate,
+    mmteSize,
+    foundList,
+    registeredList,
+    totalList,
+    missingList,
+    inputVal,
+    setInputVal,
+    inputRef,
+    submitChassis,
+    feedback,
+    feedbackStyle,
+    pendingNotFound,
+    confirmRegister,
+    cancelPending,
+    activeTab,
+    setActiveTab,
+    listFilter,
+    setListFilter,
+    softDelete,
+    stampAnim,
+    confirmNewParc,
+    setConfirmNewParc,
+    resetAll,
+    goSummary,
+    progressPct,
+    elapsed,
+    soundOn,
+    setSoundOn,
+    restoredBanner,
+    setRestoredBanner,
+    isGuest,
+    regForm,
+    setRegForm,
+    syncInfo
+  } = props;
+  const [showCamera, setShowCamera] = useState(false);
+  const tabs = [
+    { key: "total", label: `Total (${totalList.length})` },
+    { key: "found", label: `Trouvés MMTE (${foundList.length})` },
+    { key: "registered", label: `Enregistrés (${registeredList.length})` },
+    { key: "missing", label: `Manquants (${missingList.length})` }
+  ];
+  const filterFn = (item) => !listFilter || matchesAllTerms(listFilter, item);
+  const knownMap = useMemo(() => {
+    const m = /* @__PURE__ */ new Map();
+    missingList.forEach((x) => m.set(x.norm, 1));
+    foundList.forEach((x) => m.set(x.norm, 1));
+    return m;
+  }, [missingList, foundList]);
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-4 py-5 pb-24 relative" }, syncInfo && /* @__PURE__ */ React.createElement(SyncBadge, { online: syncInfo.online, pending: syncInfo.pending }), showCamera && /* @__PURE__ */ React.createElement(
+    CameraScanner,
+    {
+      knownMap,
+      onClose: () => setShowCamera(false),
+      onDetect: (v) => {
+        setShowCamera(false);
+        setInputVal("");
+        submitChassis(v);
+      }
+    }
+  ), restoredBanner && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-4 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-2.5 flex items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 text-emerald-800 text-sm font-semibold" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16, className: "shrink-0" }), "Inventaire partagé rejoint — vous voyez les pointages de toute l'équipe en temps réel."), /* @__PURE__ */ React.createElement("button", { onClick: () => setRestoredBanner(false), className: "text-emerald-700 font-bold text-lg leading-none px-1", "aria-label": "Fermer" }, "×")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wide text-slate-500 font-semibold" }, invDate), /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-extrabold", style: { color: BLUE_DEEP } }, parcName)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSoundOn((s) => !s), title: soundOn ? "Couper le son" : "Activer le son", className: "text-slate-400 hover:text-[#1B4F8C] p-1.5" }, soundOn ? /* @__PURE__ */ React.createElement(Volume2, { size: 18 }) : /* @__PURE__ */ React.createElement(VolumeX, { size: 18 })), !isGuest && /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmNewParc(true), className: "text-sm font-bold text-slate-500 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 16 }), " Nouveau parc"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 text-xs text-slate-400 font-semibold mb-4" }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), " Durée de session : ", elapsed), confirmNewParc && /* @__PURE__ */ React.createElement("div", { className: "mb-4 rounded-xl border-2 border-rose-300 bg-rose-50 p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-rose-900" }, "Quitter cet inventaire et repartir sur un nouveau parc ?"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-700 mt-1" }, "Les données déjà enregistrées restent sauvegardées dans le système partagé."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-3" }, /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm" }, "Oui, changer de parc"), /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmNewParc(false), className: "px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm" }, "Annuler"))), /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between text-xs font-bold text-slate-500 mb-1" }, /* @__PURE__ */ React.createElement("span", null, "Progression MMTE"), /* @__PURE__ */ React.createElement("span", null, progressPct, "%")), /* @__PURE__ */ React.createElement("div", { className: "w-full h-2.5 rounded-full bg-slate-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full transition-all duration-500", style: { width: `${progressPct}%`, background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 overflow-x-auto pb-1 mb-5" }, /* @__PURE__ */ React.createElement(StatChip, { label: "Attendus MMTE", value: mmteSize, tone: "navy" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Trouvés MMTE", value: foundList.length, tone: "emerald" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Enregistrés", value: registeredList.length, tone: "sky" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Total présent", value: totalList.length, tone: "navy" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Manquants", value: missingList.length, tone: "rose" })), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-4 relative", style: { overflow: "visible" } }, stampAnim && /* @__PURE__ */ React.createElement("div", { className: "pointer-events-none absolute inset-0 flex items-center justify-center z-10" }, /* @__PURE__ */ React.createElement("div", { className: `stamp-anim border-4 rounded-full px-6 py-3 font-black uppercase tracking-widest text-lg ${stampAnim === "found" ? "border-emerald-600 text-emerald-600" : "border-[#2E7DC1] text-[#2E7DC1]"}` }, stampAnim === "found" ? "Trouvé MMTE" : "Enregistré")), /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-2" }, "Numéro de châssis"), /* @__PURE__ */ React.createElement(
+    ChassisAutocomplete,
+    {
+      value: inputVal,
+      onChange: setInputVal,
+      inputRef,
+      missingList,
+      onSelect: (chassis) => {
+        setInputVal("");
+        submitChassis(chassis);
+      },
+      onEnter: () => submitChassis()
+    }
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => submitChassis(),
+      className: "w-full mt-3 py-4 rounded-xl text-white font-extrabold text-base shadow-md",
+      style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }
+    },
+    "Valider"
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setShowCamera(true),
+      className: "w-full mt-2 py-3 rounded-xl border-2 text-sm font-bold flex items-center justify-center gap-2",
+      style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP }
+    },
+    /* @__PURE__ */ React.createElement(ScanLine, { size: 16 }),
+    " Scanner avec la caméra"
+  ), feedback && !pendingNotFound && /* @__PURE__ */ React.createElement("div", { className: `mt-4 rounded-xl border-2 p-3 flex items-start gap-2 ${feedbackStyle[feedback.type].bg} ${feedbackStyle[feedback.type].border}` }, React.createElement(feedbackStyle[feedback.type].Icon, { size: 20, className: feedbackStyle[feedback.type].text }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: `font-bold font-plex-mono ${feedbackStyle[feedback.type].text}` }, feedback.chassis), /* @__PURE__ */ React.createElement("div", { className: `text-sm font-medium ${feedbackStyle[feedback.type].text}` }, feedback.message))), pendingNotFound && /* @__PURE__ */ React.createElement("div", { className: "mt-4 rounded-xl border-2 border-rose-300 bg-rose-50 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start gap-2" }, /* @__PURE__ */ React.createElement(XCircle, { size: 20, className: "text-rose-700 shrink-0" }), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-bold font-plex-mono text-rose-800" }, pendingNotFound.chassis), /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium text-rose-700" }, "Introuvable sur la liste MMTE."))), pendingNotFound.suggestions && pendingNotFound.suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-3 rounded-lg border-2 border-amber-200 bg-amber-50 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-amber-900 mb-2" }, "Vouliez-vous dire :"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, pendingNotFound.suggestions.map((sg) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: sg.norm,
+      onClick: () => submitChassis(sg.chassis),
+      className: "w-full text-left px-3 py-2 rounded-lg bg-white border-2 border-amber-200 hover:border-amber-400"
+    },
+    /* @__PURE__ */ React.createElement("div", { className: "font-plex-mono text-sm font-bold text-slate-800" }, sg.chassis),
+    sg.description && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 truncate" }, sg.description)
+  )))), /* @__PURE__ */ React.createElement("div", { className: "mt-3 space-y-3 bg-white rounded-lg border border-rose-200 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600" }, "Informations facultatives sur le véhicule"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold text-slate-500 mb-1" }, "Âge du véhicule"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, [["under1", "Moins d'un an"], ["over1", "Plus d'un an"]].map(([k, l]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: k,
+      type: "button",
+      onClick: () => setRegForm((f) => ({ ...f, age: f.age === k ? "" : k })),
+      className: "py-2.5 rounded-lg border-2 text-sm font-bold",
+      style: regForm.age === k ? { background: BLUE_DEEP, color: "#fff", borderColor: BLUE_DEEP } : { borderColor: "#cbd5e1", color: "#475569" }
+    },
+    l
+  )))), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: regForm.name,
+      onChange: (e) => setRegForm((f) => ({ ...f, name: e.target.value })),
+      placeholder: "Marque du véhicule — facultatif",
+      className: "w-full px-3 py-2 text-sm rounded-lg border-2 border-slate-200 focus:outline-none focus:border-[#1B4F8C]"
+    }
+  ), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: regForm.model,
+      onChange: (e) => setRegForm((f) => ({ ...f, model: e.target.value })),
+      placeholder: "Modèle du véhicule — facultatif",
+      className: "w-full px-3 py-2 text-sm rounded-lg border-2 border-slate-200 focus:outline-none focus:border-[#1B4F8C]"
+    }
+  ), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("label", { className: "block w-full text-center py-2.5 rounded-lg border-2 border-dashed border-slate-300 text-sm font-bold text-slate-600 cursor-pointer" }, regForm.busy ? "Traitement de la photo..." : regForm.photo ? "Changer la photo du châssis" : "Joindre / prendre la photo du châssis (facultatif)", /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      type: "file",
+      accept: "image/*",
+      capture: "environment",
+      className: "hidden",
+      onChange: async (e) => {
+        const file = e.target.files && e.target.files[0];
+        e.target.value = "";
+        if (!file) return;
+        setRegForm((f) => ({ ...f, busy: true, error: "" }));
+        try {
+          const url = await compressImageToDataUrl(file);
+          setRegForm((f) => ({ ...f, photo: url, busy: false }));
+        } catch (err) {
+          setRegForm((f) => ({ ...f, busy: false, error: "Photo illisible, essayez une autre image." }));
+        }
+      }
+    }
+  )), regForm.error && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-rose-700 mt-1" }, regForm.error), regForm.photo && /* @__PURE__ */ React.createElement("div", { className: "mt-2 flex items-center gap-3" }, /* @__PURE__ */ React.createElement("img", { src: regForm.photo, alt: "Châssis", className: "h-20 rounded-lg border border-slate-200" }), /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setRegForm((f) => ({ ...f, photo: "" })), className: "text-xs font-bold text-rose-700 underline" }, "Retirer la photo")))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-3" }, /* @__PURE__ */ React.createElement("button", { onClick: confirmRegister, disabled: regForm.busy, className: "flex-1 py-3 rounded-lg text-white font-bold text-sm disabled:opacity-60", style: { background: BLUE } }, "Enregistrer présent sur le parc"), /* @__PURE__ */ React.createElement("button", { onClick: cancelPending, className: "px-4 py-3 rounded-lg bg-white border-2 border-slate-300 text-slate-600 font-bold text-sm" }, "Annuler")))), /* @__PURE__ */ React.createElement("div", { className: "mt-6" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-1 overflow-x-auto border-b-2 border-slate-100 mb-3" }, tabs.map((t) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: t.key,
+      onClick: () => setActiveTab(t.key),
+      className: "px-3 py-2 text-sm font-bold whitespace-nowrap border-b-2",
+      style: activeTab === t.key ? { borderColor: BLUE_DEEP, color: BLUE_DEEP } : { borderColor: "transparent", color: "#94a3b8" }
+    },
+    t.label
+  ))), /* @__PURE__ */ React.createElement("div", { className: "relative mb-3" }, /* @__PURE__ */ React.createElement(Search, { size: 15, className: "absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" }), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: listFilter,
+      onChange: (e) => setListFilter(e.target.value),
+      placeholder: "Filtrer : châssis, marque, modèle… (combinables)",
+      className: "w-full pl-9 pr-3 py-2 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none focus:border-[#1B4F8C]"
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "space-y-2 max-h-[36vh] overflow-y-auto" }, activeTab === "total" && (totalList.filter((t) => filterFn(t)).length === 0 ? /* @__PURE__ */ React.createElement(EmptyRow, { text: "Aucun véhicule pointé pour l'instant." }) : /* @__PURE__ */ React.createElement(React.Fragment, null, totalList.filter((t) => filterFn(t)).slice(0, LIST_RENDER_CAP).map((t) => /* @__PURE__ */ React.createElement(ListRow, { key: t.norm, chassis: t.chassis, agent: t.agentName, scannedAt: t.scannedAt, detail: t, badge: t.source === "mmte" ? "MMTE" : "Parc", badgeTone: t.source === "mmte" ? "emerald" : "sky" })), /* @__PURE__ */ React.createElement(TruncationNote, { count: totalList.filter((t) => filterFn(t)).length }))), activeTab === "found" && (foundList.filter((f) => filterFn(f)).length === 0 ? /* @__PURE__ */ React.createElement(EmptyRow, { text: "Aucun châssis trouvé sur MMTE pour l'instant." }) : /* @__PURE__ */ React.createElement(React.Fragment, null, foundList.filter((f) => filterFn(f)).slice(0, LIST_RENDER_CAP).map((f) => /* @__PURE__ */ React.createElement(ListRow, { key: f.norm, chassis: f.chassis, agent: f.agentName, scannedAt: f.scannedAt, detail: f, onRemove: isGuest ? void 0 : () => softDelete(f.norm) })), /* @__PURE__ */ React.createElement(TruncationNote, { count: foundList.filter((f) => filterFn(f)).length }))), activeTab === "registered" && (registeredList.filter((r) => filterFn(r)).length === 0 ? /* @__PURE__ */ React.createElement(EmptyRow, { text: "Aucun châssis enregistré hors MMTE pour l'instant." }) : /* @__PURE__ */ React.createElement(React.Fragment, null, registeredList.filter((r) => filterFn(r)).slice(0, LIST_RENDER_CAP).map((r) => /* @__PURE__ */ React.createElement(ListRow, { key: r.norm, chassis: r.chassis, agent: r.agentName, scannedAt: r.scannedAt, detail: r, onRemove: isGuest ? void 0 : () => softDelete(r.norm) })), /* @__PURE__ */ React.createElement(TruncationNote, { count: registeredList.filter((r) => filterFn(r)).length }))), activeTab === "missing" && (missingList.filter((m) => filterFn(m)).length === 0 ? /* @__PURE__ */ React.createElement(EmptyRow, { text: "Tous les châssis MMTE ont été retrouvés sur le parc." }) : /* @__PURE__ */ React.createElement(React.Fragment, null, missingList.filter((m) => filterFn(m)).slice(0, LIST_RENDER_CAP).map((m) => /* @__PURE__ */ React.createElement(ListRow, { key: m.norm, chassis: m.chassis, detail: m.info, badge: "Absent", badgeTone: "rose" })), /* @__PURE__ */ React.createElement(TruncationNote, { count: missingList.filter((m) => filterFn(m)).length }))))), /* @__PURE__ */ React.createElement("div", { className: "no-print mmte-bottombar fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[#1B4F8C]/15 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto" }, /* @__PURE__ */ React.createElement("button", { onClick: goSummary, className: "w-full py-3 rounded-xl text-white font-extrabold flex items-center justify-center gap-2 shadow-md", style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }, /* @__PURE__ */ React.createElement(ListChecks, { size: 18 }), " Terminer et voir le récapitulatif"))));
+}
+function joursRestantBadge(depotDateStr) {
+  const n = computeJoursRestant(depotDateStr);
+  if (n === null) return null;
+  if (n < 0) return { text: `Dépassé de ${Math.abs(n)} j`, tone: "bg-rose-100 text-rose-700" };
+  if (n <= 15) return { text: `${n} j restants`, tone: "bg-amber-100 text-amber-800" };
+  return { text: `${n} j restants`, tone: "bg-emerald-100 text-emerald-700" };
+}
+function ListRow({ chassis, agent, scannedAt, onRemove, badge, badgeTone, detail }) {
+  const tones = { emerald: "bg-emerald-100 text-emerald-700", sky: "bg-blue-100 text-[#1B4F8C]", rose: "bg-rose-100 text-rose-700" };
+  const [expanded, setExpanded] = useState(false);
+  const handleRemoveClick = () => {
+    if (confirmT(`Supprimer le pointage du châssis ${chassis} ?
+
+Cette action reste tracée (auteur + heure) mais retire l'entrée des listes de l'inventaire.`)) {
+      onRemove();
+    }
+  };
+  const loadPhoto = React.useContext(PhotoCtx);
+  const [photoData, setPhotoData] = useState(null);
+  const hasPhoto = !!(detail && (detail.photo || detail.hasPhoto));
+  useEffect(() => {
+    if (!expanded || !detail || !detail.hasPhoto || detail.photo || photoData || !loadPhoto) return;
+    let cancelled = false;
+    loadPhoto(detail.norm).then((d) => {
+      if (!cancelled && d) setPhotoData(d);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [expanded]);
+  const photoSrc = detail ? detail.photo || photoData : null;
+  const hasDetail = detail && (detail.description || detail.registredAt || detail.depotDate || detail.atp || detail.shipName || detail.weight || detail.companyNumber || detail.bl || detail.entryDate || detail.vehicleAge || detail.vehicleModel || hasPhoto || detail.extra && Object.keys(detail.extra).length > 0);
+  const jr = detail && joursRestantBadge(detail.depotDate);
+  const [bigPhoto, setBigPhoto] = useState(false);
+  return /* @__PURE__ */ React.createElement("div", { className: "bg-white border-2 border-slate-100 rounded-lg overflow-hidden" }, /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      className: `flex items-center justify-between px-3 py-2 ${hasDetail ? "cursor-pointer" : ""}`,
+      onClick: hasDetail ? () => setExpanded((e) => !e) : void 0
+    },
+    /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-plex-mono text-sm font-medium text-slate-800" }, chassis), detail && detail.description && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-600 font-semibold truncate" }, detail.description), (agent || scannedAt) && /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-slate-400 mt-0.5" }, agent && /* @__PURE__ */ React.createElement(React.Fragment, null, "Par ", agent), agent && scannedAt && " · ", scannedAt && formatTimestamp(scannedAt))),
+    /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 shrink-0" }, detail && detail.vehicleAge && /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600" }, VEHICLE_AGE_LABELS[detail.vehicleAge]), hasPhoto && /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600" }, "Photo"), jr && /* @__PURE__ */ React.createElement("span", { className: `text-[10px] font-bold px-2 py-0.5 rounded-full ${jr.tone}` }, jr.text), badge && /* @__PURE__ */ React.createElement("span", { className: `text-[11px] font-bold px-2 py-0.5 rounded-full ${tones[badgeTone]}` }, badge), onRemove && /* @__PURE__ */ React.createElement("button", { onClick: (e) => {
+      e.stopPropagation();
+      handleRemoveClick();
+    }, className: "text-slate-400 hover:text-rose-600 p-1" }, /* @__PURE__ */ React.createElement(Trash2, { size: 16 })))
+  ), expanded && hasDetail && /* @__PURE__ */ React.createElement("div", { className: "border-t-2 border-slate-100 bg-slate-50 px-3 py-2.5 text-xs space-y-1" }, detail.vehicleAge && /* @__PURE__ */ React.createElement(DetailLine, { label: "Âge du véhicule", value: VEHICLE_AGE_LABELS[detail.vehicleAge] }), detail.vehicleName && /* @__PURE__ */ React.createElement(DetailLine, { label: "Marque", value: detail.vehicleName }), detail.vehicleModel && /* @__PURE__ */ React.createElement(DetailLine, { label: "Modèle", value: detail.vehicleModel }), hasPhoto && /* @__PURE__ */ React.createElement("div", { className: "pt-1" }, !photoSrc && /* @__PURE__ */ React.createElement("div", { className: "text-slate-400" }, "Chargement de la photo..."), photoSrc && /* @__PURE__ */ React.createElement(
+    "img",
+    {
+      src: photoSrc,
+      alt: "Photo du châssis",
+      onClick: () => setBigPhoto((b) => !b),
+      className: `rounded-lg border border-slate-200 cursor-pointer ${bigPhoto ? "w-full" : "h-24"}`
+    }
+  )), detail.registredAt && /* @__PURE__ */ React.createElement(DetailLine, { label: FIELD_LABELS.registredAt, value: detail.registredAt }), detail.depotDate && /* @__PURE__ */ React.createElement(DetailLine, { label: FIELD_LABELS.depotDate, value: detail.depotDate }), detail.entryDate && /* @__PURE__ */ React.createElement(DetailLine, { label: FIELD_LABELS.entryDate, value: detail.entryDate }), detail.atp && /* @__PURE__ */ React.createElement(DetailLine, { label: FIELD_LABELS.atp, value: detail.atp }), detail.shipName && /* @__PURE__ */ React.createElement(DetailLine, { label: FIELD_LABELS.shipName, value: detail.shipName }), detail.weight && /* @__PURE__ */ React.createElement(DetailLine, { label: FIELD_LABELS.weight, value: detail.weight }), detail.companyNumber && /* @__PURE__ */ React.createElement(DetailLine, { label: FIELD_LABELS.companyNumber, value: detail.companyNumber }), detail.bl && /* @__PURE__ */ React.createElement(DetailLine, { label: FIELD_LABELS.bl, value: detail.bl }), detail.extra && Object.entries(detail.extra).map(([k, v]) => /* @__PURE__ */ React.createElement(DetailLine, { key: k, label: k, value: v }))));
+}
+function DetailLine({ label, value }) {
+  return /* @__PURE__ */ React.createElement("div", { className: "flex justify-between gap-3" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-500" }, label), /* @__PURE__ */ React.createElement("span", { className: "text-slate-700 font-medium text-right" }, value));
+}
+function EmptyRow({ text }) {
+  return /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-400 text-center py-6" }, text);
+}
+function TruncationNote({ count }) {
+  if (count <= LIST_RENDER_CAP) return null;
+  return /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-400 text-center py-3" }, count - LIST_RENDER_CAP, " entrée(s) supplémentaire(s) non affichée(s) — utilisez le filtre ci-dessus pour retrouver un châssis précis.");
+}
+const FR_MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+const FR_JOURS = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
+const NS_W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+const NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const DC = { navy: "0B3C5D", blue: "1F6FA3", gold: "E3B505", light: "EEF5FA", pale: "DCEAF5", grey: "5B6B7B", line: "C9D6E2", ink: "1B2A3A", emerald: "0A8F44", rose: "B42318", sky: "1F6FA3", slate: "2C4A63" };
+const xmlEsc = (s) => String(s == null ? "" : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const pad2 = (n) => String(n).padStart(2, "0");
+const plural = (n, a, b) => n > 1 ? b : a;
+function docDates(iso) {
+  const [y, m, d] = String(iso || "").split("-").map(Number);
+  const dt = new Date(y || 2e3, (m || 1) - 1, d || 1);
+  const mois = FR_MOIS[(m || 1) - 1];
+  const jour = FR_JOURS[dt.getDay()];
+  return { y, m, d, mois, jour, long: `${d} ${mois} ${y}`, longJour: `${jour} ${d} ${mois} ${y}`, moisAnnee: mois.charAt(0).toUpperCase() + mois.slice(1) + " " + y, iso, date: dt };
+}
+function docHeures(rows) {
+  let min = Infinity, max = -Infinity;
+  (rows || []).forEach((r) => {
+    const t = r.scannedAt;
+    const ms = t && t.toMillis ? t.toMillis() : t instanceof Date ? t.getTime() : typeof t === "number" ? t : 0;
+    if (ms) {
+      if (ms < min) min = ms;
+      if (ms > max) max = ms;
+    }
+  });
+  if (!isFinite(min)) return { debut: "08H", fin: "18H", minutes: 0 };
+  const f = (ms) => {
+    const d = new Date(ms);
+    const h = pad2(d.getHours());
+    const mi = d.getMinutes();
+    return mi ? `${h}H${pad2(mi)}` : `${h}H`;
+  };
+  return { debut: f(min), fin: f(max), minutes: Math.round((max - min) / 6e4) };
+}
+function parseDepot(s) {
+  const t = String(s || "").trim();
+  let m = t.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+  return null;
+}
+function ctrlHash(D) {
+  const s = [D.parc, D.invDate, D.mmte, D.found, D.registered, D.missing].join("|");
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h.toString(16).toUpperCase().padStart(8, "0");
+}
+function docRef(D) {
+  const slug = String(D.parc || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "").slice(0, 10) || "PARC";
+  return `INV-${slug}-${String(D.invDate || "").replace(/-/g, "")}`;
+}
+function collectDocExtras(invDate, foundList, registeredList, missingListAll, followups) {
+  const fuMap = new Map((followups || []).map((f) => [f.norm, f]));
+  const missingList = missingListAll.filter((r) => !fuMap.has(r.norm));
+  const retros = missingListAll.filter((r) => fuMap.has(r.norm)).map((r) => {
+    const f = fuMap.get(r.norm), i = r.info || r;
+    return { chassis: r.chassis, description: i.description || "", statut: f.status === "regularise" ? "Régularisé dans MMTE" : "Retrouvé sur le parc", note: f.note || "", par: f.byName || "", date: f.at && f.at.toMillis ? formatTimestamp(f.at) : "" };
+  });
+  const ref = parseDepot(invDate) || /* @__PURE__ */ new Date();
+  const age = { over1: 0, under1: 0, nd: 0 };
+  registeredList.forEach((r) => {
+    if (r.vehicleAge === "over1") age.over1++;
+    else if (r.vehicleAge === "under1") age.under1++;
+    else age.nd++;
+  });
+  const hm = (ts) => {
+    const t = ts && ts.toMillis ? new Date(ts.toMillis()) : null;
+    return t ? `${pad2(t.getHours())}:${pad2(t.getMinutes())}` : "";
+  };
+  const horsMmte = registeredList.map((r) => ({ chassis: r.chassis, marque: r.vehicleName || "", modele: r.vehicleModel || "", age: VEHICLE_AGE_LABELS[r.vehicleAge] || "—", agent: r.agentName || "", heure: hm(r.scannedAt), photo: r.hasPhoto || r.photo ? "Oui" : "" }));
+  const manquants = missingList.map((r) => {
+    const i = r.info || r;
+    return { chassis: r.chassis, description: i.description || "", depot: i.depotDate || "" };
+  });
+  const depot = [];
+  foundList.forEach((r) => {
+    const d = parseDepot(r.depotDate);
+    if (d && d < ref) depot.push({ chassis: r.chassis, description: r.description || "", depot: r.depotDate, statut: "Présent" });
+  });
+  missingList.forEach((r) => {
+    const i = r.info || r;
+    const d = parseDepot(i.depotDate);
+    if (d && d < ref) depot.push({ chassis: r.chassis, description: i.description || "", depot: i.depotDate, statut: "Manquant" });
+  });
+  const byAgent = /* @__PURE__ */ new Map();
+  [...foundList, ...registeredList].forEach((r) => {
+    const k = r.agentName || "—";
+    byAgent.set(k, (byAgent.get(k) || 0) + 1);
+  });
+  const agentStats = Array.from(byAgent.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  return { hasDetails: true, retros, age, horsMmte, manquants, depot, depotFound: depot.filter((x) => x.statut === "Présent").length, depotMissing: depot.filter((x) => x.statut === "Manquant").length, agentStats };
+}
+const SANS = 'Calibri, Carlito, "Segoe UI", Arial, sans-serif';
+function canvasPng(c, jpeg) {
+  return new Promise((resolve) => c.toBlob((b) => b.arrayBuffer().then((ab) => resolve(new Uint8Array(ab))), jpeg ? "image/jpeg" : "image/png", jpeg ? 0.9 : void 0));
+}
+function rrect(x, X, Y, w, h, r) {
+  x.beginPath();
+  x.moveTo(X + r, Y);
+  x.arcTo(X + w, Y, X + w, Y + h, r);
+  x.arcTo(X + w, Y + h, X, Y + h, r);
+  x.arcTo(X, Y + h, X, Y, r);
+  x.arcTo(X, Y, X + w, Y, r);
+  x.closePath();
+}
+function drawDashPng(D) {
+  const W = 1500, H = 620;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const x = c.getContext("2d");
+  x.fillStyle = "#fff";
+  x.fillRect(0, 0, W, H);
+  const cx = 300, cy = 290, R = 215, T = 58;
+  x.lineWidth = T;
+  x.lineCap = "butt";
+  x.strokeStyle = "#DCEAF5";
+  x.beginPath();
+  x.arc(cx, cy, R, 0, Math.PI * 2);
+  x.stroke();
+  const frac = Math.max(0, Math.min(1, D.mmte > 0 ? D.found / D.mmte : 0));
+  if (frac > 0) {
+    x.strokeStyle = "#0A8F44";
+    x.beginPath();
+    x.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
+    x.stroke();
+  }
+  x.textAlign = "center";
+  x.fillStyle = "#0B3C5D";
+  x.font = `bold 96px ${SANS}`;
+  x.fillText(D.pct + " %", cx, cy + 22);
+  x.fillStyle = "#5B6B7B";
+  x.font = `30px ${SANS}`;
+  x.fillText("retrouvés", cx, cy + 66);
+  x.fillStyle = "#0B3C5D";
+  x.font = `bold 30px ${SANS}`;
+  x.fillText(`${D.found} sur ${D.mmte} attendus`, cx, 596);
+  const rows = [["Attendus sur MMTE", D.mmte, "#0B3C5D"], ["Retrouvés sur le parc", D.found, "#0A8F44"], ["Manquants", D.missing, "#B42318"], ["Hors MMTE (enregistrés)", D.registered, "#1F6FA3"]];
+  const mx = Math.max(1, D.mmte, D.total, D.registered);
+  const bx = 660, bw = 700, rowH = 140, y0 = 56;
+  rows.forEach((r, i) => {
+    const y = y0 + i * rowH;
+    x.textAlign = "left";
+    x.fillStyle = "#334155";
+    x.font = `bold 30px ${SANS}`;
+    x.fillText(r[0], bx, y + 30);
+    x.fillStyle = "#EEF5FA";
+    rrect(x, bx, y + 46, bw, 44, 22);
+    x.fill();
+    const w = Math.max(r[1] > 0 ? 44 : 0, Math.round(r[1] / mx * bw));
+    if (w > 0) {
+      x.fillStyle = r[2];
+      rrect(x, bx, y + 46, w, 44, 22);
+      x.fill();
+    }
+    x.textAlign = "right";
+    x.fillStyle = r[2];
+    x.font = `bold 52px ${SANS}`;
+    x.fillText(String(r[1]), bx + bw + 120, y + 88);
+  });
+  return canvasPng(c);
+}
+function drawCompPng(D) {
+  const W = 1500, H = 470;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const x = c.getContext("2d");
+  x.fillStyle = "#fff";
+  x.fillRect(0, 0, W, H);
+  const bx = 400, bw = 1060, bh = 96;
+  const bar = (y, label, sub, total, parts) => {
+    x.textAlign = "left";
+    x.fillStyle = "#0B3C5D";
+    x.font = `bold 34px ${SANS}`;
+    x.fillText(label, 30, y + 42);
+    x.fillStyle = "#5B6B7B";
+    x.font = `27px ${SANS}`;
+    x.fillText(sub, 30, y + 78);
+    x.save();
+    rrect(x, bx, y, bw, bh, 20);
+    x.clip();
+    x.fillStyle = "#DCEAF5";
+    x.fillRect(bx, y, bw, bh);
+    let px = bx;
+    parts.forEach((p) => {
+      if (!(p.v > 0) || !(total > 0)) return;
+      const w = p.v / total * bw;
+      x.fillStyle = p.col;
+      x.fillRect(px, y, w + 1, bh);
+      if (w > 120) {
+        x.fillStyle = "#fff";
+        x.textAlign = "center";
+        x.font = `bold 40px ${SANS}`;
+        x.fillText(String(p.v), px + w / 2, y + bh / 2 + 14);
+      }
+      px += w;
+    });
+    x.restore();
+  };
+  bar(40, "Liste MMTE", `${D.mmte} véhicule${D.mmte > 1 ? "s" : ""} attendu${D.mmte > 1 ? "s" : ""}`, D.mmte, [{ v: D.found, col: "#0A8F44" }, { v: D.missing, col: "#B42318" }]);
+  bar(200, "Parc inventorié", `${D.total} véhicule${D.total > 1 ? "s" : ""} présent${D.total > 1 ? "s" : ""}`, D.total, [{ v: D.found, col: "#0A8F44" }, { v: D.registered, col: "#1F6FA3" }]);
+  const leg = [["#0A8F44", "Retrouvés"], ["#B42318", "Manquants"], ["#1F6FA3", "Hors MMTE"]];
+  let lx = 400;
+  leg.forEach((l) => {
+    x.fillStyle = l[0];
+    rrect(x, lx, 372, 30, 30, 8);
+    x.fill();
+    x.fillStyle = "#334155";
+    x.textAlign = "left";
+    x.font = `28px ${SANS}`;
+    x.fillText(l[1], lx + 42, 398);
+    lx += 42 + x.measureText(l[1]).width + 48;
+  });
+  return canvasPng(c);
+}
+function loadImg(src) {
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => res(null);
+    im.src = src;
+  });
+}
+const COVER_TW = { w: 11906, h: 16838, blockTop: 4400, blockH: 6e3, ruleY: 7900, bandTop: 15100, lx: 1400 };
+async function drawCoverPng(D) {
+  const W = 1240, H = 1754, k = W / 11906;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const x = c.getContext("2d");
+  x.fillStyle = "#fff";
+  x.fillRect(0, 0, W, H);
+  const T = COVER_TW;
+  const [bc, dg] = await Promise.all([loadImg(D.logoBC), loadImg(D.logoDouane)]);
+  const lh = 1500 * k;
+  if (bc) x.drawImage(bc, T.lx * k, 700 * k, lh * bc.width / bc.height, lh);
+  if (dg) {
+    const w = lh * dg.width / dg.height;
+    x.drawImage(dg, (T.w - 1134) * k - w, 700 * k, w, lh);
+  }
+  x.fillStyle = "#C9D6E2";
+  x.fillRect(T.lx * k, 2650 * k, (T.w - 1134 - T.lx) * k, 2);
+  x.fillStyle = "#E3B505";
+  x.fillRect(T.lx * k, 2650 * k - 2, 1300 * k, 6);
+  const by = T.blockTop * k, bh = T.blockH * k;
+  const g = x.createLinearGradient(0, by, W, by + bh);
+  g.addColorStop(0, "#082B45");
+  g.addColorStop(0.55, "#0B3C5D");
+  g.addColorStop(1, "#14598A");
+  x.fillStyle = g;
+  x.fillRect(0, by, W, bh);
+  x.save();
+  x.beginPath();
+  x.rect(0, by, W, bh);
+  x.clip();
+  x.strokeStyle = "rgba(255,255,255,0.07)";
+  x.lineWidth = 3;
+  for (let r = 1; r <= 7; r++) {
+    x.beginPath();
+    x.arc(W + 60, by + bh * 0.45, r * 135, 0, 7);
+    x.stroke();
+  }
+  x.fillStyle = "rgba(31,111,163,0.55)";
+  x.beginPath();
+  x.moveTo(W, by + bh);
+  x.lineTo(W - 360, by + bh);
+  x.lineTo(W, by + bh - 300);
+  x.closePath();
+  x.fill();
+  x.fillStyle = "rgba(227,181,5,0.9)";
+  x.beginPath();
+  x.moveTo(W, by + bh);
+  x.lineTo(W - 150, by + bh);
+  x.lineTo(W, by + bh - 125);
+  x.closePath();
+  x.fill();
+  x.restore();
+  x.fillStyle = "#E3B505";
+  x.fillRect(0, by, 20, bh);
+  x.fillStyle = "#E3B505";
+  x.fillRect(T.lx * k, T.ruleY * k, 340 * k, 6);
+  const fy = T.bandTop * k;
+  const g2 = x.createLinearGradient(0, fy, W, H);
+  g2.addColorStop(0, "#0B3C5D");
+  g2.addColorStop(1, "#082B45");
+  x.fillStyle = g2;
+  x.fillRect(0, fy, W, H - fy);
+  x.fillStyle = "#E3B505";
+  x.fillRect(0, fy, W, 6);
+  return canvasPng(c, true);
+}
+let jszipPromise = null;
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve(window.JSZip);
+  if (!jszipPromise) {
+    jszipPromise = new Promise((resolve, reject) => {
+      const sc = document.createElement("script");
+      sc.src = "lib/jszip.min.js";
+      sc.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error("jszip"));
+      sc.onerror = () => {
+        jszipPromise = null;
+        reject(new Error("Bibliothèque Word indisponible (réseau nécessaire la première fois)"));
+      };
+      document.head.appendChild(sc);
+    });
+  }
+  return jszipPromise;
+}
+function pngSize(dataUrl) {
+  try {
+    const b = atob(dataUrl.split(",")[1].slice(0, 40));
+    const g = (o) => b.charCodeAt(o) << 24 | b.charCodeAt(o + 1) << 16 | b.charCodeAt(o + 2) << 8 | b.charCodeAt(o + 3);
+    return { w: g(16), h: g(20) };
+  } catch (e) {
+    return { w: 3, h: 1 };
+  }
+}
+function dataUrlBytes(dataUrl) {
+  const b = atob(dataUrl.split(",")[1]);
+  const u = new Uint8Array(b.length);
+  for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+  return u;
+}
+function normDoc(R) {
+  const D = { ...R };
+  D.parc = String(D.parc || "").trim().replace(/^parc[\s_-]+/i, "").toUpperCase() || "—";
+  D.mmte = +D.mmte || 0;
+  D.found = +D.found || 0;
+  D.registered = +D.registered || 0;
+  D.retro = +D.retro || 0;
+  D.total = D.found + D.registered;
+  D.missing = D.missing != null ? +D.missing : Math.max(0, D.mmte - D.found - D.retro);
+  D.pct = D.mmte > 0 ? Math.round((D.found + D.retro) / D.mmte * 100) : 0;
+  D.dt = docDates(D.invDate);
+  D.heures = D.heures || { debut: "08H", fin: "18H" };
+  if (!D.minutes) {
+    const hm = (s) => {
+      const m = String(s || "").match(/^(\d{1,2})H(\d{2})?$/i);
+      return m ? +m[1] * 60 + (+m[2] || 0) : null;
+    };
+    const a0 = hm(D.heures.debut), z0 = hm(D.heures.fin);
+    D.minutes = a0 != null && z0 != null && z0 > a0 ? z0 - a0 : 0;
+  }
+  D.agents = (D.agents || []).filter(Boolean);
+  D.sign = { douane: "", bc: "", parc: "", ...D.sign || {} };
+  D.sigImg = D.sigImg || {};
+  D.taux = D.taux || ["30%", "70%", "0%"];
+  D.opts = { annexMissing: true, annexHors: true, annexDepot: true, taux: true, ...D.opts || {} };
+  D.x = D.extras || { hasDetails: false, retros: [], age: { over1: 0, under1: 0, nd: 0 }, horsMmte: [], manquants: [], depot: [], depotFound: 0, depotMissing: 0, agentStats: [] };
+  D.modele = D.modele === "classique" || D.modele === "synthese" ? D.modele : "visuel";
+  D.ref = docRef(D);
+  D.hash = ctrlHash(D);
+  return D;
+}
+const H1 = (num, text, pb) => ({ t: "h1", num, text, pb: !!pb });
+const Pp = (text, o) => ({ t: "p", text, ...o || {} });
+function figuresTable(D, closure) {
+  const rows = [["Attendus sur MMTE (liste du parc)", D.mmte], ["Véhicules retrouvés (pointés)", D.found], ["Véhicules présents hors MMTE (enregistrés)", D.registered], ["Total présent sur le parc", D.total], ...D.retro > 0 ? [["Régularisés après l’inventaire (suivi)", D.retro]] : [], ["Véhicules manquants", D.missing], ["Taux de véhicules retrouvés", D.pct + " %"]];
+  return { t: "table", widths: [0.72, 0.28], head: closure ? null : ["Indicateur", "Valeur"], rows: rows.map((r) => [r[0], { text: String(r[1]), bold: true, align: "center" }]), zebra: true, wFrac: 0.8 };
+}
+function signBlock(D, withDate) {
+  const sg = D.sigImg || {};
+  return { t: "sign", withDate, parties: [{ title: "Bénin Control", name: D.sign.bc, sig: sg.bc || "" }, { title: "Douane — Recette des Véhicules Automobiles / DGD", name: D.sign.douane, sig: sg.douane || "" }, { title: `Gestionnaire du parc ${D.parc}`, name: D.sign.parc, sig: sg.parc || "" }] };
+}
+function closureBlocks(D, standalone) {
+  const b = [];
+  b.push({ t: "banner", toc: "Fiche de clôture d’inventaire", title: "FICHE DE CLÔTURE D'INVENTAIRE", sub: "Bénin Control / MAD-MAE  ·  Recette des Véhicules Automobiles / DGD" });
+  b.push({ t: "table", widths: [0.3, 0.7], rows: [
+    ["Parc inventorié", { text: D.parc, bold: true }],
+    ["Date de l'inventaire", D.dt.longJour],
+    ["Horaires", `${D.heures.debut} – ${D.heures.fin}`],
+    ["Agents ayant participé", D.agents.length ? D.agents.join(", ") : "—"],
+    ["Date d'édition de la fiche", (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")]
+  ], labelCol: true });
+  b.push({ t: "h2", text: "Résultats de l'inventaire" });
+  b.push({ t: "kpis", items: [
+    { label: "Attendus MMTE", value: D.mmte, tone: "navy" },
+    { label: "Retrouvés", value: D.found, tone: "emerald" },
+    { label: "Hors MMTE", value: D.registered, tone: "blue" },
+    { label: "Total présent", value: D.total, tone: "slate" },
+    { label: "Manquants", value: D.missing, tone: "rose" },
+    { label: "Taux de retrouvés", value: D.pct + " %", tone: "gold" }
+  ] });
+  b.push({ t: "h2", text: "Observations et constats à chaud" });
+  b.push({ t: "box", text: D.observations || "", lines: D.observations ? 0 : 4 });
+  b.push(Pp("Les parties soussignées attestent avoir pris connaissance des résultats ci-dessus, arrêtés à la clôture de l'inventaire du parc " + D.parc + ".", { small: true, italic: true }));
+  b.push(signBlock(D, true));
+  return b;
+}
+function reportBlocks(D) {
+  const b = [];
+  const M = D.modele === "classique" || D.modele === "synthese" ? D.modele : "visuel";
+  const x = D.x;
+  const dt = D.dt;
+  b.push({ t: "cover", kicker: "INVENTAIRE PHYSIQUE DES VÉHICULES SOUS DOUANE", title: "RAPPORT\nD’INVENTAIRE", parc: "PARC " + D.parc, rows: [["Date", dt.longJour], ["Lieu", "Parc " + D.parc], ["Horaires", `${D.heures.debut} – ${D.heures.fin}`], ["Responsables", "Recette Véhicules Automobiles / DGD  ·  MAD – MAE / BC"]], mois: dt.moisAnnee.toUpperCase(), org: "Bénin Control SA  ·  MAD-MAE  ·  Douanes Béninoises" });
+  b.push({ t: "toc" });
+  b.push(H1("", "Synthèse de l'inventaire", true));
+  if (M !== "classique") b.push({ t: "verdict", tone: D.pct >= 95 ? "emerald" : D.pct >= 80 ? "blue" : "rose", title: `${D.pct} % des véhicules attendus ont été retrouvés`, text: `Parc ${D.parc} · inventaire du ${dt.long} · ${D.total} ${plural(D.total, "véhicule présent", "véhicules présents")}, ${D.missing} ${plural(D.missing, "manquant", "manquants")}.` });
+  b.push({ t: "kpis", items: [
+    { label: "Attendus MMTE", value: D.mmte, tone: "navy" },
+    { label: "Retrouvés", value: D.found, tone: "emerald" },
+    { label: "Hors MMTE", value: D.registered, tone: "blue" },
+    { label: "Total présent", value: D.total, tone: "slate" },
+    { label: "Manquants", value: D.missing, tone: "rose" },
+    { label: "Taux de retrouvés", value: D.pct + " %", tone: "gold" }
+  ] });
+  const key = [];
+  key.push(`**${D.found}** ${plural(D.found, "véhicule", "véhicules")} sur **${D.mmte}** attendus ${plural(D.found, "a été retrouvé", "ont été retrouvés")} sur le parc, soit **${D.pct} %** de la liste MMTE.`);
+  if (D.retro > 0) key.push(`**${D.retro}** ${plural(D.retro, "véhicule initialement manquant a été retrouvé ou régularisé", "véhicules initialement manquants ont été retrouvés ou régularisés")} après l'inventaire (voir l'annexe de suivi).`);
+  if (D.missing > 0) key.push(`**${D.missing}** ${plural(D.missing, "véhicule attendu n'a pas été retrouvé", "véhicules attendus n'ont pas été retrouvés")} : ${plural(D.missing, "il est", "ils sont")} à régulariser dans MMTE (constats d'enlèvement ou de sortie).`);
+  if (D.registered > 0) key.push(`**${D.registered}** ${plural(D.registered, "véhicule présent sur le parc ne figurait", "véhicules présents sur le parc ne figuraient")} pas dans l'extraction MMTE${x.hasDetails && x.age.over1 ? `, dont ${x.age.over1} de plus d'un an` : ""}.`);
+  if (x.hasDetails && x.depot.length) key.push(`**${x.depot.length}** ${plural(x.depot.length, "véhicule de la liste a dépassé", "véhicules de la liste ont dépassé")} le délai de séjour (${x.depotFound} ${plural(x.depotFound, "présent", "présents")}, ${x.depotMissing} ${plural(x.depotMissing, "manquant", "manquants")}).`);
+  if (D.listeParc != null) key.push(`Le gestionnaire avait remis une liste de **${D.listeParc}** véhicules ; le total inventorié est de **${D.total}** (${D.total === D.listeParc ? "conforme" : "non conforme"} au stock déclaré).`);
+  if (D.erronnes > 0) key.push(`**${D.erronnes}** ${plural(D.erronnes, "châssis erroné ou incomplet a été relevé", "châssis erronés ou incomplets ont été relevés")} sur la liste du parc.`);
+  b.push({ t: "callout", title: "Points clés", lines: key });
+  b.push({ t: "img", key: "dash", wIn: 6.5, hIn: 2.69, caption: `Synthèse chiffrée de l’inventaire du parc ${D.parc}` });
+  if (M === "visuel") {
+    b.push(H1("A", "Contexte", true));
+    b.push({ t: "callout", title: "Cadre réglementaire et technique", lines: [
+      "**Arrêté N°1069/MEF/DC/SGM/DGDDI/DAR du 13/08/2009** : conditions d’établissement et d’exploitation, modalités d’utilisation des MAD, TAC et MAE.",
+      "**Module MAD ROULANT** de la plateforme MMTE : mis en production le 11 octobre 2021, pleinement opérationnel depuis le 30 avril 2022.",
+      "**Objectif** : garantir la traçabilité des marchandises débarquées au port autonome de Cotonou et permettre à la Douane d’effectuer les contrôles périodiques (inventaires)."
+    ] });
+    b.push(Pp(`Dans ce cadre, une équipe conjointe de la Douane et de Bénin Control a réalisé, le **${dt.longJour}**, l’inventaire physique du parc **${D.parc}** avec l’application INVENTAIRE MMTE : pointage numérique des véhicules en temps réel et croisement automatique avec l’extraction MMTE.`));
+    b.push({ t: "facts", items: [
+      { label: "Parc inventorié", value: D.parc },
+      { label: "Date", value: dt.long },
+      { label: "Horaires", value: `${D.heures.debut} – ${D.heures.fin}` },
+      { label: "Véhicules attendus", value: String(D.mmte) },
+      { label: "Participants", value: D.agents.length ? `${D.agents.length} ${plural(D.agents.length, "agent", "agents")}` : "—" },
+      { label: "Outil", value: "INVENTAIRE MMTE" }
+    ] });
+    b.push(H1("B", "Méthodologie"));
+    b.push(Pp("L’opération s’est déroulée en dix étapes, le pointage et le croisement des données étant assurés par l’application :", { keep: true }));
+    b.push({ t: "steps", phases: [
+      { title: "Préparation", items: [
+        "Information des gestionnaires de parcs par courriel de la Recette Véhicules Automobiles (date de démarrage de l’inventaire).",
+        `Mise à disposition du stock par le gestionnaire et extraction de la liste MMTE du parc ${D.parc}, chargée dans l’application.`,
+        "Séance d’ouverture entre l’équipe conjointe Douane / BC et l’administration du parc."
+      ] },
+      { title: "Opérations sur le terrain", items: [
+        "Dénombrement physique par les équipes, équipées de téléphones ou de tablettes connectés à l’application.",
+        "Pointage de chaque véhicule (code-barres, QR code, texte du châssis ou saisie) ; les véhicules non listés sont enregistrés sur place avec marque, modèle, ancienneté et photo.",
+        "Suivi de l’avancement en temps réel par tous les participants et correction immédiate des erreurs de saisie.",
+        "Séance de clôture entre l’équipe Douane / BC et l’administration du parc pour s’accorder sur les constats à chaud."
+      ] },
+      { title: "Analyse et restitution", items: [
+        `Croisement automatique des données du parc ${D.parc} avec l’extraction MMTE (retrouvés, manquants, hors MMTE).`,
+        "Analyse des résultats et formulation des recommandations.",
+        "Édition du rapport et de la fiche de clôture, signés par la Douane, Bénin Control et le Gestionnaire du parc."
+      ] }
+    ] });
+    b.push(H1("C", "Résultats"));
+    b.push(Pp(`La liste des véhicules attendus sur le parc **${D.parc}**, extraite de MMTE, a été chargée dans l’application le ${dt.longJour} : elle recensait **${D.mmte}** ${plural(D.mmte, "véhicule", "véhicules")}${D.listeParc != null ? `, contre **${D.listeParc}** déclarés par le gestionnaire` : ""}.`));
+    b.push({ t: "facts", title: "Composition de chaque équipe", items: [{ label: "Douane", value: "Un agent de douane" }, { label: "Bénin Control", value: "Un agent de Bénin Control" }, { label: "Parc", value: "Un représentant : importateur ou mandataire" }] });
+    b.push(Pp("Cette composition garantit la transparence, la rigueur et la traçabilité de la vérification sur le terrain : chaque équipe pointe dans l’application les véhicules retrouvés et enregistre, avec photo, ceux qui ne figurent pas sur la liste."));
+    let chrono = `Les opérations se sont déroulées de **${D.heures.debut}** à **${D.heures.fin}**`;
+    if (D.minutes >= 10 && D.total > 0) chrono += `, soit environ ${Math.floor(D.minutes / 60)} h ${pad2(D.minutes % 60)} min de pointage, à la cadence moyenne de **${Math.round(D.total / D.minutes * 60)} véhicules à l’heure**`;
+    chrono += ".";
+    b.push(Pp(chrono));
+    if (x.hasDetails && x.agentStats.length) {
+      b.push(Pp(`Pointages par participant (${x.agentStats.length}) :`, { keep: true }));
+      b.push({ t: "table", widths: [0.7, 0.3], head: ["Agent", "Pointages"], rows: x.agentStats.map((a) => [a.name, { text: String(a.count), align: "center", bold: true }]), zebra: true, wFrac: 0.7 });
+    } else if (D.agents.length) b.push(Pp(`Agents ayant participé : ${D.agents.join(", ")}.`));
+    let conf = `Au terme du dénombrement, **${D.total}** ${plural(D.total, "véhicule a été recensé", "véhicules ont été recensés")} sur le parc`;
+    if (D.listeParc != null) conf += `, chiffre ${D.total === D.listeParc ? "conforme" : "non conforme"} au stock initialement déclaré par le gestionnaire.`;
+    else conf += `, dont ${D.found} ${plural(D.found, "figurait", "figuraient")} sur la liste MMTE et ${D.registered} ${plural(D.registered, "n’y figurait", "n’y figuraient")} pas.`;
+    b.push(Pp(conf, { keep: true }));
+    const pr = [[`Total sur liste MMTE du parc ${D.parc}`, D.mmte]];
+    if (D.listeParc != null) pr.push(["Total sur liste remise par le parc", D.listeParc]);
+    pr.push(["Véhicules retrouvés (pointés)", D.found], [D.listeParc != null ? "Véhicules manuscrits" : "Véhicules enregistrés hors MMTE", D.listeParc != null ? D.manuscrits : D.registered], [`Total inventorié sur le parc ${D.parc}`, D.total], ["Véhicules manquants", D.missing]);
+    if (D.erronnes > 0) pr.push(["Châssis erronés ou incomplets sur la liste du parc", D.erronnes]);
+    b.push({ t: "table", widths: [0.8, 0.2], head: ["Point du parc", "Nombre"], rows: pr.map((r) => [r[0], { text: String(r[1]), bold: true, align: "center" }]), zebra: true, wFrac: 0.92 });
+    if (D.observations) b.push({ t: "callout", title: "Constats à chaud (séance de clôture)", lines: String(D.observations).split(/\n+/).filter(Boolean) });
+    b.push({ t: "callout", title: "Rappel formel au parc " + D.parc, lines: ["Mettre à jour le stock du parc en intégrant les observations relevées lors de l’inventaire.", "Retirer du parc, **dans un délai de 72 heures maximum**, tout véhicule ayant été dédouané."] });
+    b.push(H1("D", "Analyse des données"));
+    b.push(Pp(`Le croisement entre les données du parc **${D.parc}** et celles de la plateforme MMTE fait ressortir trois situations :`, { keep: true }));
+    b.push({ t: "img", key: "comp", wIn: 6.4, hIn: 2, caption: `Répartition des véhicules : liste MMTE (${D.mmte}) et parc inventorié (${D.total}) — ${D.found} en commun` });
+    b.push({ t: "table", widths: [0.27, 0.09, 0.4, 0.24], head: ["Situation", "Nombre", "Explication probable", "Action recommandée"], small: true, zebra: true, rows: [
+      [{ text: "Présents dans MMTE et sur le parc", bold: true }, { text: String(D.found), bold: true, align: "center", color: DC.emerald }, "Aucun écart.", "RAS"],
+      [{ text: "Présents dans MMTE mais absents du parc", bold: true }, { text: String(D.missing), bold: true, align: "center", color: DC.rose }, "Véhicules ayant fait l’objet d’une demande de transfert via MMTE, mais dont le constat d’enlèvement n’a pas encore été fait.", "Réaliser tous les constats d’enlèvement."],
+      [{ text: "Absents de MMTE mais présents sur le parc", bold: true }, { text: String(D.registered), bold: true, align: "center", color: DC.blue }, "Véhicules présents avant MMTE, conteneurisés transférés après la mise en production, ou passés en statut dépôt.", "Intégrer dans MMTE / ROULANT tous les véhicules importés."]
+    ] });
+    if (x.hasDetails && D.registered > 0) {
+      b.push({ t: "h2", text: "Véhicules présents hors MMTE : ancienneté" });
+      b.push({ t: "table", widths: [0.7, 0.3], head: ["Ancienneté", "Véhicules"], zebra: true, wFrac: 0.6, rows: [["Plus d’un an", { text: String(x.age.over1), bold: true, align: "center" }], ["Moins d’un an", { text: String(x.age.under1), bold: true, align: "center" }], ["Non précisée", { text: String(x.age.nd), bold: true, align: "center" }]] });
+      if (x.age.over1 > 0) b.push(Pp("Les véhicules de plus d’un an hors MMTE constituent le principal risque de régularisation : ils doivent être rapprochés des statuts dépôt et des délais de séjour légaux.", { small: true, italic: true }));
+    }
+    if (x.hasDetails && x.depot.length) {
+      b.push({ t: "h2", text: "Délai de séjour dépassé" });
+      b.push(Pp(`**${x.depot.length}** ${plural(x.depot.length, "véhicule de la liste MMTE a dépassé", "véhicules de la liste MMTE ont dépassé")} la date d’entrée en dépôt à la date de l’inventaire : **${x.depotFound}** ${plural(x.depotFound, "présent", "présents")} sur le parc et **${x.depotMissing}** ${plural(x.depotMissing, "manquant", "manquants")}. La liste figure en annexe.`));
+    }
+    if (D.opts.taux) {
+      b.push({ t: "h2", text: "Taux d’utilisation de MMTE" });
+      b.push(Pp("Les taux d’utilisation de la plateforme sont consignés dans le tableau suivant :", { keep: true }));
+      const T = (n, a, s, t, o) => {
+        const v = parseInt(t, 10);
+        return [String(n), a, s, { text: t, align: "center", bold: true, color: isNaN(v) ? DC.grey : v >= 90 ? DC.emerald : v >= 50 ? "B7791F" : DC.rose }, o];
+      };
+      b.push({ t: "table", widths: [0.06, 0.24, 0.2, 0.1, 0.4], head: ["N°", "Actions", "Structures chargées", "Taux d’exécution", "Observations"], small: true, zebra: true, rows: [
+        T(1, "Manifestes sur MMTE", "GUCE", "100%", "Pas toujours en temps réel"),
+        T(2, "Demande de transfert PTU vers les parcs", "Gestionnaires de parcs", "100%", "Aucune autre issue n’est possible"),
+        T(3, "Constats de vu à quai", "Manutentionnaires BM et RTB", "100%", "Obligatoire car cette action vient constater le déchargement des marchandises, valider la demande de transfert faite en amont par les gestionnaires de parcs, créditer le stock du manutentionnaire et positionner la marchandise en attente d’entrée chez le gestionnaire."),
+        T(4, "Constats d’enlèvement des PTU", "Manutentionnaires BM et RTB", "100%", "Ce taux a été atteint après la mise en place des mesures coercitives qui consistent à empêcher de nouveaux transferts aux parcs concernés 15 jours après les transferts."),
+        T(5, "Constats de réception des parcs", `Gestionnaire du parc ${D.parc}`, "100%", "Ce taux a été atteint après la mise en place des mesures coercitives qui consistent à empêcher de nouveaux transferts aux parcs concernés 15 jours après les transferts."),
+        T(6, "Constats d’enlèvement des parcs", "Gestionnaires de parcs", D.taux[0] || "30%", "Cette action étant obligatoire dans GUCE, les gestionnaires pensent qu’elle est superflue dans MMTE. L’interfaçage de MMTE et GUCE en cours viendra corriger cette insuffisance."),
+        T(7, "Transferts de parc à parc", "Gestionnaires de parcs et chefs sections Douane", "-", "Cette action se fait toujours dans MMTE."),
+        T(8, "Mise à disposition des stocks par semaine", "Gestionnaires des parcs", D.taux[1] || "70%", "Les gestionnaires ne respectent pas toujours le format retenu par la Douane ni le délai de transmission."),
+        T(9, "Rencontres périodiques avec les usagers", "Douane et BC", "-", "Appréhension des difficultés et apport de solutions à travers le forum d’échanges WhatsApp ainsi que des séances en présentiel le cas échéant."),
+        T(10, "Prise en compte des véhicules conteneurisés par MMTE", "MMTE", D.taux[2] || "0%", "Le module des terminaux à conteneurs est en cours d’actualisation."),
+        T(11, `Inventaire du parc ${D.parc}`, "Douane et BC", "100%", "Fait, avec l’application INVENTAIRE MMTE.")
+      ] });
+    }
+    b.push(H1("E", "Recommandations"));
+    b.push(Pp("À l’issue du recensement et de l’analyse, les actions suivantes sont recommandées, classées par priorité :", { keep: true }));
+    const HI = { text: "Haute", bold: true, align: "center", color: "FFFFFF", fill: DC.rose }, MD = { text: "Moyenne", bold: true, align: "center", color: DC.navy, fill: "F3D468" }, LO = { text: "Continue", bold: true, align: "center", color: "FFFFFF", fill: DC.emerald };
+    const rec = [];
+    if (D.missing > 0) rec.push([`Régulariser dans MMTE ${plural(D.missing, "le véhicule attendu et absent", "les " + D.missing + " véhicules attendus et absents")} du parc (constats d’enlèvement ou de sortie manquants).`, `Gestionnaire du parc ${D.parc}`, HI]);
+    if (D.registered > 0) rec.push([`Intégrer dans MMTE / ROULANT ${plural(D.registered, "le véhicule présent", "les " + D.registered + " véhicules présents")} sur le parc mais ${plural(D.registered, "absent", "absents")} de l’extraction.`, `Gestionnaire du parc ${D.parc}`, HI]);
+    rec.push([x.hasDetails && x.depot.length ? `Transmettre sans délai la liste des véhicules frappés de dépôt (${x.depot.length} identifiés en annexe) pour faciliter leur mise en vente aux enchères.` : "Transmettre sans délai la liste des véhicules frappés de dépôt pour faciliter leur mise en vente aux enchères.", `Gestionnaire du parc ${D.parc}`, HI]);
+    if (D.erronnes > 0) rec.push(["Corriger les numéros de châssis incorrects et renforcer la validation des données lors de l’enregistrement.", `Gestionnaire du parc ${D.parc}`, MD]);
+    rec.push(["Assurer en temps réel les constats de réception et d’enlèvement des véhicules ; imposer la transmission journalière des constats d’enlèvement.", `Gestionnaire du parc ${D.parc} / Recette Véhicules Automobiles`, MD]);
+    rec.push(["Instaurer une gestion rigoureuse du stock du parc et respecter scrupuleusement les délais légaux de séjour.", `Gestionnaire du parc ${D.parc}`, MD]);
+    rec.push(["Rendre possible la prise en compte par MMTE / ROULANT des véhicules conteneurisés à transférer sur les parcs de vente.", "Bénin Control", MD]);
+    rec.push(["Maintenir l’application rigoureuse de la plateforme MMTE (transferts, constats d’enlèvement et de réception) et généraliser INVENTAIRE MMTE aux autres parcs.", "Recette Véhicules Automobiles", LO]);
+    b.push({ t: "table", widths: [0.06, 0.56, 0.24, 0.14], head: ["N°", "Recommandation", "Destinataire", "Priorité"], small: true, zebra: true, rows: rec.map((r, i) => [{ text: String(i + 1), align: "center", bold: true }, r[0], r[1], r[2]]) });
+    b.push(H1("", "Conclusion"));
+    b.push({ t: "verdict", tone: D.pct >= 95 ? "emerald" : D.pct >= 80 ? "blue" : "rose", title: `${D.found} véhicules sur ${D.mmte} retrouvés (${D.pct} %)`, text: `${D.total} ${plural(D.total, "véhicule effectivement présent", "véhicules effectivement présents")} sur le parc ${D.parc} — ${D.missing} ${plural(D.missing, "écart", "écarts")} à régulariser dans MMTE.` });
+    b.push(Pp(`L’inventaire du parc **${D.parc}** a permis à la Recette Véhicules Automobiles d’examiner de façon structurée le stock de véhicules sous douane et a mis en évidence la nécessité d’une gestion rigoureuse et transparente du parc. Il confirme la valeur ajoutée de la plateforme MMTE pour la comptabilité-matières des véhicules sous douane, ainsi que celle du pointage numérique pour la fiabilité et la rapidité de l’inventaire. Cette initiative s’impose comme cadre de référence pour les autres parcs et souligne l’urgence de dispositifs opérationnels garantissant la traçabilité des mouvements de stock.`));
+  } else if (M === "classique") {
+    b.push(H1("A", "Contexte", true));
+    b.push(Pp("En application de l’arrêté N°1069/MEF/DC/SGM/DGDDI/DAR du 13/08/2009 fixant les conditions d’établissement et d’exploitation ainsi que les modalités d’utilisation des MAD et TAC et MAE et dans le cadre de la gestion automatisée de la comptabilité matière des parcs de vente de véhicules automobiles, il a été mis en production le 11 octobre 2021 un module dénommé MAD ROULANT sur la plateforme MMTE dédiée à cet effet. Ce module est devenu totalement opérationnel depuis le 30 avril 2022 et permet d’une part à tous les MAD, d’effectuer les transferts de leurs marchandises débarquées au port autonome de Cotonou garantissant ainsi une bonne traçabilité des mouvements et d’autre part à l’administration douanière d’effectuer les contrôles périodiques (inventaires)."));
+    b.push(Pp(`Ainsi, une équipe conjointe de la Douane et de Benin Control a effectué le **${dt.longJour}** un inventaire du stock du parc **${D.parc}**, à l’aide de l’application INVENTAIRE MMTE, qui permet le pointage numérique des véhicules en temps réel et le croisement automatique avec l’extraction MMTE.`));
+    b.push(H1("B", "Méthodologie"));
+    b.push(Pp("La méthodologie retenue pour effectuer ces opérations s’articule en dix points, le pointage et le croisement des données étant assurés par l’application INVENTAIRE MMTE :"));
+    b.push({ t: "ol", items: [
+      "Envoi de courriel par la Recette Véhicules Automobiles pour informer les gestionnaires de parcs de la date retenue pour le démarrage de l’inventaire ;",
+      `Mise à disposition de la douane du stock à date par les gestionnaires (fichier électronique) et extraction de la liste MMTE du parc ${D.parc}, chargée dans l’application ;`,
+      "Séance d’ouverture entre l’équipe conjointe Douane/BC et l’administration du parc ;",
+      "Dénombrement physique du stock par les équipes d’inventaire, équipées de téléphones ou de tablettes connectés à l’application ;",
+      "Inventaire proprement dit : chaque véhicule est pointé par lecture du code-barres, du QR code ou du texte du numéro de châssis (ou par saisie), en vérifiant la marque et tous les caractères du châssis ; les véhicules non listés sont enregistrés sur place avec leur marque, leur modèle, leur ancienneté et une photo ;",
+      "Suivi de l’avancement en temps réel par tous les participants (véhicules pointés et restants) et correction immédiate des erreurs de saisie ;",
+      "Séance de clôture entre l’équipe Douane/BC et l’administration du parc pour s’accorder sur les constats à chaud ;",
+      `Croisement automatique des données physiques du parc ${D.parc} avec celles extraites de MMTE (retrouvés, manquants, hors MMTE) ;`,
+      "Analyse des résultats issus du croisement et formulation de recommandations ;",
+      "Édition du rapport d’inventaire et de la fiche de clôture, à faire signer par les trois parties : la Douane, Benin Control et le Gestionnaire du parc."
+    ] });
+    b.push(H1("C", "Résultats"));
+    b.push(Pp(`À la suite de la correspondance émanant de la Recette Véhicules Automobiles, la liste des véhicules attendus sur le parc **${D.parc}**, extraite de MMTE, a été chargée dans l’application le ${dt.longJour}. Cette liste recensait un total de **${D.mmte}** ${plural(D.mmte, "véhicule", "véhicules")}${D.listeParc != null ? `, tandis que la liste remise par le gestionnaire en recensait **${D.listeParc}**` : ""}.`));
+    b.push(Pp("Pour mener à bien cette opération, des équipes dédiées ont été constituées. Chaque équipe comprenait :"));
+    b.push({ t: "ul", items: ["Un agent de douane ;", "Un agent de Benin Control ;", "Un représentant du parc, soit l’importateur ou son mandataire."] });
+    b.push(Pp("Cette composition visait à garantir la transparence, la rigueur et la traçabilité du processus de vérification sur le terrain. Chaque équipe avait pour mission de pointer dans l’application les véhicules retrouvés et d’enregistrer, avec photo, les véhicules retrouvés physiquement mais ne figurant pas sur la liste."));
+    let chrono = `Les opérations se sont déroulées de **${D.heures.debut}** à **${D.heures.fin}**`;
+    if (D.minutes >= 10 && D.total > 0) chrono += `, soit environ ${Math.floor(D.minutes / 60)} h ${pad2(D.minutes % 60)} min de pointage et une cadence moyenne de ${Math.round(D.total / D.minutes * 60)} véhicules à l’heure`;
+    chrono += ".";
+    b.push(Pp(chrono));
+    if (x.hasDetails && x.agentStats.length) {
+      b.push(Pp(`${x.agentStats.length} ${plural(x.agentStats.length, "participant a effectué", "participants ont effectué")} des pointages :`, { keep: true }));
+      b.push({ t: "table", widths: [0.7, 0.3], head: ["Agent", "Pointages"], rows: x.agentStats.map((a) => [a.name, { text: String(a.count), align: "center", bold: true }]), zebra: true });
+    } else if (D.agents.length) b.push(Pp(`Agents ayant participé : ${D.agents.join(", ")}.`));
+    let conf = `À l’issue du dénombrement, un total de **${D.total}** ${plural(D.total, "véhicule a été recensé", "véhicules ont été recensés")} sur le parc`;
+    if (D.listeParc != null) conf += `, chiffre ${D.total === D.listeParc ? "conforme" : "non conforme"} au stock initialement déclaré par le gestionnaire.`;
+    else conf += `, dont ${D.found} ${plural(D.found, "figurait", "figuraient")} sur la liste MMTE et ${D.registered} ${plural(D.registered, "n’y figurait", "n’y figuraient")} pas.`;
+    b.push(Pp(conf));
+    b.push(Pp(`Au terme des opérations, le point du parc **${D.parc}** est le suivant :`, { keep: true }));
+    const pr = [[`TOTAL SUR LISTE MMTE DU PARC ${D.parc}`, D.mmte]];
+    if (D.listeParc != null) pr.push(["TOTAL SUR LISTE REMISE PAR LE PARC", D.listeParc]);
+    pr.push(["TOTAL VÉHICULES RETROUVÉS (POINTÉS)", D.found], [D.listeParc != null ? "TOTAL VÉHICULES MANUSCRITS" : "TOTAL VÉHICULES ENREGISTRÉS HORS MMTE", D.listeParc != null ? D.manuscrits : D.registered], [`TOTAL VÉHICULES INVENTORIÉS SUR LE PARC ${D.parc}`, D.total], ["TOTAL VÉHICULES MANQUANTS", D.missing]);
+    if (D.erronnes > 0) pr.push(["TOTAL CHÂSSIS ERRONÉS OU INCOMPLETS SUR LISTE DU PARC", D.erronnes]);
+    b.push({ t: "table", widths: [0.8, 0.2], rows: pr.map((r) => [r[0], { text: String(r[1]), bold: true, align: "center" }]), zebra: true });
+    if (D.observations) b.push({ t: "callout", title: "Constats à chaud (séance de clôture)", lines: String(D.observations).split(/\n+/).filter(Boolean) });
+    b.push(Pp(`Le Parc **${D.parc}** a été invité à procéder à une mise à jour du stock du parc, en intégrant les observations relevées lors des opérations d’inventaire. Pour clore la séance d’inventaire, un rappel formel a été fait concernant l’obligation de retirer du parc, dans un délai ne dépassant pas 72 heures, tout véhicule ayant été dédouané.`));
+    b.push(H1("D", "Analyse des données"));
+    b.push(Pp(`L’analyse comparative entre les données issues du parc **${D.parc}** et les données de la plateforme MMTE a révélé les constats suivants :`));
+    b.push({ t: "img", key: "comp", wIn: 6.4, hIn: 2, caption: `Croisement données MMTE et parc ${D.parc} — extraction MMTE : ${D.mmte} · inventorié : ${D.total} · intersection : ${D.found}` });
+    b.push(Pp("Les données issues de l’extraction de MMTE, croisées avec celles du parc, donnent le tableau suivant :", { keep: true }));
+    b.push({ t: "table", widths: [0.27, 0.1, 0.38, 0.25], head: ["Statuts", "Nombre", "Justifications", "Recommandations"], small: true, zebra: true, rows: [
+      ["Véhicules présents dans l’extraction MMTE et présents sur le parc", { text: String(D.found), bold: true, align: "center" }, "RAS", "RAS"],
+      ["Véhicules présents dans l’extraction MMTE mais absents du stock du parc", { text: String(D.missing), bold: true, align: "center" }, "Les véhicules concernés sont ceux ayant fait l’objet d’une demande de transfert via MMTE, mais pour lesquels le constat d’enlèvement n’a pas encore été fait.", "Réaliser tous les constats."],
+      ["Véhicules absents dans MMTE mais présents dans le stock du parc", { text: String(D.registered), bold: true, align: "center" }, "Ces véhicules pourraient représenter : ceux déjà présents sur le parc avant MMTE ; ceux conteneurisés ayant fait l’objet de transfert sur le parc après la mise en production de MMTE ; ceux passés en statut dépôt.", "Intégrer dans MMTE/ROULANT tous les véhicules importés."]
+    ] });
+    if (x.hasDetails && D.registered > 0) {
+      b.push({ t: "h2", text: "Véhicules présents hors MMTE : ancienneté" });
+      b.push({ t: "table", widths: [0.7, 0.3], head: ["Ancienneté", "Véhicules"], zebra: true, rows: [["Plus d’un an", { text: String(x.age.over1), bold: true, align: "center" }], ["Moins d’un an", { text: String(x.age.under1), bold: true, align: "center" }], ["Non précisée", { text: String(x.age.nd), bold: true, align: "center" }]] });
+      if (x.age.over1 > 0) b.push(Pp("Les véhicules de plus d’un an hors MMTE constituent le principal risque de régularisation : ils doivent être rapprochés des statuts dépôt et des délais de séjour légaux.", { small: true, italic: true }));
+    }
+    if (x.hasDetails && x.depot.length) {
+      b.push({ t: "h2", text: "Délai de séjour dépassé" });
+      b.push(Pp(`**${x.depot.length}** ${plural(x.depot.length, "véhicule de la liste MMTE a dépassé", "véhicules de la liste MMTE ont dépassé")} la date d’entrée en dépôt à la date de l’inventaire : **${x.depotFound}** ${plural(x.depotFound, "présent", "présents")} sur le parc et **${x.depotMissing}** ${plural(x.depotMissing, "manquant", "manquants")}. La liste figure en annexe.`));
+    }
+    if (D.opts.taux) {
+      b.push(Pp("Les taux d’utilisation de MMTE sont consignés dans le tableau suivant :", { keep: true, before: 200 }));
+      const T = (n, a, s, t, o) => [String(n), a, s, { text: t, align: "center", bold: true }, o];
+      b.push({ t: "table", widths: [0.06, 0.24, 0.2, 0.1, 0.4], head: ["N°", "Actions", "Structures chargées", "Taux d’exécution", "Observations"], small: true, zebra: true, rows: [
+        T(1, "Manifestes sur MMTE", "GUCE", "100%", "Pas toujours en temps réel"),
+        T(2, "Demande de transfert PTU vers les parcs", "Gestionnaires de parcs", "100%", "Aucune autre issue n’est possible"),
+        T(3, "Constats de vu à quai", "Manutentionnaires BM et RTB", "100%", "Obligatoire car cette action vient constater le déchargement des marchandises, valider la demande de transfert faite en amont par les gestionnaires de parcs, créditer le stock du manutentionnaire et positionner la marchandise en attente d’entrée chez le gestionnaire."),
+        T(4, "Constats d’enlèvement des PTU", "Manutentionnaires BM et RTB", "100%", "Ce taux a été atteint après la mise en place des mesures coercitives qui consistent à empêcher de nouveaux transferts aux parcs concernés 15 jours après les transferts."),
+        T(5, "Constats de réception des parcs", `Gestionnaire du parc ${D.parc}`, "100%", "Ce taux a été atteint après la mise en place des mesures coercitives qui consistent à empêcher de nouveaux transferts aux parcs concernés 15 jours après les transferts."),
+        T(6, "Constats d’enlèvement des parcs", "Gestionnaires de parcs", D.taux[0] || "30%", "Cette action étant obligatoire dans GUCE, les gestionnaires pensent qu’elle est superflue dans MMTE. L’interfaçage de MMTE et GUCE en cours viendra corriger cette insuffisance."),
+        T(7, "Transferts de parc à parc", "Gestionnaires de parcs et chefs sections Douane", "-", "Cette action se fait toujours dans MMTE."),
+        T(8, "Mise à disposition des stocks par semaine", "Gestionnaires des parcs", D.taux[1] || "70%", "Les gestionnaires ne respectent pas toujours le format retenu par la Douane ni le délai de transmission."),
+        T(9, "Rencontres périodiques avec les usagers", "Douane et BC", "-", "Appréhension des difficultés et apport de solutions à travers le forum d’échanges WhatsApp ainsi que des séances en présentiel le cas échéant."),
+        T(10, "Prise en compte des véhicules conteneurisés par MMTE", "MMTE", D.taux[2] || "0%", "Le module des terminaux à conteneurs est en cours d’actualisation."),
+        T(11, `Inventaire du parc ${D.parc}`, "Douane et BC", "100%", "Fait, avec l’application INVENTAIRE MMTE.")
+      ] });
+    }
+    b.push(H1("E", "Recommandations"));
+    b.push(Pp("À l’issue des opérations de recensement et d’analyse, plusieurs recommandations ont été formulées à l’attention des parties prenantes afin d’améliorer le suivi et la gestion du stock des véhicules sous douane admis sur les parcs de vente."));
+    b.push({ t: "h2", text: `À l’attention du Gestionnaire du parc ${D.parc}` });
+    const rg = ["Assurer la réalisation en temps réel des constats de réception et d’enlèvement des véhicules."];
+    if (D.missing > 0) rg.push(`Régulariser dans MMTE ${plural(D.missing, "le véhicule attendu et absent", "les " + D.missing + " véhicules attendus et absents")} du parc (constats d’enlèvement ou de sortie manquants).`);
+    if (D.registered > 0) rg.push(`Intégrer dans MMTE/ROULANT ${plural(D.registered, "le véhicule présent", "les " + D.registered + " véhicules présents")} sur le parc mais ${plural(D.registered, "absent", "absents")} de l’extraction MMTE.`);
+    rg.push("Instaurer une gestion plus rigoureuse du stock du parc afin de garantir l’exhaustivité et la fiabilité des données.");
+    if (D.erronnes > 0) rg.push("Procéder à la correction des numéros de châssis incorrects et renforcer les mécanismes de validation des données lors de l’enregistrement.");
+    rg.push(x.hasDetails && x.depot.length ? `Transmettre sans délai la liste des véhicules frappés de dépôt (${x.depot.length} identifiés en annexe) afin de faciliter les démarches liées à leur mise en vente aux enchères.` : "Transmettre sans délai la liste des véhicules frappés de dépôt afin de faciliter les démarches liées à leur mise en vente aux enchères.");
+    rg.push("Respecter scrupuleusement les délais légaux de séjour des marchandises sous douane.");
+    b.push({ t: "ul", items: rg });
+    b.push({ t: "h2", text: "À l’attention de Benin Control" });
+    b.push({ t: "ul", items: ["Rendre possible la prise en compte par MMTE/ROULANT des véhicules conteneurisés à transférer sur les parcs de vente."] });
+    b.push({ t: "h2", text: "À l’attention de la Recette Véhicules Automobiles" });
+    b.push({ t: "ul", items: ["Maintenir une application rigoureuse de la plateforme MMTE pour les transferts, constats d’enlèvement et de réception des véhicules admis sur les parcs.", "Imposer aux gestionnaires de parc la transmission journalière des constats d’enlèvement.", "Généraliser l’usage de l’application INVENTAIRE MMTE pour les inventaires des autres parcs."] });
+    b.push(H1("", "Conclusion"));
+    b.push(Pp(`L’inventaire effectué sur le parc **${D.parc}** a permis à la Recette Véhicules Automobiles de conduire un examen approfondi et structuré du stock de véhicules sous douane : **${D.found}** véhicules sur **${D.mmte}** attendus ont été retrouvés (${D.pct} %), pour **${D.total}** véhicules effectivement présents. Cette opération a mis en exergue la nécessité d’une gestion rigoureuse et transparente du parc. Par ailleurs, elle a confirmé la valeur ajoutée de la plateforme MMTE en tant qu’outil pertinent de gestion automatisée de la comptabilité-matières des véhicules sous douane, ainsi que celle du pointage numérique pour la fiabilité et la rapidité de l’inventaire. Enfin, cette initiative s’impose comme un cadre de référence pour la réalisation d’opérations similaires dans les autres parcs, tout en soulignant l’urgence de mettre en œuvre des dispositifs opérationnels adaptés, garants de la fiabilité et de la traçabilité des mouvements de stock des parcs.`));
+    b.push(signBlock(D, false));
+  } else {
+    b.push(H1("", "Résultats", false));
+    b.push(Pp(`Inventaire physique du parc **${D.parc}** réalisé le **${dt.longJour}** de ${D.heures.debut} à ${D.heures.fin} avec l’application INVENTAIRE MMTE, par une équipe conjointe Douane / Bénin Control / représentant du parc${D.agents.length ? ` (${D.agents.length} ${plural(D.agents.length, "agent", "agents")})` : ""}.`));
+    const prs = [[`Attendus sur la liste MMTE du parc ${D.parc}`, D.mmte]];
+    if (D.listeParc != null) prs.push(["Liste remise par le parc", D.listeParc]);
+    prs.push(["Véhicules retrouvés (pointés)", D.found], ["Véhicules enregistrés hors MMTE", D.registered], ["Total inventorié sur le parc", D.total], ["Véhicules manquants", D.missing]);
+    if (D.erronnes > 0) prs.push(["Châssis erronés ou incomplets", D.erronnes]);
+    b.push({ t: "table", widths: [0.8, 0.2], head: ["Point du parc", "Nombre"], rows: prs.map((r) => [r[0], { text: String(r[1]), bold: true, align: "center" }]), zebra: true, wFrac: 0.92 });
+    if (D.observations) b.push({ t: "callout", title: "Constats à chaud (séance de clôture)", lines: String(D.observations).split(/\n+/).filter(Boolean) });
+    b.push(H1("", "Écarts constatés", false));
+    b.push({ t: "table", widths: [0.3, 0.1, 0.35, 0.25], head: ["Situation", "Nombre", "Explication probable", "Action recommandée"], small: true, zebra: true, rows: [
+      [{ text: "Présents dans MMTE et sur le parc", bold: true }, { text: String(D.found), bold: true, align: "center", color: DC.emerald }, "Aucun écart.", "RAS"],
+      [{ text: "Présents dans MMTE mais absents du parc", bold: true }, { text: String(D.missing), bold: true, align: "center", color: DC.rose }, "Demande de transfert faite via MMTE, constat d’enlèvement non réalisé.", "Réaliser les constats d’enlèvement."],
+      [{ text: "Absents de MMTE mais présents sur le parc", bold: true }, { text: String(D.registered), bold: true, align: "center", color: DC.blue }, "Véhicules antérieurs à MMTE, conteneurisés ou en statut dépôt.", "Intégrer dans MMTE / ROULANT."]
+    ] });
+    if (x.hasDetails && D.registered > 0 && x.age.over1 > 0) b.push(Pp(`Parmi les véhicules hors MMTE, **${x.age.over1}** ${plural(x.age.over1, "a plus", "ont plus")} d’un an : ${plural(x.age.over1, "il constitue", "ils constituent")} le principal risque de régularisation.`));
+    if (x.hasDetails && x.depot.length) b.push(Pp(`**${x.depot.length}** ${plural(x.depot.length, "véhicule a dépassé", "véhicules ont dépassé")} le délai de séjour (${x.depotFound} ${plural(x.depotFound, "présent", "présents")}, ${x.depotMissing} ${plural(x.depotMissing, "manquant", "manquants")}) — liste en annexe.`));
+    b.push({ t: "img", key: "comp", wIn: 6.4, hIn: 2, caption: `Répartition des véhicules : liste MMTE (${D.mmte}) et parc inventorié (${D.total}) — ${D.found} en commun` });
+    b.push(H1("", "Recommandations"));
+    b.push(Pp("À l’issue du recensement et de l’analyse, les actions suivantes sont recommandées, classées par priorité :", { keep: true }));
+    const HI = { text: "Haute", bold: true, align: "center", color: "FFFFFF", fill: DC.rose }, MD = { text: "Moyenne", bold: true, align: "center", color: DC.navy, fill: "F3D468" }, LO = { text: "Continue", bold: true, align: "center", color: "FFFFFF", fill: DC.emerald };
+    const rec = [];
+    if (D.missing > 0) rec.push([`Régulariser dans MMTE ${plural(D.missing, "le véhicule attendu et absent", "les " + D.missing + " véhicules attendus et absents")} du parc (constats d’enlèvement ou de sortie manquants).`, `Gestionnaire du parc ${D.parc}`, HI]);
+    if (D.registered > 0) rec.push([`Intégrer dans MMTE / ROULANT ${plural(D.registered, "le véhicule présent", "les " + D.registered + " véhicules présents")} sur le parc mais ${plural(D.registered, "absent", "absents")} de l’extraction.`, `Gestionnaire du parc ${D.parc}`, HI]);
+    rec.push([x.hasDetails && x.depot.length ? `Transmettre sans délai la liste des véhicules frappés de dépôt (${x.depot.length} identifiés en annexe) pour faciliter leur mise en vente aux enchères.` : "Transmettre sans délai la liste des véhicules frappés de dépôt pour faciliter leur mise en vente aux enchères.", `Gestionnaire du parc ${D.parc}`, HI]);
+    if (D.erronnes > 0) rec.push(["Corriger les numéros de châssis incorrects et renforcer la validation des données lors de l’enregistrement.", `Gestionnaire du parc ${D.parc}`, MD]);
+    rec.push(["Assurer en temps réel les constats de réception et d’enlèvement des véhicules ; imposer la transmission journalière des constats d’enlèvement.", `Gestionnaire du parc ${D.parc} / Recette Véhicules Automobiles`, MD]);
+    rec.push(["Instaurer une gestion rigoureuse du stock du parc et respecter scrupuleusement les délais légaux de séjour.", `Gestionnaire du parc ${D.parc}`, MD]);
+    rec.push(["Rendre possible la prise en compte par MMTE / ROULANT des véhicules conteneurisés à transférer sur les parcs de vente.", "Bénin Control", MD]);
+    rec.push(["Maintenir l’application rigoureuse de la plateforme MMTE (transferts, constats d’enlèvement et de réception) et généraliser INVENTAIRE MMTE aux autres parcs.", "Recette Véhicules Automobiles", LO]);
+    b.push({ t: "table", widths: [0.06, 0.56, 0.24, 0.14], head: ["N°", "Recommandation", "Destinataire", "Priorité"], small: true, zebra: true, rows: rec.map((r, i) => [{ text: String(i + 1), align: "center", bold: true }, r[0], r[1], r[2]]) });
+  }
+  b.push({ t: "pb" });
+  closureBlocks(D).forEach((k) => b.push(k));
+  if (x.hasDetails) {
+    if (D.opts.annexMissing && x.manquants.length) {
+      b.push(H1("", `Annexe 1 — Véhicules manquants (${x.manquants.length})`, true));
+      b.push(Pp(`Véhicules attendus sur MMTE et non retrouvés sur le parc ${D.parc}.`, { small: true }));
+      b.push({ t: "table", widths: [0.07, 0.3, 0.43, 0.2], head: ["N°", "Châssis", "Description", "Entrée en dépôt"], small: true, zebra: true, repeat: true, rows: x.manquants.map((r, i) => [String(i + 1), r.chassis, r.description, r.depot]) });
+    }
+    if (D.opts.annexMissing && x.retros && x.retros.length) {
+      b.push(H1("", `Annexe 1 bis — Suivi des manquants (${x.retros.length})`, true));
+      b.push(Pp(`Véhicules initialement manquants, retrouvés ou régularisés après l’inventaire du parc ${D.parc}.`, { small: true }));
+      b.push({ t: "table", widths: [0.06, 0.24, 0.26, 0.2, 0.24], head: ["N°", "Châssis", "Description", "Statut", "Observation"], small: true, zebra: true, repeat: true, rows: x.retros.map((r, i) => [String(i + 1), r.chassis, r.description, r.statut, [r.note, r.par, r.date].filter(Boolean).join(" · ")]) });
+    }
+    if (D.opts.annexHors && x.horsMmte.length) {
+      b.push(H1("", `Annexe 2 — Véhicules présents hors MMTE (${x.horsMmte.length})`, true));
+      b.push(Pp(`Véhicules retrouvés sur le parc ${D.parc} mais absents de l’extraction MMTE.`, { small: true }));
+      b.push({ t: "table", widths: [0.06, 0.25, 0.14, 0.15, 0.13, 0.17, 0.1], head: ["N°", "Châssis", "Marque", "Modèle", "Ancienneté", "Agent", "Photo"], small: true, zebra: true, repeat: true, rows: x.horsMmte.map((r, i) => [String(i + 1), r.chassis, r.marque, r.modele, r.age, r.agent, r.photo]) });
+    }
+    if (D.opts.annexDepot && x.depot.length) {
+      b.push(H1("", `Annexe 3 — Délai de séjour dépassé (${x.depot.length})`, true));
+      b.push(Pp("Véhicules de la liste MMTE dont la date d’entrée en dépôt est antérieure à la date de l’inventaire.", { small: true }));
+      b.push({ t: "table", widths: [0.07, 0.27, 0.34, 0.17, 0.15], head: ["N°", "Châssis", "Description", "Entrée en dépôt", "Statut"], small: true, zebra: true, repeat: true, rows: x.depot.map((r, i) => [String(i + 1), r.chassis, r.description, r.depot, r.statut]) });
+    }
+  }
+  return b;
+}
+function annexTitles(D) {
+  const x = D.x, out = [];
+  if (x.hasDetails) {
+    if (D.opts.annexMissing && x.manquants.length) out.push("Annexe 1 — Véhicules manquants");
+    if (D.opts.annexMissing && x.retros && x.retros.length) out.push("Annexe 1 bis — Suivi des manquants");
+    if (D.opts.annexHors && x.horsMmte.length) out.push("Annexe 2 — Véhicules hors MMTE");
+    if (D.opts.annexDepot && x.depot.length) out.push("Annexe 3 — Délai de séjour dépassé");
+  }
+  return out;
+}
+const WFONT = '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/>';
+const wr = (text, o = {}) => `<w:r><w:rPr>${WFONT}${o.b ? "<w:b/>" : ""}${o.i ? "<w:i/>" : ""}${o.caps ? "<w:caps/>" : ""}${o.color ? `<w:color w:val="${o.color}"/>` : ""}${o.spacing ? `<w:spacing w:val="${o.spacing}"/>` : ""}<w:sz w:val="${o.sz || 21}"/><w:szCs w:val="${o.sz || 21}"/>${o.shd ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.shd}"/>` : ""}</w:rPr><w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r>`;
+const wrs = (text, o = {}) => String(text).split("**").map((seg, i) => seg === "" ? "" : wr(seg, { ...o, b: o.b || i % 2 === 1 })).join("");
+const wpr = (o = {}) => `<w:pPr>${o.style ? `<w:pStyle w:val="${o.style}"/>` : ""}${o.keepNext ? "<w:keepNext/>" : ""}${o.keepLines ? "<w:keepLines/>" : ""}${o.pb ? "<w:pageBreakBefore/>" : ""}${o.bdrBottom ? `<w:pBdr><w:bottom w:val="${o.bdrBottom.val || "single"}" w:sz="${o.bdrBottom.sz || 12}" w:space="4" w:color="${o.bdrBottom.color}"/></w:pBdr>` : ""}${o.bdrTop ? `<w:pBdr><w:top w:val="single" w:sz="6" w:space="4" w:color="${o.bdrTop}"/></w:pBdr>` : ""}${o.shd ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.shd}"/>` : ""}${o.tabs || ""}<w:spacing w:before="${o.before || 0}" w:after="${o.after == null ? 120 : o.after}"${o.line ? ` w:line="${o.line}" w:lineRule="${o.lineRule || "auto"}"` : ""}/>${o.indL != null ? `<w:ind w:left="${o.indL}"${o.hang ? ` w:hanging="${o.hang}"` : ""}/>` : ""}${o.jc ? `<w:jc w:val="${o.jc}"/>` : ""}</w:pPr>`;
+const wp = (inner, o = {}) => `<w:p>${wpr(o)}${inner}</w:p>`;
+const wBorders = (kind, color, sz) => ["top", "left", "bottom", "right"].map((k) => `<w:${k} w:val="${kind}" w:sz="${sz || 4}" w:space="0" w:color="${color || "auto"}"/>`).join("");
+const wtc = (inner, o = {}) => `<w:tc><w:tcPr><w:tcW w:w="${o.w}" w:type="dxa"/>${o.span ? `<w:gridSpan w:val="${o.span}"/>` : ""}${o.borders ? `<w:tcBorders>${o.borders}</w:tcBorders>` : ""}${o.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>` : ""}${o.mar ? `<w:tcMar>${o.mar}</w:tcMar>` : ""}${o.va ? `<w:vAlign w:val="${o.va}"/>` : ""}</w:tcPr>${inner || "<w:p/>"}</w:tc>`;
+const wtr = (cells, o = {}) => `<w:tr><w:trPr><w:cantSplit/>${o.h ? `<w:trHeight w:val="${o.h}" w:hRule="${o.exact ? "exact" : "atLeast"}"/>` : ""}${o.header ? "<w:tblHeader/>" : ""}</w:trPr>${cells.join("")}</w:tr>`;
+const wtbl = (rows, widths, o = {}) => `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a, b) => a + b, 0)}" w:type="dxa"/><w:jc w:val="${o.jc || "center"}"/>${o.ind != null ? `<w:tblInd w:w="${o.ind}" w:type="dxa"/>` : ""}<w:tblBorders>${o.noBorder ? ["top", "left", "bottom", "right", "insideH", "insideV"].map((k) => `<w:${k} w:val="nil"/>`).join("") : ["top", "left", "bottom", "right", "insideH", "insideV"].map((k) => `<w:${k} w:val="single" w:sz="4" w:space="0" w:color="${DC.line}"/>`).join("")}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="${o.padV == null ? 70 : o.padV}" w:type="dxa"/><w:left w:w="${o.padH == null ? 110 : o.padH}" w:type="dxa"/><w:bottom w:w="${o.padV == null ? 70 : o.padV}" w:type="dxa"/><w:right w:w="${o.padH == null ? 110 : o.padH}" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${widths.map((w) => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${rows.join("")}</w:tbl>`;
+const GRAPHIC = (rid, id, cx, cy) => `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="image${id}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>`;
+const wImgRun = (rid, id, cx, cy) => `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Image ${id}"/>${GRAPHIC(rid, id, cx, cy)}</wp:inline></w:drawing></w:r>`;
+const wAnchorRun = (rid, id, cx, cy) => `<w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="0" behindDoc="1" locked="1" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapNone/><wp:docPr id="${id}" name="Fond ${id}"/><wp:cNvGraphicFramePr/>${GRAPHIC(rid, id, cx, cy)}</wp:anchor></w:drawing></w:r>`;
+const TONE = { navy: DC.navy, emerald: DC.emerald, sky: DC.sky, rose: DC.rose, slate: DC.slate, gold: DC.gold, blue: DC.blue };
+function fitWidths(fr, W) {
+  const w = fr.map((f) => Math.round(f * W));
+  w[w.length - 1] += W - w.reduce((a, b) => a + b, 0);
+  return w;
+}
+function cellVal(c) {
+  return typeof c === "object" && c !== null ? c : { text: c };
+}
+const tocLabel = (b) => b.t === "h1" ? (b.num ? b.num + ".  " : "") + b.text : b.toc || "";
+function docxBlock(b, ctx) {
+  const W = ctx.W;
+  switch (b.t) {
+    case "pb":
+      return `<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
+    case "h1":
+      return wp((b.num ? wr(" " + b.num + " ", { b: 1, sz: 34, color: "FFFFFF", shd: DC.blue }) + wr("   ", { sz: 34 }) : "") + wr(b.text, { b: 1, sz: 34, color: DC.navy }), { style: "Heading1", keepNext: 1, pb: b.pb, bdrBottom: { color: DC.blue, sz: 8 }, before: b.pb ? 0 : 320, after: 220 });
+    case "h2":
+      return wp(wr(b.text, { b: 1, sz: 24, color: DC.blue }), { style: "Heading2", keepNext: 1, before: 240, after: 100 });
+    case "p":
+      return wp(wrs(b.text, { sz: b.small ? 18 : 21, i: b.italic, color: b.small ? DC.grey : DC.ink }), { jc: b.align || "both", keepNext: b.keep, before: b.before || 0, after: b.small ? 80 : 120, line: 288 });
+    case "ul":
+    case "ol":
+      return b.items.map((t, i) => wp(wr(b.t === "ul" ? "•" : `${i + 1}.`, { b: 1, color: DC.blue, sz: 21 }) + "<w:r><w:tab/></w:r>" + wrs(t, { sz: 21, color: DC.ink }), { tabs: '<w:tabs><w:tab w:val="left" w:pos="454"/></w:tabs>', indL: 454, hang: 340, jc: "both", after: 80, line: 276 })).join("");
+    case "toc":
+      return wp(wr("SOMMAIRE", { b: 1, sz: 52, color: DC.navy, spacing: 60 }), { bdrBottom: { color: DC.gold, sz: 18 }, after: 360, before: 200 }) + (ctx.toc || []).map((t, i) => wp(wr(pad2(i + 1), { b: 1, sz: 30, color: DC.blue }) + "<w:r><w:tab/></w:r>" + wr(t, { sz: 25, color: DC.ink }), { tabs: '<w:tabs><w:tab w:val="left" w:pos="760"/></w:tabs>', indL: 760, hang: 760, after: 90, before: 90, bdrBottom: { color: DC.line, sz: 4, val: "dotted" } })).join("") + wp("", { after: 300 });
+    case "banner":
+      return wtbl([wtr([wtc(wp(wr(b.title, { b: 1, sz: 34, color: "FFFFFF", spacing: 30 }), { jc: "center", after: 40, before: 40 }) + wp(wr(b.sub, { sz: 18, color: "F3D468" }), { jc: "center", after: 40 }), { w: W, fill: DC.navy, va: "center", borders: `<w:bottom w:val="single" w:sz="36" w:space="0" w:color="${DC.gold}"/>` })], { h: 1100 })], [W], { noBorder: true, padV: 120 }) + wp("", { after: 160 });
+    case "table": {
+      const Wt = Math.round(W * (b.wFrac || 1));
+      const widths = fitWidths(b.widths, Wt);
+      const sz = b.small ? 17 : 19;
+      const keepAll = b.keep !== false && !b.repeat;
+      const last = b.rows.length - 1;
+      const rows = [];
+      if (b.head) rows.push(wtr(b.head.map((h, i) => wtc(wp(wr(h, { b: 1, sz, color: "FFFFFF" }), { after: 0, keepNext: 1, jc: i > 0 && b.widths.length === 2 ? "center" : "left" }), { w: widths[i], fill: DC.navy, va: "center" })), { header: true }));
+      b.rows.forEach((r, ri) => rows.push(wtr(r.map((c0, i) => {
+        const c = cellVal(c0);
+        const isLabel = b.labelCol && i === 0;
+        return wtc(wp(wrs(String(c.text == null ? "" : c.text), { sz, b: c.bold || isLabel, color: isLabel ? DC.navy : c.color || DC.ink }), { after: 0, jc: c.align || "left", line: 252, keepNext: keepAll && ri < last }), { w: widths[i], fill: isLabel ? DC.pale : c.fill || (b.zebra && ri % 2 === 1 ? DC.light : null), va: "center" });
+      }))));
+      return wtbl(rows, widths) + wp("", { after: 140 });
+    }
+    case "kpis": {
+      const cw = Math.floor(W / 3), ws = [cw, cw, W - 2 * cw];
+      const mk = (it, i) => {
+        const dark = it.tone === "gold";
+        return wtc(wp(wr(String(it.value), { b: 1, sz: 52, color: dark ? DC.navy : "FFFFFF" }), { jc: "center", after: 0, before: 60, keepNext: 1 }) + wp(wr(it.label, { sz: 17, color: dark ? DC.navy : "FFFFFF", caps: 1, spacing: 10 }), { jc: "center", after: 60, keepNext: 1 }), { w: ws[i % 3], fill: TONE[it.tone] || DC.navy, va: "center", borders: wBorders("single", "FFFFFF", 36) });
+      };
+      const rows = [];
+      for (let r = 0; r < b.items.length; r += 3) rows.push(wtr(b.items.slice(r, r + 3).map((it, i) => mk(it, i)), { h: 800 }));
+      return wtbl(rows, ws, { noBorder: true, padV: 60, padH: 60 }) + wp("", { after: 140 });
+    }
+    case "callout":
+      return wtbl([wtr([wtc(wp(wr(b.title, { b: 1, sz: 23, color: DC.navy }), { after: 80 }) + b.lines.map((t) => wp(wr("•", { b: 1, color: DC.blue }) + "<w:r><w:tab/></w:r>" + wrs(t, { sz: 20, color: DC.ink }), { tabs: '<w:tabs><w:tab w:val="left" w:pos="300"/></w:tabs>', indL: 300, hang: 300, after: 60, jc: "left" })).join(""), { w: W, fill: DC.light, borders: `<w:left w:val="single" w:sz="36" w:space="0" w:color="${DC.blue}"/>`, mar: '<w:top w:w="140" w:type="dxa"/><w:left w:w="220" w:type="dxa"/><w:bottom w:w="100" w:type="dxa"/><w:right w:w="160" w:type="dxa"/>' })])], [W], { noBorder: true }) + wp("", { after: 160 });
+    case "box":
+      return wtbl([wtr([wtc(b.text ? String(b.text).split(/\n+/).map((t) => wp(wr(t, { sz: 20, color: DC.ink }), { after: 60 })).join("") : wp("", { after: 0 }), { w: W })], { h: b.text ? 640 : b.lines * 300 })], [W]) + wp("", { after: 140 });
+    case "img": {
+      const k = ctx.imgs[b.key];
+      if (!k) return "";
+      const cx = Math.round(b.wIn * 914400), cy = Math.round(b.hIn * 914400);
+      return wp(wImgRun(k.rid, ctx.nextId(), cx, cy), { jc: "center", after: 40, keepNext: 1 }) + wp(wr(b.caption || "", { i: 1, sz: 17, color: DC.grey }), { jc: "center", after: 160 });
+    }
+    case "sign": {
+      const cw = Math.floor(W / 3), ws = [cw, cw, W - 2 * cw];
+      const head = wtr(b.parties.map((p, i) => wtc(wp(wr(p.title, { b: 1, sz: 18, color: DC.navy }), { jc: "center", after: 0, keepNext: 1 }), { w: ws[i], fill: DC.pale, va: "center" })), { h: 400 });
+      const sig = wtr(b.parties.map((p, i) => wtc(wp(wr(b.withDate ? "Signature et cachet :" : "Signature :", { sz: 18, color: DC.grey }), { after: 0, keepNext: 1 }) + (p.sig ? wp(wImgRun(ctx.addSig(p.sig), ctx.nextId(), 1280160, 426720), { after: 0, keepNext: 1, jc: "center" }) : ""), { w: ws[i] })), { h: b.withDate ? 1e3 : 1150 });
+      const nm = wtr(b.parties.map((p, i) => wtc(wp(wr("Nom : ", { sz: 18, color: DC.grey }) + (p.name ? wr(p.name, { b: 1, sz: 19 }) : wr("______________", { sz: 18, color: DC.grey })), { after: 0 }), { w: ws[i] })), { h: 520 });
+      return wp("", { after: 60, keepNext: 1 }) + wp(wr("Signatures", { b: 1, sz: 24, color: DC.blue }), { keepNext: 1, after: 80 }) + wtbl([head, sig, nm], ws);
+    }
+    case "facts": {
+      const cw = Math.floor(W / 3), ws = [cw, cw, W - 2 * cw];
+      const bd = `<w:top w:val="single" w:sz="48" w:space="0" w:color="FFFFFF"/><w:left w:val="single" w:sz="24" w:space="0" w:color="${DC.blue}"/><w:bottom w:val="single" w:sz="48" w:space="0" w:color="FFFFFF"/><w:right w:val="single" w:sz="48" w:space="0" w:color="FFFFFF"/>`;
+      const rows = [];
+      for (let r = 0; r < b.items.length; r += 3) rows.push(wtr(Array.from({ length: 3 }, (_, i) => {
+        const it = b.items[r + i];
+        return wtc(it ? wp(wr(it.label, { sz: 15, b: 1, color: DC.blue, caps: 1, spacing: 15 }), { after: 20, keepNext: 1 }) + wp(wr(it.value, { sz: 21, b: 1, color: DC.navy }), { after: 0 }) : "", { w: ws[i], fill: it ? DC.light : null, va: "center", borders: it ? bd : void 0, mar: '<w:top w:w="90" w:type="dxa"/><w:left w:w="170" w:type="dxa"/><w:bottom w:w="90" w:type="dxa"/><w:right w:w="100" w:type="dxa"/>' });
+      }), { h: 620 }));
+      return (b.title ? wp(wr(b.title, { b: 1, sz: 22, color: DC.blue }), { keepNext: 1, after: 60, before: 80 }) : "") + wtbl(rows, ws, { noBorder: true, padV: 0, padH: 0 }) + wp("", { after: 140 });
+    }
+    case "steps": {
+      const nw = 640, tw = W - nw;
+      const rows = [];
+      let n = 0;
+      b.phases.forEach((ph) => {
+        rows.push(wtr([wtc(wp(wr(ph.title, { b: 1, sz: 19, color: "FFFFFF", caps: 1, spacing: 20 }), { after: 0, keepNext: 1 }), { w: W, span: 2, fill: DC.navy, va: "center" })], { h: 380 }));
+        ph.items.forEach((t, k) => {
+          n++;
+          const keep = k < ph.items.length - 1;
+          rows.push(wtr([wtc(wp(wr(String(n), { b: 1, sz: 24, color: "FFFFFF" }), { jc: "center", after: 0, keepNext: keep }), { w: nw, fill: DC.blue, va: "center" }), wtc(wp(wrs(t, { sz: 19, color: DC.ink }), { after: 0, keepNext: keep, line: 252 }), { w: tw, fill: n % 2 ? DC.light : "FFFFFF", va: "center" })], { h: 460 }));
+        });
+      });
+      return wtbl(rows, [nw, tw]) + wp("", { after: 140 });
+    }
+    case "verdict":
+      return wtbl([wtr([wtc(wp(wr(b.title, { b: 1, sz: 36, color: "FFFFFF" }), { after: 40, keepNext: 1 }) + wp(wr(b.text, { sz: 20, color: "FFFFFF" }), { after: 0 }), { w: W, fill: TONE[b.tone] || DC.navy, va: "center", borders: `<w:left w:val="single" w:sz="72" w:space="0" w:color="${DC.gold}"/>`, mar: '<w:top w:w="160" w:type="dxa"/><w:left w:w="280" w:type="dxa"/><w:bottom w:w="160" w:type="dxa"/><w:right w:w="200" w:type="dxa"/>' })], { h: 900 })], [W], { noBorder: true }) + wp("", { after: 160 });
+    case "cover":
+      return "";
+    // traité à part
+    default:
+      return "";
+  }
+}
+function coverXml(b, ids, ctx) {
+  const T = COVER_TW, PW = T.w, lx = T.lx, rx = 1134, IW = PW - lx - rx;
+  const noMar = '<w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/>';
+  const ex = (tw) => Math.round(tw * 635);
+  const bg = wp(wAnchorRun(ids.bg, ctx.nextId(), ex(PW), ex(T.h)), { after: 0, line: 5e3, lineRule: "exact" });
+  const lines = String(b.title || "").split("\n");
+  const inner = wp(wr(b.kicker || "", { b: 1, sz: 20, color: DC.gold, spacing: 50 }), { after: 200, line: 360, lineRule: "exact" }) + lines.map((t) => wp(wr(t, { b: 1, sz: 92, color: "FFFFFF", spacing: 30 }), { after: 0, line: 1080, lineRule: "exact" })).join("") + wp("", { after: 0, line: 580, lineRule: "exact" }) + wp(wr(b.parc || "", { b: 1, sz: 48, color: "F3D468" }), { after: 0, line: 640, lineRule: "exact" });
+  const title = wtbl([wtr([wtc(inner, { w: IW, va: "top", mar: noMar })], { h: 5e3, exact: 1 })], [IW], { noBorder: true, ind: 0, padV: 0, padH: 0, jc: "left" });
+  const rows = (b.rows || []).map(([k, v]) => wtr([wtc(wp(wr(k, { b: 1, sz: 18, color: DC.blue, caps: 1, spacing: 25 }), { after: 0 }), { w: 2300, va: "center", mar: noMar, borders: `<w:bottom w:val="single" w:sz="4" w:space="0" w:color="${DC.line}"/>` }), wtc(wp(wr(v, { sz: 23, color: DC.ink }), { after: 0 }), { w: IW - 2300, va: "center", mar: noMar, borders: `<w:bottom w:val="single" w:sz="4" w:space="0" w:color="${DC.line}"/>` })], { h: 560 }));
+  const info = rows.length ? wtbl(rows, [2300, IW - 2300], { noBorder: true, ind: 0, padV: 0, padH: 0, jc: "left" }) : "";
+  const infoH = rows.length * 560;
+  const gap = Math.max(300, 15400 - (5e3 + 5e3 + 900 + infoH));
+  return bg + title + wp("", { after: 0, line: 900, lineRule: "exact" }) + info + wp("", { after: 0, line: gap, lineRule: "exact" }) + wp(wr(b.mois || "", { b: 1, sz: 28, color: "FFFFFF", spacing: 60 }), { after: 0, line: 420, lineRule: "exact", jc: "center" }) + wp(wr(b.org || "", { sz: 18, color: "F3D468", spacing: 10 }), { after: 0, line: 340, lineRule: "exact", jc: "center" }) + `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/><w:sectPr><w:pgSz w:w="${PW}" w:h="${T.h}"/><w:pgMar w:top="0" w:right="${rx}" w:bottom="0" w:left="${lx}" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr></w:pPr></w:p>`;
+}
+const DOCX_NS = `xmlns:w="${NS_W}" xmlns:r="${NS_R}" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`;
+const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+async function makeAssets(D, blocks) {
+  const A = {};
+  if (blocks.some((b) => b.t === "cover")) A.cover = await drawCoverPng(D);
+  if (blocks.some((b) => b.t === "img" && b.key === "dash")) A.dash = await drawDashPng(D);
+  if (blocks.some((b) => b.t === "img" && b.key === "comp")) A.comp = await drawCompPng(D);
+  return A;
+}
+async function buildDocx(D, blocks, assets) {
+  const JSZip = await loadJSZip();
+  const zip = new JSZip();
+  const W = 9638;
+  let idc = 100;
+  const A = assets || await makeAssets(D, blocks);
+  const sigFiles = [];
+  const ctx = { W, imgs: { dash: { rid: "rIdDash" }, comp: { rid: "rIdComp" } }, nextId: () => ++idc, toc: blocks.map(tocLabel).filter(Boolean), addSig: (url) => {
+    sigFiles.push(url);
+    return "rIdSig" + sigFiles.length;
+  } };
+  let body = "";
+  blocks.forEach((b) => {
+    body += b.t === "cover" ? coverXml(b, { bg: "rIdCover" }, ctx) : docxBlock(b, ctx);
+  });
+  const sect = `<w:sectPr><w:headerReference w:type="default" r:id="rIdHdr"/><w:footerReference w:type="default" r:id="rIdFtr"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1550" w:right="1134" w:bottom="1150" w:left="1134" w:header="500" w:footer="500" w:gutter="0"/></w:sectPr>`;
+  zip.file("word/document.xml", XML_HEAD + `<w:document ${DOCX_NS}><w:body>${body}${wp("", { after: 0 })}${sect}</w:body></w:document>`);
+  const logo = (dataUrl, rid, n, h) => {
+    const s = pngSize(dataUrl);
+    return wImgRun(rid, n, Math.round(h * s.w / s.h), h);
+  };
+  zip.file("word/header1.xml", XML_HEAD + `<w:hdr ${DOCX_NS}>${wp(logo(D.logoBC, "rIdLogoBC", 701, 38e4) + "<w:r><w:tab/></w:r>" + logo(D.logoDouane, "rIdLogoDG", 702, 38e4), { tabs: '<w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs>', bdrBottom: { color: DC.blue, sz: 8 }, after: 0 })}</w:hdr>`);
+  const fld = (instr) => `<w:fldSimple w:instr="${instr}"><w:r><w:rPr>${WFONT}<w:b/><w:color w:val="${DC.blue}"/><w:sz w:val="17"/></w:rPr><w:t>1</w:t></w:r></w:fldSimple>`;
+  const ftxt = D.kind === "rapport" ? `Rapport d’inventaire — Parc ${D.parc} — ${D.dt.long}` : `Fiche de clôture — Parc ${D.parc} — ${D.dt.long}`;
+  zip.file("word/footer1.xml", XML_HEAD + `<w:ftr ${DOCX_NS}>${wp(wr(ftxt, { sz: 16, color: DC.grey }) + "<w:r><w:tab/></w:r>" + wr("Page ", { sz: 16, color: DC.grey }) + fld("PAGE") + wr(" / ", { sz: 16, color: DC.grey }) + fld("NUMPAGES"), { tabs: '<w:tabs><w:tab w:val="right" w:pos="9638"/></w:tabs>', bdrTop: DC.gold, after: 0 })}</w:ftr>`);
+  zip.file("word/styles.xml", XML_HEAD + `<w:styles xmlns:w="${NS_W}"><w:docDefaults><w:rPrDefault><w:rPr>${WFONT}<w:sz w:val="21"/><w:szCs w:val="21"/><w:lang w:val="fr-FR" w:eastAsia="fr-FR" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:outlineLvl w:val="0"/></w:pPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:outlineLvl w:val="1"/></w:pPr></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:uiPriority w:val="99"/><w:semiHidden/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`);
+  zip.file("word/settings.xml", XML_HEAD + `<w:settings xmlns:w="${NS_W}"><w:defaultTabStop w:val="708"/><w:compat><w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/></w:compat></w:settings>`);
+  const rel = (id, type, target) => `<Relationship Id="${id}" Type="${NS_R}/${type}" Target="${target}"/>`;
+  zip.file("word/_rels/document.xml.rels", XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel("rIdSty", "styles", "styles.xml")}${rel("rIdSet", "settings", "settings.xml")}${rel("rIdHdr", "header", "header1.xml")}${rel("rIdFtr", "footer", "footer1.xml")}${rel("rIdLogoBC", "image", "media/logo_bc.png")}${rel("rIdLogoDG", "image", "media/logo_dg.png")}${A.cover ? rel("rIdCover", "image", "media/cover.jpg") : ""}${A.dash ? rel("rIdDash", "image", "media/dash.png") : ""}${A.comp ? rel("rIdComp", "image", "media/comp.png") : ""}${sigFiles.map((u, n) => rel("rIdSig" + (n + 1), "image", `media/sig${n + 1}.png`)).join("")}</Relationships>`);
+  zip.file("word/_rels/header1.xml.rels", XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel("rIdLogoBC", "image", "media/logo_bc.png")}${rel("rIdLogoDG", "image", "media/logo_dg.png")}</Relationships>`);
+  zip.file("word/media/logo_bc.png", dataUrlBytes(D.logoBC));
+  zip.file("word/media/logo_dg.png", dataUrlBytes(D.logoDouane));
+  if (A.cover) zip.file("word/media/cover.jpg", A.cover);
+  if (A.dash) zip.file("word/media/dash.png", A.dash);
+  if (A.comp) zip.file("word/media/comp.png", A.comp);
+  sigFiles.forEach((u, n) => zip.file(`word/media/sig${n + 1}.png`, dataUrlBytes(u)));
+  zip.file("_rels/.rels", XML_HEAD + `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel("rId1", "officeDocument", "word/document.xml")}<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`);
+  const now = (/* @__PURE__ */ new Date()).toISOString().replace(/\.\d+Z$/, "Z");
+  zip.file("docProps/core.xml", XML_HEAD + `<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xmlEsc(D.kind === "rapport" ? "Rapport d’inventaire" : "Fiche de clôture")} — ${xmlEsc(D.parc)}</dc:title><dc:creator>Bénin Control / MAD-MAE</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created></cp:coreProperties>`);
+  zip.file("[Content_Types].xml", XML_HEAD + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`);
+  const blob = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", compression: "DEFLATE" });
+  return { blob };
+}
+const hesc = xmlEsc;
+const hrich = (t) => hesc(t).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+function bytesToDataUrl(u8, mime) {
+  let s = "";
+  for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+  return "data:" + (mime || "image/png") + ";base64," + btoa(s);
+}
+const mmTw = (n) => (n * 0.0176389).toFixed(2) + "mm";
+function htmlCover(b, A) {
+  const T = COVER_TW;
+  const at = (top, extra) => `position:absolute;left:${mmTw(T.lx)};right:${mmTw(1134)};top:${mmTw(top)};${extra || ""}`;
+  const lines = String(b.title || "").split("\n").map(hesc).join("<br>");
+  return `<section class="rp-cover" style="background-image:url(${A.cover})">
+    <div class="ck" style="${at(5e3)}">${hesc(b.kicker || "")}</div>
+    <div class="ct" style="${at(5560)}">${lines}</div>
+    <div class="cp" style="${at(8300)}">${hesc(b.parc || "")}</div>
+    ${(b.rows || []).map(([k, v], i) => `<div class="cr" style="${at(10900 + i * 560)}height:${mmTw(560)}"><span class="k">${hesc(k)}</span><span class="v">${hesc(v)}</span></div>`).join("")}
+    <div class="cm" style="${at(15400)}">${hesc(b.mois || "")}</div>
+    <div class="co" style="${at(15820)}">${hesc(b.org || "")}</div></section>`;
+}
+function htmlBlock(b, A) {
+  switch (b.t) {
+    case "cover":
+      return "";
+    case "pb":
+      return '<div class="rp-pb"></div>';
+    case "h1":
+      return `<h1 class="rp-h1"${b.pb ? ' style="break-before:page"' : ""}>${b.num ? `<span class="rp-num">${hesc(b.num)}</span>` : ""}${hesc(b.text)}</h1>`;
+    case "h2":
+      return `<h2 class="rp-h2">${hesc(b.text)}</h2>`;
+    case "p":
+      return `<p class="rp-p${b.small ? " rp-sm" : ""}${b.italic ? " rp-it" : ""}"${b.before || b.keep ? ` style="${b.before ? `margin-top:${Math.round(b.before / 20)}pt;` : ""}${b.keep ? "break-after:avoid;" : ""}"` : ""}>${hrich(b.text)}</p>`;
+    case "ul":
+      return `<ul class="rp-ul">${b.items.map((t) => `<li>${hrich(t)}</li>`).join("")}</ul>`;
+    case "ol":
+      return `<ol class="rp-ol">${b.items.map((t) => `<li>${hrich(t)}</li>`).join("")}</ol>`;
+    case "toc":
+      return `<div class="rp-toc"><div class="rp-toct">SOMMAIRE</div>${(A.toc || []).map((t, i) => `<div class="rp-toci"><b>${pad2(i + 1)}</b><span>${hesc(t)}</span></div>`).join("")}</div>`;
+    case "banner":
+      return `<div class="rp-banner"><div class="rp-bt">${hesc(b.title)}</div><div class="rp-bs">${hesc(b.sub)}</div></div>`;
+    case "table": {
+      const cols = b.widths.map((w) => `<col style="width:${(w * 100).toFixed(1)}%">`).join("");
+      const head = b.head ? `<thead><tr>${b.head.map((h, i) => `<th style="text-align:${i > 0 && b.widths.length === 2 ? "center" : "left"}">${hesc(h)}</th>`).join("")}</tr></thead>` : "";
+      const rows = b.rows.map((r, ri) => `<tr class="${b.zebra && ri % 2 ? "z" : ""}">${r.map((c0, i) => {
+        const c = cellVal(c0);
+        const lab = b.labelCol && i === 0;
+        return `<td class="${lab ? "lab" : ""}" style="text-align:${c.align || "left"};${c.bold ? "font-weight:700;" : ""}${c.color ? "color:#" + c.color + ";" : ""}${c.fill ? "background:#" + c.fill + ";" : ""}">${hrich(c.text == null ? "" : String(c.text))}</td>`;
+      }).join("")}</tr>`).join("");
+      const keep = b.keep !== false && !b.repeat;
+      return `<table class="rp-t${b.small ? " rp-ts" : ""}${keep ? " rp-keep" : ""}" style="width:${Math.round((b.wFrac || 1) * 100)}%"><colgroup>${cols}</colgroup>${head}<tbody>${rows}</tbody></table>`;
+    }
+    case "kpis":
+      return `<div class="rp-kpis">${b.items.map((it) => `<div class="rp-kpi" style="background:#${TONE[it.tone] || DC.navy};${it.tone === "gold" ? "color:#" + DC.navy : ""}"><div class="v">${hesc(it.value)}</div><div class="l">${hesc(it.label)}</div></div>`).join("")}</div>`;
+    case "callout":
+      return `<div class="rp-call"><div class="ct">${hesc(b.title)}</div>${b.lines.map((t) => `<div class="cl"><span>•</span><div>${hrich(t)}</div></div>`).join("")}</div>`;
+    case "box":
+      return `<div class="rp-box" style="min-height:${b.text ? 16 : b.lines * 6}mm">${b.text ? hesc(b.text).replace(/\n+/g, "<br>") : ""}</div>`;
+    case "img":
+      return A[b.key] ? `<figure class="rp-fig"><img src="${A[b.key]}" style="width:${b.wIn}in"><figcaption>${hesc(b.caption || "")}</figcaption></figure>` : "";
+    case "sign":
+      return `<div class="rp-signt">Signatures</div><table class="rp-sign"><tr>${b.parties.map((p) => `<th>${hesc(p.title)}</th>`).join("")}</tr><tr class="sg">${b.parties.map((p) => `<td>${b.withDate ? "Signature et cachet :" : "Signature :"}${p.sig ? `<div class="sgi"><img src="${p.sig}"></div>` : ""}</td>`).join("")}</tr><tr class="nm">${b.parties.map((p) => `<td>Nom : ${p.name ? `<b>${hesc(p.name)}</b>` : "______________"}</td>`).join("")}</tr></table>`;
+    case "facts":
+      return (b.title ? `<div class="rp-h3">${hesc(b.title)}</div>` : "") + `<div class="rp-facts">${b.items.map((it) => `<div class="rp-fact"><div class="l">${hesc(it.label)}</div><div class="v">${hesc(it.value)}</div></div>`).join("")}</div>`;
+    case "steps": {
+      let n = 0;
+      return `<table class="rp-steps">${b.phases.map((ph) => `<tr class="ph"><th colspan="2">${hesc(ph.title)}</th></tr>${ph.items.map((t) => {
+        n++;
+        return `<tr><td class="n">${n}</td><td class="t${n % 2 ? " z" : ""}">${hrich(t)}</td></tr>`;
+      }).join("")}`).join("")}</table>`;
+    }
+    case "verdict":
+      return `<div class="rp-verdict" style="background:#${TONE[b.tone] || DC.navy}"><div class="vt">${hesc(b.title)}</div><div class="vx">${hesc(b.text)}</div></div>`;
+    default:
+      return "";
+  }
+}
+const RP_CSS = `#rp-host{font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif;color:#1B2A3A;font-size:10.5pt;line-height:1.4;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+#rp-host *{box-sizing:border-box}
+.rp-cover{page:cover;width:210mm;height:296.5mm;position:relative;break-after:page;overflow:hidden;background-color:#fff;background-size:100% 100%;background-repeat:no-repeat}
+.rp-cover div{overflow:visible}.rp-cover .ck{font-size:10pt;font-weight:800;letter-spacing:2.5pt;color:#E3B505;line-height:18pt}
+.rp-cover .ct{font-size:46pt;font-weight:800;letter-spacing:1.5pt;line-height:54pt;color:#fff}
+.rp-cover .cp{font-size:24pt;font-weight:800;color:#F3D468;line-height:32pt}
+.rp-cover .cr{display:flex;align-items:center;border-bottom:.5pt solid #C9D6E2;width:auto}.rp-cover .cr .k{width:${(2300 * 0.0176389).toFixed(1)}mm;font-size:9pt;font-weight:800;letter-spacing:1.2pt;text-transform:uppercase;color:#1F6FA3}.rp-cover .cr .v{font-size:11.5pt;color:#1B2A3A}
+.rp-cover .cm{font-size:14pt;font-weight:800;letter-spacing:3pt;color:#fff;text-align:center;line-height:21pt}.rp-cover .co{font-size:9pt;color:#F3D468;text-align:center;letter-spacing:.5pt;line-height:17pt}
+.rp-wrapt{width:100%;border-collapse:collapse}.rp-wrapt>thead>tr>td{height:22mm;padding:0 17mm;vertical-align:bottom}.rp-wrapt>tfoot>tr>td{height:20mm;padding:0 17mm;vertical-align:top}.rp-wrapt>tbody>tr>td{padding:0 17mm}
+.rp-hd{display:flex;justify-content:space-between;align-items:center;border-bottom:1.5pt solid #1F6FA3;padding-bottom:2mm}.rp-hd img{height:11mm}
+.rp-ft{border-top:.75pt solid #E3B505;margin-top:5mm;padding-top:2mm;font-size:8pt;color:#5B6B7B}
+.rp-h1{font-size:17pt;font-weight:800;color:#0B3C5D;border-bottom:1.5pt solid #1F6FA3;padding-bottom:2mm;margin:0 0 5mm;break-after:avoid}.rp-num{background:#1F6FA3;color:#fff;padding:.5mm 3mm;margin-right:5mm;font-size:15pt}
+.rp-h2{font-size:12.5pt;font-weight:800;color:#1F6FA3;margin:5mm 0 2mm;break-after:avoid}
+.rp-p{margin:0 0 2.5mm;text-align:justify}.rp-sm{font-size:9pt;color:#5B6B7B}.rp-it{font-style:italic}
+.rp-ul,.rp-ol{margin:0 0 3mm;padding-left:7mm}.rp-ul li,.rp-ol li{margin-bottom:1.5mm;text-align:justify}.rp-ul li::marker,.rp-ol li::marker{color:#1F6FA3;font-weight:700}
+.rp-toct{font-size:26pt;font-weight:800;letter-spacing:3pt;color:#0B3C5D;border-bottom:2.5pt solid #E3B505;padding-bottom:3mm;margin:4mm 0 8mm}.rp-toci{display:flex;gap:6mm;align-items:baseline;font-size:12.5pt;padding:2.2mm 0;border-bottom:.75pt dotted #C9D6E2}.rp-toci b{color:#1F6FA3;font-size:15pt;min-width:9mm}
+.rp-banner{background:#0B3C5D;color:#fff;text-align:center;padding:4mm;margin-bottom:4mm;border-bottom:2.2mm solid #E3B505}.rp-bt{font-size:17pt;font-weight:800;letter-spacing:1.5pt}.rp-bs{font-size:9pt;color:#F3D468;margin-top:1mm}
+.rp-t{border-collapse:collapse;margin:0 auto 4mm;font-size:9.5pt}.rp-ts{font-size:8.5pt}.rp-t th{background:#0B3C5D;color:#fff;padding:2mm 2.5mm;text-align:left}.rp-t td{padding:1.8mm 2.5mm;border:.5pt solid #C9D6E2;vertical-align:middle}.rp-t tr.z td{background:#EEF5FA}.rp-t td.lab{background:#DCEAF5;color:#0B3C5D;font-weight:700}.rp-t tr{break-inside:avoid}.rp-t thead{display:table-header-group}.rp-keep{break-inside:avoid}
+.rp-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:2mm;margin:0 0 5mm;break-inside:avoid}.rp-kpi{color:#fff;text-align:center;padding:3mm 2mm}.rp-kpi .v{font-size:26pt;font-weight:800;line-height:1.1}.rp-kpi .l{font-size:8.5pt;text-transform:uppercase;letter-spacing:.5pt}
+.rp-call{background:#EEF5FA;border-left:2mm solid #1F6FA3;padding:3.5mm 5mm;margin:0 0 5mm;break-inside:avoid}.rp-call .ct{font-weight:800;color:#0B3C5D;font-size:11.5pt;margin-bottom:2mm}.rp-call .cl{display:flex;gap:3mm;margin-bottom:1.5mm}.rp-call .cl span{color:#1F6FA3;font-weight:800}
+.rp-box{border:.75pt solid #C9D6E2;padding:3mm;margin:0 0 5mm;break-inside:avoid}
+.rp-fig{margin:2mm 0 5mm;text-align:center;break-inside:avoid}.rp-fig img{max-width:100%;height:auto}.rp-fig figcaption{font-size:8.5pt;font-style:italic;color:#5B6B7B}
+.rp-signt{font-size:12pt;font-weight:800;color:#1F6FA3;margin:6mm 0 2mm;break-after:avoid}.rp-sign{width:100%;border-collapse:collapse;table-layout:fixed;break-inside:avoid}.rp-sign th{background:#DCEAF5;color:#0B3C5D;font-size:9pt;padding:2.5mm;border:.5pt solid #C9D6E2}.rp-sign td{border:.5pt solid #C9D6E2;padding:2.5mm;font-size:9pt;color:#5B6B7B;vertical-align:top}.rp-sign tr.sg td{height:20mm}.rp-sign tr.nm td{height:10mm;color:#1B2A3A}
+.rp-h3{font-size:11pt;font-weight:800;color:#1F6FA3;margin:2mm 0 1.5mm;break-after:avoid}
+.rp-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:2mm;margin:0 0 5mm;break-inside:avoid}.rp-fact{background:#EEF5FA;border-left:1.2mm solid #1F6FA3;padding:2.2mm 3mm}.rp-fact .l{font-size:7.5pt;font-weight:800;letter-spacing:.8pt;text-transform:uppercase;color:#1F6FA3}.rp-fact .v{font-size:10.5pt;font-weight:800;color:#0B3C5D}
+.rp-steps{width:100%;border-collapse:collapse;margin:0 0 5mm;font-size:9.5pt}.rp-steps tr{break-inside:avoid}.rp-steps th{background:#0B3C5D;color:#fff;text-align:left;padding:1.6mm 3mm;font-size:8.5pt;letter-spacing:1pt;text-transform:uppercase;break-after:avoid}.rp-steps td.n{background:#1F6FA3;color:#fff;font-weight:800;font-size:12pt;text-align:center;width:11mm}.rp-steps td.t{padding:2mm 3mm;background:#fff;border-bottom:.5pt solid #DCEAF5}.rp-steps td.t.z{background:#EEF5FA}
+.rp-verdict{color:#fff;padding:4mm 6mm;margin:0 0 5mm;border-left:3.5mm solid #E3B505;break-inside:avoid}.rp-verdict .vt{font-size:18pt;font-weight:800;line-height:1.15}.rp-verdict .vx{font-size:10pt;margin-top:1mm;opacity:.95}
+.rp-sgi,.sgi{text-align:center;margin-top:1mm}.sgi img{height:14mm;max-width:100%}
+.rp-pb{break-before:page;height:0}`;
+function docToHtml(D, blocks, A) {
+  const AA = { ...A, toc: blocks.map(tocLabel).filter(Boolean) };
+  let h = "";
+  const cv = blocks.find((b) => b.t === "cover");
+  if (cv) h += htmlCover(cv, AA);
+  const ftxt = (D.kind === "rapport" ? "Rapport d’inventaire" : "Fiche de clôture") + ` — Parc ${D.parc} — ${D.dt.long}`;
+  h += `<table class="rp-wrapt"><thead><tr><td><div class="rp-hd"><img src="${D.logoBC}"><img src="${D.logoDouane}"></div></td></tr></thead><tfoot><tr><td><div class="rp-ft">${hesc(ftxt)}</div></td></tr></tfoot><tbody><tr><td>${blocks.map((b) => htmlBlock(b, AA)).join("")}</td></tr></tbody></table>`;
+  return h;
+}
+function printHtmlDoc(html) {
+  const old = document.getElementById("rp-host");
+  if (old) old.remove();
+  const oldSt = document.getElementById("rp-print-style");
+  if (oldSt) oldSt.remove();
+  const host = document.createElement("div");
+  host.id = "rp-host";
+  host.innerHTML = `<style>${RP_CSS}</style>` + html;
+  document.body.appendChild(host);
+  const st = document.createElement("style");
+  st.id = "rp-print-style";
+  st.textContent = "#rp-host{display:none}@page{size:A4;margin:0}@page cover{margin:0}@media print{body.rp-printing #root{display:none!important}body.rp-printing #rp-host{display:block!important}}";
+  document.head.appendChild(st);
+  document.body.classList.add("rp-printing");
+  const cleanup = () => {
+    document.body.classList.remove("rp-printing");
+    const h2 = document.getElementById("rp-host");
+    if (h2) h2.remove();
+    const s2 = document.getElementById("rp-print-style");
+    if (s2) s2.remove();
+  };
+  window.addEventListener("afterprint", cleanup, { once: true });
+  setTimeout(() => window.print(), 300);
+}
+function defaultBlocks(D) {
+  return D.kind === "rapport" ? reportBlocks(D) : closureBlocks(D, true);
+}
+async function makeDocFile(D, blocksIn) {
+  const blocks = blocksIn || defaultBlocks(D);
+  return { blocks, ...await buildDocx(D, blocks) };
+}
+async function makeDocPrint(D, blocksIn) {
+  const blocks = blocksIn || defaultBlocks(D);
+  const A0 = await makeAssets(D, blocks);
+  const A = {};
+  Object.keys(A0).forEach((k) => {
+    A[k] = bytesToDataUrl(A0[k], k === "cover" ? "image/jpeg" : "image/png");
+  });
+  printHtmlDoc(docToHtml(D, blocks, A));
+}
+const BT_LABEL = { cover: "Page de garde", toc: "Sommaire", h1: "Titre de section", h2: "Sous-titre", p: "Paragraphe", ul: "Liste à puces", ol: "Liste numérotée", table: "Tableau", facts: "Fiche d'informations", steps: "Étapes", verdict: "Bandeau de résultat", kpis: "Chiffres clés", callout: "Encadré", box: "Cadre d'observations", img: "Graphique", sign: "Signatures", banner: "Bandeau de titre", pb: "Saut de page" };
+function blockPreview(b) {
+  const cut = (t) => {
+    const s = String(t || "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+    return s.length > 80 ? s.slice(0, 80) + "…" : s;
+  };
+  switch (b.t) {
+    case "cover":
+      return cut(b.title) + " — " + cut(b.parc);
+    case "h1":
+      return cut((b.num ? b.num + ". " : "") + b.text);
+    case "h2":
+    case "p":
+      return cut(b.text);
+    case "ul":
+    case "ol":
+      return `${b.items.length} point(s) — ${cut(b.items[0])}`;
+    case "table":
+      return `${b.rows.length} ligne(s) — ${cut((b.head || []).join(" · ") || b.rows[0] && b.rows[0].map((c) => cellVal(c).text).join(" · "))}`;
+    case "kpis":
+      return b.items.map((i) => `${i.value} ${i.label}`).join(" · ");
+    case "facts":
+      return b.items.map((i) => i.value).join(" · ");
+    case "steps":
+      return `${b.phases.length} phases — ${b.phases.reduce((a, p) => a + p.items.length, 0)} étapes`;
+    case "verdict":
+      return cut(b.title);
+    case "callout":
+      return cut(b.title);
+    case "img":
+      return cut(b.caption);
+    case "sign":
+      return b.parties.map((p) => p.name || "—").join(" · ");
+    case "banner":
+      return cut(b.title);
+    case "box":
+      return cut(b.text) || "à compléter à la main";
+    default:
+      return "";
+  }
+}
+function DocEditor({ blocks, setBlocks, onReset }) {
+  const [open, setOpen] = useState(-1);
+  const upd = (i, patch) => setBlocks((bs) => bs.map((b, k) => k === i ? { ...b, ...patch } : b));
+  const del = (i) => {
+    setBlocks((bs) => bs.filter((_, k) => k !== i));
+    setOpen(-1);
+  };
+  const mv = (i, d) => {
+    setBlocks((bs) => {
+      const a = [...bs], j = i + d;
+      if (j < 0 || j >= a.length) return bs;
+      [a[i], a[j]] = [a[j], a[i]];
+      return a;
+    });
+    setOpen(-1);
+  };
+  const ins = (i, blk) => {
+    setBlocks((bs) => {
+      const a = [...bs];
+      a.splice(i + 1, 0, blk);
+      return a;
+    });
+    setOpen(i + 1);
+  };
+  const fld = "w-full border-2 border-slate-200 rounded-lg px-2 py-1 text-sm bg-white";
+  const TA = ({ v, on, rows, tid }) => /* @__PURE__ */ React.createElement("textarea", { "data-testid": tid, rows: rows || 3, value: v == null ? "" : v, onChange: (e) => on(e.target.value), className: fld });
+  const IN = ({ v, on, tid, ph }) => /* @__PURE__ */ React.createElement("input", { "data-testid": tid, value: v == null ? "" : v, placeholder: ph || "", onChange: (e) => on(e.target.value), className: fld });
+  const Lbl = ({ children }) => /* @__PURE__ */ React.createElement("div", { className: "text-[11px] font-bold text-slate-500 mt-2 mb-0.5" }, children);
+  const setItem = (i, key, k, val) => upd(i, { [key]: blocks[i][key].map((x, n) => n === k ? val : x) });
+  const List = ({ i, field, label }) => /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(Lbl, null, label), blocks[i][field].map((t, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "flex gap-1 mb-1" }, /* @__PURE__ */ React.createElement("textarea", { "data-testid": `ed-item-${i}-${k}`, rows: 2, value: t, onChange: (e) => setItem(i, field, k, e.target.value), className: fld }), /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-item-del-${i}-${k}`, title: "Supprimer ce point", onClick: () => upd(i, { [field]: blocks[i][field].filter((_, n) => n !== k) }), className: "px-2 text-rose-700 font-bold" }, "✕"))), /* @__PURE__ */ React.createElement("button", { onClick: () => upd(i, { [field]: [...blocks[i][field], "Nouveau point"] }), className: "text-xs font-bold text-blue-700" }, "+ Ajouter un point"));
+  const body = (b, i) => {
+    switch (b.t) {
+      case "p":
+      case "h1":
+      case "h2":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Texte (entourez de ** pour mettre en gras)"), /* @__PURE__ */ React.createElement(TA, { tid: `ed-text-${i}`, v: b.text, on: (v) => upd(i, { text: v }), rows: b.t === "p" ? 6 : 2 }));
+      case "ul":
+      case "ol":
+        return /* @__PURE__ */ React.createElement(List, { i, field: "items", label: "Points" });
+      case "callout":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Titre"), /* @__PURE__ */ React.createElement(IN, { v: b.title, on: (v) => upd(i, { title: v }) }), /* @__PURE__ */ React.createElement(List, { i, field: "lines", label: "Lignes" }));
+      case "box":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Texte (laisser vide pour un cadre à remplir à la main)"), /* @__PURE__ */ React.createElement(TA, { v: b.text, on: (v) => upd(i, { text: v }) }));
+      case "img":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Légende"), /* @__PURE__ */ React.createElement(IN, { v: b.caption, on: (v) => upd(i, { caption: v }) }));
+      case "banner":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Titre"), /* @__PURE__ */ React.createElement(IN, { v: b.title, on: (v) => upd(i, { title: v }) }), /* @__PURE__ */ React.createElement(Lbl, null, "Sous-titre"), /* @__PURE__ */ React.createElement(IN, { v: b.sub, on: (v) => upd(i, { sub: v }) }));
+      case "kpis":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, b.items.map((it, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "grid grid-cols-3 gap-1 mt-1" }, /* @__PURE__ */ React.createElement(IN, { v: it.value, on: (v) => setItem(i, "items", k, { ...it, value: v }) }), /* @__PURE__ */ React.createElement("div", { className: "col-span-2" }, /* @__PURE__ */ React.createElement(IN, { v: it.label, on: (v) => setItem(i, "items", k, { ...it, label: v }) })))));
+      case "sign":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, b.parties.map((p, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "mt-1" }, /* @__PURE__ */ React.createElement(IN, { v: p.title, on: (v) => setItem(i, "parties", k, { ...p, title: v }) }), /* @__PURE__ */ React.createElement(IN, { v: p.name, ph: "Nom du signataire", on: (v) => setItem(i, "parties", k, { ...p, name: v }) }))));
+      case "facts":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, b.title !== void 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Titre"), /* @__PURE__ */ React.createElement(IN, { v: b.title, on: (v) => upd(i, { title: v }) })), b.items.map((it, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "grid grid-cols-3 gap-1 mt-1" }, /* @__PURE__ */ React.createElement(IN, { v: it.label, on: (v) => setItem(i, "items", k, { ...it, label: v }) }), /* @__PURE__ */ React.createElement("div", { className: "col-span-2" }, /* @__PURE__ */ React.createElement(IN, { v: it.value, on: (v) => setItem(i, "items", k, { ...it, value: v }) })))));
+      case "verdict":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Titre"), /* @__PURE__ */ React.createElement(IN, { v: b.title, on: (v) => upd(i, { title: v }) }), /* @__PURE__ */ React.createElement(Lbl, null, "Texte"), /* @__PURE__ */ React.createElement(TA, { v: b.text, rows: 2, on: (v) => upd(i, { text: v }) }));
+      case "steps":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, b.phases.map((ph, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "mt-2" }, /* @__PURE__ */ React.createElement(IN, { v: ph.title, on: (v) => setItem(i, "phases", k, { ...ph, title: v }) }), ph.items.map((t, m) => /* @__PURE__ */ React.createElement("div", { key: m, className: "flex gap-1 mt-1" }, /* @__PURE__ */ React.createElement("textarea", { rows: 2, value: t, onChange: (e) => setItem(i, "phases", k, { ...ph, items: ph.items.map((x, n) => n === m ? e.target.value : x) }), className: fld }), /* @__PURE__ */ React.createElement("button", { title: "Supprimer cette étape", onClick: () => setItem(i, "phases", k, { ...ph, items: ph.items.filter((_, n) => n !== m) }), className: "px-2 text-rose-700 font-bold" }, "✕"))), /* @__PURE__ */ React.createElement("button", { onClick: () => setItem(i, "phases", k, { ...ph, items: [...ph.items, "Nouvelle étape"] }), className: "text-xs font-bold text-blue-700 mt-1" }, "+ Ajouter une étape"))));
+      case "cover":
+        return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Lbl, null, "Bandeau supérieur"), /* @__PURE__ */ React.createElement(IN, { v: b.kicker, on: (v) => upd(i, { kicker: v }) }), /* @__PURE__ */ React.createElement(Lbl, null, "Titre (une ligne par rang)"), /* @__PURE__ */ React.createElement(TA, { v: b.title, rows: 2, on: (v) => upd(i, { title: v }) }), /* @__PURE__ */ React.createElement(Lbl, null, "Parc"), /* @__PURE__ */ React.createElement(IN, { v: b.parc, on: (v) => upd(i, { parc: v }) }), b.rows.map((r, k) => /* @__PURE__ */ React.createElement("div", { key: k, className: "grid grid-cols-3 gap-1 mt-1" }, /* @__PURE__ */ React.createElement(IN, { v: r[0], on: (v) => setItem(i, "rows", k, [v, r[1]]) }), /* @__PURE__ */ React.createElement("div", { className: "col-span-2" }, /* @__PURE__ */ React.createElement(IN, { v: r[1], on: (v) => setItem(i, "rows", k, [r[0], v]) })))), /* @__PURE__ */ React.createElement(Lbl, null, "Mois et année"), /* @__PURE__ */ React.createElement(IN, { v: b.mois, on: (v) => upd(i, { mois: v }) }), /* @__PURE__ */ React.createElement(Lbl, null, "Pied de page"), /* @__PURE__ */ React.createElement(IN, { v: b.org, on: (v) => upd(i, { org: v }) }));
+      case "table": {
+        const cap = 40;
+        const setCell = (r, c, v) => upd(i, { rows: b.rows.map((row, n) => n !== r ? row : row.map((cell, m) => m !== c ? cell : typeof cell === "object" && cell !== null ? { ...cell, text: v } : v)) });
+        return /* @__PURE__ */ React.createElement("div", { className: "overflow-x-auto" }, b.head && /* @__PURE__ */ React.createElement("div", { className: "flex gap-1 mt-1" }, b.head.map((h, c) => /* @__PURE__ */ React.createElement("input", { key: c, value: h, onChange: (e) => upd(i, { head: b.head.map((x, n) => n === c ? e.target.value : x) }), className: fld + " font-bold bg-slate-50" })), /* @__PURE__ */ React.createElement("span", { className: "w-6" })), b.rows.slice(0, cap).map((row, r) => /* @__PURE__ */ React.createElement("div", { key: r, className: "flex gap-1 mt-1 items-start" }, row.map((cell, c) => /* @__PURE__ */ React.createElement("textarea", { key: c, rows: 1, "data-testid": `ed-cell-${i}-${r}-${c}`, value: String(cellVal(cell).text == null ? "" : cellVal(cell).text), onChange: (e) => setCell(r, c, e.target.value), className: fld, style: { minWidth: 70 } })), /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-row-del-${i}-${r}`, title: "Supprimer cette ligne", onClick: () => upd(i, { rows: b.rows.filter((_, n) => n !== r) }), className: "w-6 text-rose-700 font-bold" }, "✕"))), b.rows.length > cap && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 mt-2" }, "… ", b.rows.length - cap, " autres lignes, modifiables ensuite directement dans Word."), /* @__PURE__ */ React.createElement("button", { onClick: () => upd(i, { rows: [...b.rows, (b.rows[0] || b.head || [""]).map(() => "")] }), className: "text-xs font-bold text-blue-700 mt-2" }, "+ Ajouter une ligne"));
+      }
+      default:
+        return /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 mt-1" }, b.t === "toc" ? "Le sommaire se met à jour tout seul d'après les titres conservés." : "");
+    }
+  };
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "doc-editor" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-700 mb-2" }, "Touchez un bloc pour le modifier. Vous pouvez aussi le déplacer (↑ ↓), le supprimer (✕) ou insérer un paragraphe ou un sous-titre après lui. Le Word obtenu reste entièrement modifiable."), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-1.5" }, blocks.map((b, i) => b.t === "pb" ? null : /* @__PURE__ */ React.createElement("div", { key: b._id || i, "data-testid": `ed-b-${i}`, className: "rounded-lg border-2 " + (open === i ? "border-blue-300 bg-blue-50/40" : "border-slate-200 bg-white") }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1 px-2 py-1.5" }, /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-open-${i}`, onClick: () => setOpen(open === i ? -1 : i), className: "flex-1 text-left min-w-0" }, /* @__PURE__ */ React.createElement("span", { className: "text-[10px] font-extrabold uppercase tracking-wide text-blue-800" }, BT_LABEL[b.t] || b.t), /* @__PURE__ */ React.createElement("span", { className: "block text-xs text-slate-600 truncate" }, blockPreview(b))), /* @__PURE__ */ React.createElement("button", { title: "Monter", onClick: () => mv(i, -1), className: "px-1.5 text-slate-600" }, "↑"), /* @__PURE__ */ React.createElement("button", { title: "Descendre", onClick: () => mv(i, 1), className: "px-1.5 text-slate-600" }, "↓"), /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-del-${i}`, title: "Supprimer ce bloc", onClick: () => del(i), className: "px-1.5 text-rose-700 font-bold" }, "✕")), open === i && /* @__PURE__ */ React.createElement("div", { className: "px-2 pb-2" }, body(b, i), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": `ed-addp-${i}`, onClick: () => ins(i, { t: "p", text: "Nouveau paragraphe.", _id: "n" + Date.now() }), className: "text-xs font-bold text-blue-700" }, "+ Paragraphe après"), /* @__PURE__ */ React.createElement("button", { onClick: () => ins(i, { t: "h2", text: "Nouveau sous-titre", _id: "n" + Date.now() }), className: "text-xs font-bold text-blue-700" }, "+ Sous-titre après")))))), /* @__PURE__ */ React.createElement("button", { onClick: onReset, className: "mt-3 text-xs font-bold text-slate-600 underline" }, "Rétablir le contenu d'origine"));
+}
+function SignaturePad({ value, onChange, testid }) {
+  const ref = useRef(null);
+  const drawing = useRef(false);
+  const last = useRef(null);
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const x = c.getContext("2d");
+    x.fillStyle = "#fff";
+    x.fillRect(0, 0, c.width, c.height);
+    if (value) {
+      const im = new Image();
+      im.onload = () => x.drawImage(im, 0, 0, c.width, c.height);
+      im.src = value;
+    }
+  }, []);
+  const pt = (e) => {
+    const c = ref.current;
+    const r = c.getBoundingClientRect();
+    return { x: (e.clientX - r.left) / r.width * c.width, y: (e.clientY - r.top) / r.height * c.height };
+  };
+  const down = (e) => {
+    e.preventDefault();
+    drawing.current = true;
+    last.current = pt(e);
+    try {
+      ref.current.setPointerCapture(e.pointerId);
+    } catch (er) {
+    }
+  };
+  const move = (e) => {
+    if (!drawing.current) return;
+    e.preventDefault();
+    const x = ref.current.getContext("2d");
+    const p = pt(e);
+    x.strokeStyle = "#0B3C5D";
+    x.lineWidth = 3.2;
+    x.lineCap = "round";
+    x.lineJoin = "round";
+    x.beginPath();
+    x.moveTo(last.current.x, last.current.y);
+    x.lineTo(p.x, p.y);
+    x.stroke();
+    last.current = p;
+  };
+  const up = () => {
+    if (!drawing.current) return;
+    drawing.current = false;
+    try {
+      onChange(ref.current.toDataURL("image/png"));
+    } catch (er) {
+    }
+  };
+  const clear = () => {
+    const c = ref.current;
+    const x = c.getContext("2d");
+    x.fillStyle = "#fff";
+    x.fillRect(0, 0, c.width, c.height);
+    onChange("");
+  };
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("canvas", { "data-testid": testid, ref, width: 480, height: 160, onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: up, onPointerLeave: up, className: "w-full rounded-lg border-2 border-dashed border-slate-300 bg-white", style: { touchAction: "none", height: 110 } }), /* @__PURE__ */ React.createElement("button", { type: "button", onClick: clear, className: "text-xs font-bold text-slate-600 underline mt-1" }, "Effacer"));
+}
+function DocBuilder({ kind, base, locked, extras, parcsList, onDone, standalone }) {
+  const PREF = "mmte-doc-prefs", DRAFT = "mmte-doc-draft";
+  const readLS = (k) => {
+    try {
+      return JSON.parse(localStorage.getItem(k) || "null");
+    } catch (e) {
+      return null;
+    }
+  };
+  const writeLS = (k, v) => {
+    try {
+      localStorage.setItem(k, JSON.stringify(v));
+    } catch (e) {
+    }
+  };
+  const [f, setF] = useState(() => {
+    const prefs = readLS(PREF) || {};
+    const draft = standalone ? readLS(DRAFT) || {} : {};
+    return {
+      parc: "",
+      invDate: todayISO(),
+      debut: "08H",
+      fin: "18H",
+      agents: "",
+      sDouane: "",
+      sBC: "",
+      sParc: "",
+      obs: "",
+      mmte: "",
+      found: "",
+      retro: "",
+      registered: "",
+      liste: "",
+      manus: "",
+      erron: "",
+      t6: "30%",
+      t8: "70%",
+      t10: "0%",
+      taux: true,
+      aM: true,
+      aH: true,
+      aD: true,
+      modele: "visuel",
+      ...prefs.t6 ? { t6: prefs.t6, t8: prefs.t8, t10: prefs.t10, taux: prefs.taux !== false } : {},
+      ...prefs.modele ? { modele: prefs.modele } : {},
+      ...draft,
+      ...base || {}
+    };
+  });
+  const [busy, setBusy] = useState("");
+  const [err, setErr] = useState("");
+  const [ed, setEd] = useState(null);
+  const [sigs, setSigs] = useState({ bc: "", douane: "", parc: "" });
+  const [sigOpen, setSigOpen] = useState(false);
+  const [shareInfo, setShareInfo] = useState(null);
+  const set = (k, v) => setF((s) => {
+    const n = { ...s, [k]: v };
+    if (standalone) writeLS(DRAFT, n);
+    return n;
+  });
+  const num = (k) => k === "" || k == null ? 0 : parseInt(k, 10) || 0;
+  const digits = (e) => e.target.value.replace(/\D/g, "");
+  const mmte = num(f.mmte), found = num(f.found), registered = num(f.registered), retro = num(f.retro);
+  const missing = Math.max(0, mmte - found - retro);
+  const problems = [];
+  if (!String(f.parc).trim()) problems.push("Indiquez le nom du parc.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(f.invDate)) problems.push("Indiquez la date de l'inventaire.");
+  const warn = found > mmte ? "Le nombre de véhicules retrouvés dépasse le nombre attendu sur MMTE : vérifiez les chiffres." : "";
+  const buildD = () => {
+    writeLS(PREF, { t6: f.t6, t8: f.t8, t10: f.t10, taux: f.taux, modele: f.modele });
+    return normDoc({
+      kind,
+      modele: f.modele,
+      parc: f.parc,
+      invDate: f.invDate,
+      heures: { debut: (f.debut || "08H").trim(), fin: (f.fin || "18H").trim() },
+      minutes: base && base.minutes,
+      mmte,
+      found,
+      retro,
+      registered,
+      missing,
+      agents: String(f.agents || "").split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean),
+      sign: { douane: f.sDouane.trim(), bc: f.sBC.trim(), parc: f.sParc.trim() },
+      sigImg: { ...sigs },
+      observations: String(f.obs || "").trim(),
+      listeParc: String(f.liste).trim() !== "" ? num(f.liste) : null,
+      manuscrits: String(f.manus).trim() !== "" ? num(f.manus) : registered,
+      erronnes: String(f.erron).trim() !== "" ? num(f.erron) : null,
+      taux: [f.t6, f.t8, f.t10],
+      opts: { annexMissing: f.aM, annexHors: f.aH, annexDepot: f.aD, taux: f.taux },
+      extras: locked ? extras : null,
+      logoBC: LOGO_BC,
+      logoDouane: LOGO_DOUANES
+    });
+  };
+  const go = async (how) => {
+    setErr("");
+    if (problems.length) {
+      setErr(problems[0]);
+      return;
+    }
+    setBusy(how);
+    try {
+      const D = ed ? ed.D : buildD();
+      const blocks = ed ? ed.blocks : null;
+      if (how === "word" || how === "share") {
+        const { blob } = await makeDocFile(D, blocks);
+        const fname = `${kind === "rapport" ? "Rapport_inventaire" : "Fiche_cloture"}_${slugify(D.parc)}_${D.invDate}.docx`;
+        if (how === "share") {
+          const text = `${kind === "rapport" ? "Rapport d'inventaire" : "Fiche de clôture"} — parc ${D.parc}, ${D.dt.long} : ${D.found} véhicule(s) retrouvé(s) sur ${D.mmte} attendus (${D.pct} %), ${D.missing} manquant(s), ${D.registered} hors MMTE. Bénin Control / MAD-MAE.`;
+          let shared = false;
+          try {
+            const file = new File([blob], fname, { type: blob.type });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file], title: fname, text });
+              shared = true;
+            }
+          } catch (e) {
+            if (e && e.name === "AbortError") shared = true;
+          }
+          if (!shared) {
+            downloadBlob(fname, blob, blob.type);
+            setShareInfo({ text, fname, subject: `${kind === "rapport" ? "Rapport d'inventaire" : "Fiche de clôture"} — parc ${D.parc} — ${D.dt.long}` });
+            setBusy("");
+            return;
+          }
+        } else {
+          downloadBlob(fname, blob, blob.type);
+        }
+        if (onDone) onDone();
+      } else {
+        await makeDocPrint(D, blocks);
+        if (onDone) onDone();
+      }
+    } catch (e) {
+      console.warn("Document :", e && (e.message || e));
+      setErr("Le document n'a pas pu être généré (" + String(e && e.message || e).slice(0, 90) + ").");
+    }
+    setBusy("");
+  };
+  const openEditor = () => {
+    setErr("");
+    if (problems.length) {
+      setErr(problems[0]);
+      return;
+    }
+    const D = buildD();
+    setEd({ D, blocks: defaultBlocks(D).map((b, n) => ({ ...b, _id: "b" + n })) });
+  };
+  const resetEditor = () => setEd((s) => ({ ...s, blocks: defaultBlocks(s.D).map((b, n) => ({ ...b, _id: "b" + n })) }));
+  const setEdBlocks = (fn) => setEd((s) => ({ ...s, blocks: typeof fn === "function" ? fn(s.blocks) : fn }));
+  const buttons = /* @__PURE__ */ React.createElement("div", { className: "flex flex-col gap-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-word", disabled: !!busy, onClick: () => go("word"), className: "py-3 rounded-lg text-white font-bold text-sm disabled:opacity-60", style: { background: BLUE_DEEP } }, busy === "word" ? "Préparation du fichier..." : kind === "rapport" ? "Télécharger le rapport Word (.docx)" : "Télécharger la fiche de clôture Word (.docx)"), /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-pdf", disabled: !!busy, onClick: () => go("pdf"), className: "py-3 rounded-lg border-2 font-bold text-sm disabled:opacity-60", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, busy === "pdf" ? "Préparation..." : "Générer le PDF (impression)"), /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-share", disabled: !!busy, onClick: () => go("share"), className: "py-3 rounded-lg border-2 font-bold text-sm disabled:opacity-60 border-emerald-600 text-emerald-700" }, busy === "share" ? "Préparation..." : "Partager par WhatsApp ou e-mail"), shareInfo && /* @__PURE__ */ React.createElement("div", { "data-testid": "share-fallback", className: "rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-slate-700" }, "Le fichier « ", shareInfo.fname, " » a été enregistré sur l'appareil : joignez-le au message.", /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-2" }, /* @__PURE__ */ React.createElement("a", { className: "px-3 py-2 rounded-lg bg-emerald-600 text-white font-bold", href: "https://wa.me/?text=" + encodeURIComponent(shareInfo.text), target: "_blank", rel: "noopener noreferrer" }, "WhatsApp"), /* @__PURE__ */ React.createElement("a", { className: "px-3 py-2 rounded-lg bg-slate-700 text-white font-bold", href: "mailto:?subject=" + encodeURIComponent(shareInfo.subject) + "&body=" + encodeURIComponent(shareInfo.text + "\n\n(Document en pièce jointe)") }, "E-mail"))));
+  const errBox = err && /* @__PURE__ */ React.createElement("div", { className: "mb-3 text-sm rounded-lg bg-rose-50 border border-rose-200 text-rose-800 p-2", "data-testid": "df-err" }, err);
+  if (ed) {
+    return /* @__PURE__ */ React.createElement("div", { "data-testid": "doc-builder-edit" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "ed-back", onClick: () => setEd(null), className: "text-sm font-bold mb-3", style: { color: BLUE_DEEP } }, "← Retour aux informations"), /* @__PURE__ */ React.createElement(DocEditor, { blocks: ed.blocks, setBlocks: setEdBlocks, onReset: resetEditor }), /* @__PURE__ */ React.createElement("div", { className: "mt-4" }, errBox, buttons));
+  }
+  const inp = "mt-1 w-full border-2 border-slate-200 rounded-lg px-2 py-1.5 text-sm font-normal bg-white";
+  const lab = "text-xs font-bold text-slate-600";
+  const Num = ({ k, label, hint, ro }) => /* @__PURE__ */ React.createElement("label", { className: lab }, label, /* @__PURE__ */ React.createElement("input", { "data-testid": "df-" + k, inputMode: "numeric", readOnly: ro, value: f[k], onChange: (e) => set(k, digits(e)), placeholder: hint || "", className: inp + (ro ? " bg-slate-100" : "") }));
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "doc-builder" }, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 mb-3" }, /* @__PURE__ */ React.createElement("label", { className: "col-span-2 " + lab }, "Parc inventorié", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-parc", list: "df-parcs", readOnly: locked, value: f.parc, onChange: (e) => set("parc", e.target.value), className: inp + (locked ? " bg-slate-100" : "") }), /* @__PURE__ */ React.createElement("datalist", { id: "df-parcs" }, (parcsList || []).map((p) => /* @__PURE__ */ React.createElement("option", { key: p, value: p })))), /* @__PURE__ */ React.createElement("label", { className: lab }, "Date de l'inventaire", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-date", type: "date", readOnly: locked, value: f.invDate, onChange: (e) => set("invDate", e.target.value), className: inp + (locked ? " bg-slate-100" : "") })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement("label", { className: lab }, "Début", /* @__PURE__ */ React.createElement("input", { value: f.debut, onChange: (e) => set("debut", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Fin", /* @__PURE__ */ React.createElement("input", { value: f.fin, onChange: (e) => set("fin", e.target.value), className: inp })))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-slate-100 bg-slate-50 p-3 mb-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-500 uppercase tracking-wide mb-2" }, "Chiffres de l'inventaire", locked ? " (repris de l'application)" : ""), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2" }, /* @__PURE__ */ React.createElement(Num, { k: "mmte", label: "Attendus MMTE", ro: locked }), /* @__PURE__ */ React.createElement(Num, { k: "found", label: "Retrouvés", ro: locked }), /* @__PURE__ */ React.createElement(Num, { k: "registered", label: "Hors MMTE", ro: locked })), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-600 mt-2" }, "Total présent : ", /* @__PURE__ */ React.createElement("b", null, found + registered), " · ", retro > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " · Régularisés après l'inventaire : ", /* @__PURE__ */ React.createElement("b", null, retro)), " · Manquants : ", /* @__PURE__ */ React.createElement("b", null, missing), " · Taux de retrouvés : ", /* @__PURE__ */ React.createElement("b", null, mmte ? Math.round((found + retro) / mmte * 100) : 0, " %")), warn && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-amber-700 mt-1" }, warn)), /* @__PURE__ */ React.createElement("label", { className: "block mb-3 " + lab }, "Agents ayant participé ", standalone ? "(un par ligne ou séparés par des virgules)" : "", /* @__PURE__ */ React.createElement("textarea", { "data-testid": "df-agents", rows: 2, value: f.agents, onChange: (e) => set("agents", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ React.createElement("label", { className: lab }, "Agent Douane", /* @__PURE__ */ React.createElement("input", { "data-testid": "df-sdouane", value: f.sDouane, onChange: (e) => set("sDouane", e.target.value), placeholder: "Nom", className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Agent Bénin Control", /* @__PURE__ */ React.createElement("input", { value: f.sBC, onChange: (e) => set("sBC", e.target.value), placeholder: "Nom", className: inp })), /* @__PURE__ */ React.createElement("label", { className: lab }, "Représentant du parc", /* @__PURE__ */ React.createElement("input", { value: f.sParc, onChange: (e) => set("sParc", e.target.value), placeholder: "Nom", className: inp }))), /* @__PURE__ */ React.createElement("div", { className: "mb-3 rounded-xl border-2 border-slate-100 bg-slate-50 p-3" }, /* @__PURE__ */ React.createElement("button", { type: "button", "data-testid": "sig-toggle", onClick: () => setSigOpen((v) => !v), className: "text-sm font-bold", style: { color: BLUE_DEEP } }, sigOpen ? "▾" : "▸", " Signer à l'écran (facultatif)"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500" }, "Sans signature saisie ici, le document garde son cadre vierge à signer à la main."), sigOpen && /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2" }, [["douane", "Agent Douane"], ["bc", "Agent Bénin Control"], ["parc", "Représentant du parc"]].map(([k, t]) => /* @__PURE__ */ React.createElement("div", { key: k }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600 mb-1" }, t), /* @__PURE__ */ React.createElement(SignaturePad, { testid: "sig-" + k, value: sigs[k], onChange: (v) => setSigs((o) => ({ ...o, [k]: v })) }))))), /* @__PURE__ */ React.createElement("label", { className: "block mb-3 " + lab }, "Observations et constats à chaud (séance de clôture)", /* @__PURE__ */ React.createElement("textarea", { "data-testid": "df-obs", rows: 3, value: f.obs, onChange: (e) => set("obs", e.target.value), placeholder: "Facultatif — une ligne par constat", className: inp })), kind === "rapport" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "mb-3", "data-testid": "df-modeles" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600 mb-1" }, "Modèle de rapport"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 gap-2" }, [["visuel", "Visuel", "Cartes, tableaux colorés, étapes numérotées, recommandations classées par priorité. Textes raccourcis."], ["classique", "Classique", "Reprend le texte et la structure du rapport type (paragraphes complets, listes), avec la charte Bénin Control."], ["synthese", "Synthèse", "Version courte pour la hiérarchie : résultats, écarts, recommandations, fiche de clôture. Sans méthodologie ni tableau des taux."]].map(([k, t, d]) => /* @__PURE__ */ React.createElement("button", { key: k, type: "button", "data-testid": "df-modele-" + k, onClick: () => set("modele", k), className: "text-left rounded-xl border-2 px-3 py-2 " + (f.modele === k ? "border-[#1B4F8C] bg-blue-50" : "border-slate-200 bg-white") }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-extrabold", style: { color: BLUE_DEEP } }, f.modele === k ? "● " : "○ ", t), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-600" }, d))))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mb-3" }, /* @__PURE__ */ React.createElement(Num, { k: "liste", label: "Liste remise par le parc", hint: "facultatif" }), /* @__PURE__ */ React.createElement(Num, { k: "manus", label: "Manuscrits", hint: String(registered) }), /* @__PURE__ */ React.createElement(Num, { k: "erron", label: "Châssis erronés", hint: "aucun" })), /* @__PURE__ */ React.createElement("details", { className: "mb-3" }, /* @__PURE__ */ React.createElement("summary", { className: "text-xs font-bold text-slate-600 cursor-pointer" }, "Tableau des taux d'utilisation de MMTE"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2 text-sm mt-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.taux, onChange: (e) => set("taux", e.target.checked) }), " Inclure ce tableau dans le rapport"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mt-2" }, /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Constats d'enlèvement des parcs", /* @__PURE__ */ React.createElement("input", { value: f.t6, onChange: (e) => set("t6", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Mise à disposition des stocks", /* @__PURE__ */ React.createElement("input", { value: f.t8, onChange: (e) => set("t8", e.target.value), className: inp })), /* @__PURE__ */ React.createElement("label", { className: "text-[11px] text-slate-600" }, "Véhicules conteneurisés", /* @__PURE__ */ React.createElement("input", { value: f.t10, onChange: (e) => set("t10", e.target.value), className: inp })))), locked && extras && /* @__PURE__ */ React.createElement("div", { className: "mb-3 text-sm text-slate-700" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-600 mb-1" }, "Annexes à joindre"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aM, onChange: (e) => set("aM", e.target.checked) }), " Véhicules manquants (", extras.manquants.length, ")"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aH, onChange: (e) => set("aH", e.target.checked) }), " Véhicules hors MMTE (", extras.horsMmte.length, ")"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: f.aD, onChange: (e) => set("aD", e.target.checked) }), " Délai de séjour dépassé (", extras.depot.length, ")"))), errBox, /* @__PURE__ */ React.createElement("button", { "data-testid": "doc-edit", onClick: openEditor, className: "w-full mb-2 py-2.5 rounded-lg border-2 border-dashed font-bold text-sm", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, "Aperçu et modification du contenu (facultatif)"), buttons);
+}
+function DocsScreen({ parcsList }) {
+  const [kind, setKind] = useState("fiche");
+  const tab = (k) => `flex-1 py-2.5 rounded-lg text-sm font-bold border-2 ${kind === k ? "text-white" : "bg-white text-slate-700 border-slate-200"}`;
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-4 py-5 no-print", "data-testid": "docs-screen" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-[0.2em] font-bold mb-1", style: { color: BLUE_LIGHT } }, "Documents"), /* @__PURE__ */ React.createElement("h1", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, "Fiches et rapports"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mb-4" }, "Éditez une fiche de clôture ou un rapport d'inventaire sans passer par un inventaire dans l'application : renseignez les informations demandées. Pour un inventaire fait avec l'application, utilisez plutôt son récapitulatif : les chiffres y sont repris automatiquement."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mb-4" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "docs-tab-fiche", onClick: () => setKind("fiche"), className: tab("fiche"), style: kind === "fiche" ? { background: BLUE_DEEP, borderColor: BLUE_DEEP } : void 0 }, "Fiche de clôture"), /* @__PURE__ */ React.createElement("button", { "data-testid": "docs-tab-rapport", onClick: () => setKind("rapport"), className: tab("rapport"), style: kind === "rapport" ? { background: BLUE_DEEP, borderColor: BLUE_DEEP } : void 0 }, "Rapport d'inventaire")), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5" }, /* @__PURE__ */ React.createElement(DocBuilder, { key: kind, kind, standalone: true, parcsList })));
+}
+function SummaryScreen({ followups, onFollow, onUnfollow, readOnly, invMeta, onReopen, parcName, invDate, mmteSize, foundList, registeredList, totalList, missingList, contributors, exportCSVList, exportExcel, backToInventory, resetAll, closeInventory, isGuest }) {
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [printTarget, setPrintTarget] = useState("report");
+  const [docOpen, setDocOpen] = useState(null);
+  const [docState, setDocState] = useState(null);
+  const openDoc = (kind) => {
+    const h = docHeures([...foundList, ...registeredList]);
+    setDocState({
+      extras: collectDocExtras(invDate, foundList, registeredList, missingList, followups),
+      base: { parc: parcName, invDate, debut: h.debut, fin: h.fin, minutes: h.minutes, agents: contributors.join(", "), mmte: String(mmteSize), found: String(foundList.length), retro: String((followups || []).filter((f) => missingList.some((m) => m.norm === f.norm)).length), registered: String(registeredList.length), manus: String(registeredList.length) }
+    });
+    setDocOpen(kind);
+  };
+  const loadPhoto = React.useContext(PhotoCtx);
+  const [photoMap, setPhotoMap] = useState({});
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const photoRows = registeredList.filter((r) => r.hasPhoto || r.photo);
+  const printPhotos = async () => {
+    setLoadingPhotos(true);
+    const map = {};
+    for (const r of photoRows) {
+      map[r.norm] = r.photo || (loadPhoto ? await loadPhoto(r.norm) : null);
+    }
+    setPhotoMap(map);
+    setLoadingPhotos(false);
+    setPrintTarget("photos");
+    setTimeout(() => window.print(), 250);
+  };
+  const mailSummary = () => {
+    const subject = `Inventaire MMTE — ${parcName} — ${String(invDate || "").split("-").reverse().join("/")}`;
+    const body = [
+      `Parc : ${parcName}`,
+      `Date de l'inventaire : ${String(invDate || "").split("-").reverse().join("/")}`,
+      contributors.length ? `Agents : ${contributors.join(", ")}` : "",
+      "",
+      `Attendus MMTE : ${mmteSize}`,
+      `Trouvés sur MMTE : ${foundList.length}`,
+      `Enregistrés hors MMTE : ${registeredList.length}`,
+      `Total présent sur le parc : ${totalList.length}`,
+      `Manquants : ${missingList.length}`,
+      "",
+      "(Joindre le classeur Excel téléchargé depuis l'application.)"
+    ].filter((l, i) => l !== "" || i > 0).join("\n");
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+  const triggerPrint = (target) => {
+    setPrintTarget(target);
+    setTimeout(() => window.print(), 60);
+  };
+  const hideOnClosurePrint = printTarget !== "report" ? "no-print" : "";
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 py-8 print:py-0 print:px-0" }, /* @__PURE__ */ React.createElement("button", { onClick: backToInventory, className: "no-print flex items-center gap-1 text-sm font-bold text-slate-500 mb-4" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " ", readOnly ? "Retour aux archives" : "Retour au pointage"), /* @__PURE__ */ React.createElement("div", { className: hideOnClosurePrint }, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-[0.2em] font-bold mb-1", style: { color: BLUE_LIGHT } }, "Récapitulatif d'inventaire"), /* @__PURE__ */ React.createElement("h1", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, parcName), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 mb-4 font-medium" }, invDate)), readOnly && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-4 rounded-xl border-2 border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900" }, /* @__PURE__ */ React.createElement("b", null, "Consultation seule."), " Les pointages ne peuvent plus être modifiés depuis les archives.", invMeta && invMeta.completedAt && /* @__PURE__ */ React.createElement("div", { className: "text-xs mt-1" }, "Clôturé le ", formatTimestamp(invMeta.completedAt), invMeta.completedByName ? ` par ${invMeta.completedByName}` : "", "."), onReopen && /* @__PURE__ */ React.createElement("button", { onClick: onReopen, className: "mt-2 px-3 py-1.5 rounded-lg bg-white border-2 border-sky-300 text-sky-900 text-xs font-bold" }, "Rouvrir pour continuer le pointage (administrateur)")), contributors.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-6 rounded-xl border-2 border-slate-100 bg-slate-50 px-4 py-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs font-bold text-slate-500 uppercase tracking-wide mb-1" }, "Agents ayant participé"), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-700" }, contributors.join(", "))), /* @__PURE__ */ React.createElement("div", { className: `grid grid-cols-2 gap-3 mb-6 ${hideOnClosurePrint}` }, /* @__PURE__ */ React.createElement(SummaryCard, { label: "Attendus sur MMTE", value: mmteSize, tone: "navy" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Trouvés sur MMTE", value: foundList.length, tone: "emerald" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Enregistrés (hors MMTE)", value: registeredList.length, tone: "sky" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Total présent sur le parc", value: totalList.length, tone: "navy" }), /* @__PURE__ */ React.createElement(SummaryCard, { label: "Manquants (sur MMTE, absents)", value: missingList.filter((m) => !(followups || []).some((f) => f.norm === m.norm)).length, tone: "rose", full: true })), isGuest ? /* @__PURE__ */ React.createElement("div", { className: "no-print bg-amber-50 border-2 border-amber-200 rounded-2xl p-5 text-sm text-amber-800" }, "Les exports (Excel, CSV, rapport imprimable) sont réservés aux agents MAD-MAE. Un agent peut se connecter pour générer les rapports officiels à partir de ces mêmes données.") : /* @__PURE__ */ React.createElement("div", { className: "no-print bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-5 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-1" }, "Exporter les résultats"), /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Download, { size: 16 }), " Télécharger le classeur Excel complet (4 feuilles + résumé)"), /* @__PURE__ */ React.createElement("button", { onClick: () => triggerPrint("report"), className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " Imprimer / générer un PDF du rapport"), /* @__PURE__ */ React.createElement("button", { "data-testid": "btn-fiche", onClick: () => openDoc("fiche"), className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }), " Fiche de clôture (Word / PDF, à signer)"), /* @__PURE__ */ React.createElement("button", { "data-testid": "btn-rapport", onClick: () => openDoc("rapport"), className: "w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2", style: { background: BLUE_LIGHT } }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { size: 16 }), " Télécharger le rapport d'inventaire du parc ", parcName), photoRows.length > 0 && /* @__PURE__ */ React.createElement("button", { onClick: printPhotos, disabled: loadingPhotos, className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-60", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " ", loadingPhotos ? "Chargement des photos..." : `Rapport photos des véhicules hors MMTE (${photoRows.length})`), /* @__PURE__ */ React.createElement("button", { onClick: mailSummary, className: "w-full py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, "Envoyer le résumé par e-mail"), /* @__PURE__ */ React.createElement("button", { onClick: () => exportCSVList("total"), className: "w-full py-2.5 rounded-lg border-2 border-slate-200 text-sm font-bold text-slate-700" }, "Télécharger un fichier CSV (total présent sur le parc)")), !isGuest && onFollow && missingList.length > 0 && /* @__PURE__ */ React.createElement(FollowupPanel, { missingList, followups: followups || [], onFollow, onUnfollow }), readOnly && /* @__PURE__ */ React.createElement("div", { className: "mt-6" }, /* @__PURE__ */ React.createElement(ReadOnlyLists, { totalList, foundList, registeredList, missingList })), !isGuest && !readOnly && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "no-print w-full mt-6 py-3 rounded-xl text-white font-extrabold flex items-center justify-center gap-2 shadow-md", style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 18 }), " Quitter sans clôturer (l'inventaire reste ouvert)"), !confirmClose ? /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setConfirmClose(true),
+      className: "no-print w-full mt-3 py-3 rounded-xl border-2 text-sm font-bold",
+      style: { borderColor: "#FDA4AF", color: "#BE123C" }
+    },
+    "Clôturer définitivement cet inventaire"
+  ) : /* @__PURE__ */ React.createElement("div", { className: "no-print mt-3 rounded-xl border-2 border-rose-300 bg-rose-50 p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-rose-900" }, "Clôturer cet inventaire ?"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-700 mt-1" }, "Il disparaîtra de la liste « Rejoindre un inventaire en cours » pour tout le monde. Les données restent conservées et exportables, rien n'est supprimé."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-3" }, /* @__PURE__ */ React.createElement("button", { onClick: closeInventory, className: "px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm" }, "Oui, clôturer"), /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmClose(false), className: "px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm" }, "Annuler")))), printTarget === "report" && /* @__PURE__ */ React.createElement("div", { className: "print-only mt-8" }, /* @__PURE__ */ React.createElement("div", { className: "border-t-2 border-slate-300 pt-4 mb-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, "Rapport généré le ", (/* @__PURE__ */ new Date()).toLocaleString("fr-FR"))), /* @__PURE__ */ React.createElement(ReportTable, { title: "Trouvés sur MMTE", rows: foundList }), /* @__PURE__ */ React.createElement(ReportTable, { title: "Enregistrés sur le parc (hors MMTE)", rows: registeredList }), /* @__PURE__ */ React.createElement(ReportTable, { title: "Manquants (attendus sur MMTE, absents du parc)", rows: missingList })), docOpen && docState && /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/50 flex items-start sm:items-center justify-center p-4 overflow-y-auto", "data-testid": "doc-dialog" }, /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl p-5 w-full max-w-lg my-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-extrabold text-lg mb-1", style: { color: BLUE_DEEP } }, docOpen === "rapport" ? "Rapport d'inventaire" : "Fiche de clôture", " — ", parcName), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mb-3" }, "Les chiffres viennent de l'inventaire. Complétez ce qui manque : les champs laissés vides sont adaptés dans le texte."), /* @__PURE__ */ React.createElement(DocBuilder, { kind: docOpen, base: docState.base, locked: true, extras: docState.extras, onDone: () => setDocOpen(null) }), /* @__PURE__ */ React.createElement("button", { onClick: () => setDocOpen(null), className: "w-full mt-2 py-2 text-sm font-semibold text-slate-500" }, "Annuler"))), printTarget === "photos" && /* @__PURE__ */ React.createElement("div", { className: "print-only" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("img", { src: LOGO_BC, alt: "Bénin Control", style: { height: 56, width: "auto" } }), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#123A66" } }, "RAPPORT PHOTOS — VÉHICULES HORS MMTE"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, marginTop: 2 } }, parcName, " — ", String(invDate || "").split("-").reverse().join("/"))), /* @__PURE__ */ React.createElement("img", { src: LOGO_DOUANES, alt: "Douanes Béninoises", style: { height: 56, width: "auto" } })), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 } }, photoRows.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.norm, style: { border: "1px solid #94A3B8", padding: 8, breakInside: "avoid" } }, photoMap[r.norm] ? /* @__PURE__ */ React.createElement("img", { src: photoMap[r.norm], alt: "Châssis", style: { width: "100%", maxHeight: 230, objectFit: "contain" } }) : /* @__PURE__ */ React.createElement("div", { style: { height: 80, color: "#94A3B8", fontSize: 12 } }, "Photo indisponible"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, marginTop: 6 } }, r.chassis), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12 } }, [r.vehicleName, r.vehicleModel].filter(Boolean).join(" ") || "—"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#475569" } }, VEHICLE_AGE_LABELS[r.vehicleAge] || "Âge non précisé", " · par ", r.agentName || "—"))))));
+}
+function CompareScreen({ data, onBack, onExport }) {
+  const [tab, setTab] = useState("new");
+  const [filter, setFilter] = useState("");
+  const fd = (i) => String(i.invDate || "").split("-").reverse().join("/");
+  const nf = normalize(filter);
+  const rows = (tab === "new" ? data.onlyNew : tab === "old" ? data.onlyOld : data.both).filter((r) => !nf || normalize(r.chassis).includes(nf));
+  const tabs = [
+    ["new", `Nouveaux (${data.onlyNew.length})`],
+    ["old", `Sortis (${data.onlyOld.length})`],
+    ["both", `Communs (${data.both.length})`]
+  ];
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 py-8" }, /* @__PURE__ */ React.createElement("button", { onClick: onBack, className: "flex items-center gap-1 text-sm font-bold text-slate-500 mb-4" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " Retour aux archives"), /* @__PURE__ */ React.createElement("h2", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, "Comparaison"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mb-4" }, data.newer.parcName, " — inventaire du ", fd(data.older), " comparé à celui du ", fd(data.newer)), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 mb-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-4 text-white", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, data.countOld), /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold mt-1 opacity-90" }, "Présents le ", fd(data.older))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-4 text-white", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, data.countNew), /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold mt-1 opacity-90" }, "Présents le ", fd(data.newer))), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-4 bg-emerald-600 text-white" }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, data.onlyNew.length), /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold mt-1 opacity-90" }, "Nouveaux véhicules")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-4 bg-rose-600 text-white" }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, data.onlyOld.length), /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold mt-1 opacity-90" }, "Véhicules sortis"))), /* @__PURE__ */ React.createElement("button", { onClick: onExport, className: "w-full py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2 mb-5", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Download, { size: 16 }), " Télécharger la comparaison (Excel)"), /* @__PURE__ */ React.createElement("div", { className: "flex gap-1 overflow-x-auto border-b-2 border-slate-100 mb-3" }, tabs.map(([k, l]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: k,
+      onClick: () => setTab(k),
+      className: "px-3 py-2 text-sm font-bold whitespace-nowrap border-b-2",
+      style: tab === k ? { borderColor: BLUE_DEEP, color: BLUE_DEEP } : { borderColor: "transparent", color: "#94a3b8" }
+    },
+    l
+  ))), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: filter,
+      onChange: (e) => setFilter(e.target.value),
+      placeholder: "Filtrer : châssis, marque, modèle… (combinables)",
+      className: "w-full px-3 py-2 mb-3 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none focus:border-[#1B4F8C]"
+    }
+  ), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-6" }, "Aucune entrée."), rows.slice(0, LIST_RENDER_CAP).map((r) => /* @__PURE__ */ React.createElement(ListRow, { key: r.norm, chassis: r.chassis, detail: r.description ? { description: r.description } : void 0, badge: r.source === "mmte" ? "MMTE" : "Parc", badgeTone: r.source === "mmte" ? "emerald" : "sky" })), /* @__PURE__ */ React.createElement(TruncationNote, { count: rows.length })));
+}
+function findDuplicates(entries) {
+  const groups = /* @__PURE__ */ new Map();
+  entries.forEach((e) => {
+    const n = normalize(e.chassis);
+    if (!n) return;
+    const g = groups.get(n) || { norm: n, chassis: e.chassis, count: 0, sigs: /* @__PURE__ */ new Set() };
+    g.count += 1;
+    g.sigs.add(e.sig == null ? n : e.sig);
+    groups.set(n, g);
+  });
+  return Array.from(groups.values()).filter((g) => g.count > 1).map((g) => ({ norm: g.norm, chassis: g.chassis, count: g.count, conflicting: g.sigs.size > 1 })).sort((a, b) => b.count - a.count || String(a.chassis).localeCompare(String(b.chassis)));
+}
+function exportDuplicatesXlsx(items, sourceName) {
+  const rows = items.map((d) => [d.chassis, d.count, d.count - 1, d.conflicting ? "Oui" : "Non"]);
+  const ws = XLSX.utils.aoa_to_sheet([["Châssis", "Nombre de lignes", "Doublons en trop", "Lignes différentes entre elles"], ...rows]);
+  ws["!cols"] = [{ wch: 24 }, { wch: 16 }, { wch: 16 }, { wch: 28 }];
+  const wb = XLSX.utils.book_new();
+  wb.SheetNames.push("Doublons");
+  wb.Sheets["Doublons"] = ws;
+  const base = String(sourceName || "liste").replace(/\.[a-z0-9]{2,4}$/i, "").replace(/[^A-Za-z0-9_-]+/g, "_");
+  XLSX.writeFile(wb, `Doublons_${base}_${todayISO()}.xlsx`);
+}
+function DuplicatesNotice({ items, sourceName, note, onDownloadClean, tone }) {
+  const [open, setOpen] = useState(false);
+  if (!items || items.length === 0) return null;
+  const total = items.reduce((n, d) => n + d.count - 1, 0);
+  const diff = items.filter((d) => d.conflicting).length;
+  return /* @__PURE__ */ React.createElement("div", { className: "mt-3 rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-900" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement(AlertTriangle, { size: 16, className: "shrink-0" }), " ", total, " doublon", total > 1 ? "s" : "", " détecté", total > 1 ? "s" : "", /* @__PURE__ */ React.createElement("span", { className: "font-normal text-xs" }, "(", items.length, " châssis en plusieurs exemplaires)")), /* @__PURE__ */ React.createElement("div", { className: "text-xs mt-1" }, note || "Chaque châssis n'est compté qu'une seule fois : les doublons sont retirés automatiquement (la dernière ligne est conservée).", diff > 0 && ` Pour ${diff} d'entre eux, les lignes ne sont pas identiques : vérifiez le fichier source.`), /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-3 mt-2" }, /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => setOpen((o) => !o), className: "text-xs font-bold underline" }, open ? "Masquer les doublons" : "Voir les doublons"), /* @__PURE__ */ React.createElement("button", { type: "button", onClick: () => exportDuplicatesXlsx(items, sourceName), className: "text-xs font-bold underline" }, "Télécharger la liste des doublons (Excel)"), onDownloadClean && /* @__PURE__ */ React.createElement("button", { type: "button", onClick: onDownloadClean, className: "text-xs font-bold underline" }, "Télécharger la liste sans doublons")), open && /* @__PURE__ */ React.createElement("div", { className: "mt-2 max-h-48 overflow-y-auto rounded bg-white border border-amber-200" }, items.slice(0, 200).map((d) => /* @__PURE__ */ React.createElement("div", { key: d.norm, className: "flex justify-between gap-3 px-2.5 py-1 text-xs border-b border-amber-100 last:border-0" }, /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono" }, d.chassis), /* @__PURE__ */ React.createElement("span", { className: "text-slate-500" }, d.count, " fois", d.conflicting ? " · lignes différentes" : ""))), items.length > 200 && /* @__PURE__ */ React.createElement("div", { className: "px-2.5 py-1 text-xs text-slate-400" }, "… et ", items.length - 200, " autres (voir l'export Excel).")));
+}
+function parseStockFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read"));
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const isCsv = /\.(csv|txt)$/i.test(file.name);
+        const wb = XLSX.read(data, { type: "array", raw: isCsv });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: "" });
+        let headerRowIdx = -1;
+        for (let r = 0; r < Math.min(5, rows.length); r++) {
+          const row = rows[r] || [];
+          if (row.some((cell) => isHeaderLike(cell) || matchFieldAlias(cell))) {
+            headerRowIdx = r;
+            break;
+          }
+        }
+        let map = null;
+        let rawCount = 0;
+        let dupItems = [];
+        if (headerRowIdx !== -1) {
+          const headers = rows[headerRowIdx];
+          const dataRows = rows.slice(headerRowIdx + 1);
+          map = buildRichMap(headers, dataRows);
+          if (map) {
+            const ci = headers.map((h) => matchFieldAlias(h)).indexOf("chassis");
+            const valid = dataRows.filter((r) => !isEmptyCsvValue(r[ci]) && normalize(r[ci]));
+            rawCount = valid.length;
+            dupItems = findDuplicates(valid.map((r) => ({
+              chassis: String(r[ci]).trim(),
+              sig: r.map((c) => String(c == null ? "" : c).trim().toUpperCase()).join("|")
+            })));
+          }
+        }
+        if (!map) {
+          let colIdx = 0;
+          let startRow = 0;
+          let found = false;
+          for (let r = 0; r < Math.min(5, rows.length) && !found; r++) {
+            const row = rows[r] || [];
+            for (let c = 0; c < row.length; c++) {
+              if (isHeaderLike(row[c])) {
+                colIdx = c;
+                startRow = r + 1;
+                found = true;
+                break;
+              }
+            }
+          }
+          const values = rows.slice(startRow).map((r) => r && r[colIdx] !== void 0 ? String(r[colIdx]) : "").filter(Boolean).filter((v) => !isHeaderLike(v));
+          map = buildMap(values);
+          rawCount = values.filter((v) => normalize(v)).length;
+          dupItems = findDuplicates(values.filter((v) => normalize(v)).map((v) => ({ chassis: String(v).trim(), sig: normalize(v) })));
+        }
+        if (!map || map.size === 0) return reject(new Error("empty"));
+        resolve({ name: file.name, map, rawCount, duplicates: Math.max(0, rawCount - map.size), dupItems });
+      } catch (e) {
+        reject(e);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+const STOCK_DIFF_FIELDS = ["description", "registredAt", "depotDate", "entryDate", "atp", "shipName", "weight", "companyNumber", "bl"];
+const STOCK_DIFF_LABELS = { description: "Véhicule", ...FIELD_LABELS };
+function stockDiffs(a, b) {
+  const out = [];
+  STOCK_DIFF_FIELDS.forEach((f) => {
+    const x = String(a && a[f] || "").trim().toUpperCase();
+    const y = String(b && b[f] || "").trim().toUpperCase();
+    if (x !== y) out.push(STOCK_DIFF_LABELS[f]);
+  });
+  return out;
+}
+function compareStockMaps(A, B) {
+  const both = [], onlyA = [], onlyB = [];
+  A.forEach((a, k) => {
+    const b = B.get(k);
+    if (b) both.push({ norm: k, chassis: b.chassis || a.chassis, a, b, diffs: stockDiffs(a, b) });
+    else onlyA.push({ norm: k, chassis: a.chassis, info: a });
+  });
+  B.forEach((b, k) => {
+    if (!A.has(k)) onlyB.push({ norm: k, chassis: b.chassis, info: b });
+  });
+  const byChassis = (x, y) => String(x.chassis).localeCompare(String(y.chassis));
+  both.sort(byChassis);
+  onlyA.sort(byChassis);
+  onlyB.sort(byChassis);
+  return { both, onlyA, onlyB };
+}
+const stockCompareCache = { fileA: null, fileB: null, labelA: "", labelB: "", draftA: "", draftB: "", validated: false };
+function StockCompareScreen({ onBack }) {
+  const [fileA, setFileA] = useState(stockCompareCache.fileA);
+  const [fileB, setFileB] = useState(stockCompareCache.fileB);
+  const [labelA, setLabelA] = useState(stockCompareCache.labelA);
+  const [labelB, setLabelB] = useState(stockCompareCache.labelB);
+  const [draftA, setDraftA] = useState(stockCompareCache.draftA);
+  const [draftB, setDraftB] = useState(stockCompareCache.draftB);
+  const [validated, setValidated] = useState(stockCompareCache.validated);
+  useEffect(() => {
+    Object.assign(stockCompareCache, { fileA, fileB, labelA, labelB, draftA, draftB, validated });
+  }, [fileA, fileB, labelA, labelB, draftA, draftB, validated]);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState("both");
+  const [filter, setFilter] = useState("");
+  const [printMode, setPrintMode] = useState("summary");
+  const load = async (slot, e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    setErr("");
+    setBusy(true);
+    try {
+      const r = await parseStockFile(f);
+      if (slot === "A") setFileA(r);
+      else setFileB(r);
+      setValidated(false);
+    } catch (ex) {
+      setErr(`Impossible de lire « ${f.name} ». Formats acceptés : CSV, XLS, XLSX, avec une colonne « chassis ».`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const res = useMemo(() => validated && fileA && fileB ? compareStockMaps(fileA.map, fileB.map) : null, [validated, fileA, fileB]);
+  const nameA = labelA.trim() || "Fichier 1";
+  const nameB = labelB.trim() || "Fichier 2";
+  const swap = () => {
+    setFileA(fileB);
+    setFileB(fileA);
+    setLabelA(labelB);
+    setLabelB(labelA);
+    setDraftA(draftB);
+    setDraftB(draftA);
+  };
+  const resetAll = () => {
+    if (res && !confirmT("Tout remettre à zéro ? Les deux fichiers, les noms et les résultats seront effacés de cet écran (vos fichiers d'origine ne sont pas touchés). Pensez à avoir fait vos exports.")) return;
+    reset();
+  };
+  const reset = () => {
+    setFileA(null);
+    setFileB(null);
+    setLabelA("");
+    setLabelB("");
+    setDraftA("");
+    setDraftB("");
+    setValidated(false);
+    setErr("");
+    setFilter("");
+  };
+  const counts = res ? {
+    a: fileA.map.size,
+    b: fileB.map.size,
+    both: res.both.length,
+    onlyA: res.onlyA.length,
+    onlyB: res.onlyB.length,
+    union: res.both.length + res.onlyA.length + res.onlyB.length,
+    changed: res.both.filter((x) => x.diffs.length > 0).length
+  } : null;
+  const pct = (n, d) => d ? `${Math.round(n / d * 1e3) / 10} %` : "—";
+  const tabs = res ? [
+    ["both", `Communs (${counts.both})`],
+    ["onlyA", `Seulement ${nameA} (${counts.onlyA})`],
+    ["onlyB", `Seulement ${nameB} (${counts.onlyB})`]
+  ] : [];
+  const listFor = (k) => k === "both" ? res.both : k === "onlyA" ? res.onlyA : res.onlyB;
+  const shownRows = res ? listFor(tab).filter((r) => matchesAllTerms(filter, r.info || r.b)) : [];
+  const summaryRows = res ? [
+    [`Châssis dans « ${nameA} »`, counts.a],
+    [`Châssis dans « ${nameB} »`, counts.b],
+    ["Présents dans les deux fichiers (communs)", counts.both],
+    [`Uniquement dans « ${nameA} »`, counts.onlyA],
+    [`Uniquement dans « ${nameB} »`, counts.onlyB],
+    ["Total des châssis distincts (réunion des deux fichiers)", counts.union],
+    ["Communs dont les informations diffèrent", counts.changed],
+    [`Doublons ignorés dans « ${nameA} »`, fileA.duplicates],
+    [`Doublons ignorés dans « ${nameB} »`, fileB.duplicates],
+    [`Part de « ${nameA} » retrouvée dans « ${nameB} »`, pct(counts.both, counts.a)],
+    [`Part de « ${nameB} » déjà présente dans « ${nameA} »`, pct(counts.both, counts.b)]
+  ] : [];
+  const infoHeaders = ["Châssis", "Véhicule", FIELD_LABELS.registredAt, FIELD_LABELS.depotDate, "Jours restants", FIELD_LABELS.entryDate, FIELD_LABELS.atp, FIELD_LABELS.shipName, FIELD_LABELS.weight, FIELD_LABELS.companyNumber, FIELD_LABELS.bl];
+  const infoCells = (chassis, i) => [chassis, i.description || "", i.registredAt || "", i.depotDate || "", formatJoursRestantText(i.depotDate), i.entryDate || "", i.atp || "", i.shipName || "", i.weight || "", i.companyNumber || "", i.bl || ""];
+  const DATE_COLS = [2, 3, 5];
+  const exportClean = (file, label) => {
+    const rows = Array.from(file.map.values()).sort((x, y) => String(x.chassis).localeCompare(String(y.chassis))).map((i) => [...infoCells(i.chassis, i), i.extra ? Object.entries(i.extra).map(([k, v]) => `${k} : ${v}`).join(" ; ") : ""]);
+    const ws = XLSX.utils.aoa_to_sheet([[...infoHeaders, "Autres informations"], ...rows]);
+    applyDateCells(ws, DATE_COLS);
+    const wb = XLSX.utils.book_new();
+    wb.SheetNames.push("Sans doublons");
+    wb.Sheets["Sans doublons"] = ws;
+    XLSX.writeFile(wb, `${String(label || "stock").replace(/[^A-Za-z0-9_-]+/g, "_")}_sans_doublons_${todayISO()}.xlsx`);
+  };
+  const exportExcel = () => {
+    if (!res) return;
+    const wb = XLSX.utils.book_new();
+    const addSheet = (name, headers, rows, dateCols) => {
+      const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      applyDateCells(ws, dateCols || []);
+      wb.SheetNames.push(name);
+      wb.Sheets[name] = ws;
+    };
+    const sum = [
+      ["INVENTAIRE MMTE — Comparaison de deux fichiers de stock"],
+      ["Édité le", (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")],
+      [],
+      ["Fichier 1", `${nameA}${fileA.name !== nameA ? ` (${fileA.name})` : ""}`],
+      ["Fichier 2", `${nameB}${fileB.name !== nameB ? ` (${fileB.name})` : ""}`],
+      [],
+      ["Indicateur", "Valeur"],
+      ...summaryRows
+    ];
+    const wsSum = XLSX.utils.aoa_to_sheet(sum);
+    wsSum["!cols"] = [{ wch: 60 }, { wch: 40 }];
+    wb.SheetNames.push("Résumé");
+    wb.Sheets["Résumé"] = wsSum;
+    addSheet(
+      "Communs",
+      [...infoHeaders, "Informations différentes entre les deux fichiers"],
+      res.both.map((r) => [...infoCells(r.chassis, r.b), r.diffs.join(", ")]),
+      DATE_COLS
+    );
+    const cut = (s) => s.slice(0, 31).replace(/[\\/?*[\]:]/g, " ");
+    addSheet(cut(`Seulement ${nameA}`), infoHeaders, res.onlyA.map((r) => infoCells(r.chassis, r.info)), DATE_COLS);
+    addSheet(cut(`Seulement ${nameB}`), infoHeaders, res.onlyB.map((r) => infoCells(r.chassis, r.info)), DATE_COLS);
+    if (fileA.dupItems.length || fileB.dupItems.length) {
+      const dupRows = [
+        ...fileA.dupItems.map((d) => [nameA, d.chassis, d.count, d.count - 1, d.conflicting ? "Oui" : "Non"]),
+        ...fileB.dupItems.map((d) => [nameB, d.chassis, d.count, d.count - 1, d.conflicting ? "Oui" : "Non"])
+      ];
+      const wsD = XLSX.utils.aoa_to_sheet([["Fichier", "Châssis", "Nombre de lignes", "Doublons en trop", "Lignes différentes entre elles"], ...dupRows]);
+      wsD["!cols"] = [{ wch: 28 }, { wch: 24 }, { wch: 16 }, { wch: 16 }, { wch: 28 }];
+      wb.SheetNames.push("Doublons");
+      wb.Sheets["Doublons"] = wsD;
+    }
+    XLSX.writeFile(wb, `Comparaison_stocks_${todayISO()}.xlsx`);
+  };
+  const printPdf = (mode) => {
+    setPrintMode(mode);
+    setTimeout(() => window.print(), 80);
+  };
+  const renderSlot = ({ slot, file, label, setLabel, draft, setDraft, title }) => /* @__PURE__ */ React.createElement("div", { key: slot }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-slate-200 bg-white p-4" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-slate-700 mb-2" }, title), file ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "text-sm text-emerald-700 font-semibold flex items-center gap-1.5" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16 }), " ", file.name), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 mt-0.5" }, file.map.size, " châssis distincts", file.duplicates ? ` · ${file.duplicates} doublon(s) ignoré(s)` : ""), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-2" }, /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: draft,
+      onChange: (e) => setDraft(e.target.value),
+      onKeyDown: (e) => {
+        if (e.key === "Enter") setLabel(draft.trim());
+      },
+      "aria-label": `Nom court du ${title.toLowerCase()}`,
+      placeholder: "Nom court (facultatif) : ex. Stock d'hier",
+      className: "flex-1 min-w-0 px-3 py-2 text-sm rounded-lg border-2 border-slate-200 focus:outline-none focus:border-[#1B4F8C]"
+    }
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setLabel(draft.trim()),
+      disabled: draft.trim() === label,
+      className: "px-3 py-2 rounded-lg text-xs font-bold text-white disabled:opacity-40",
+      style: { background: BLUE_DEEP }
+    },
+    "Valider le nom"
+  )), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-slate-500 mt-1" }, label ? `Nom enregistré : « ${label} »` : "Aucun nom enregistré : « " + title + " » sera utilisé."), /* @__PURE__ */ React.createElement("label", { className: "inline-block mt-2 text-xs font-bold cursor-pointer underline", style: { color: BLUE_DEEP } }, "Remplacer le fichier", /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.xlsx,.xls,.txt", className: "hidden", onChange: (e) => load(slot, e) }))) : /* @__PURE__ */ React.createElement("label", { className: "block rounded-lg border-2 border-dashed border-[#2E7DC1]/40 bg-blue-50/40 p-5 text-center cursor-pointer" }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { className: "mx-auto text-[#2E7DC1] mb-2", size: 26 }), /* @__PURE__ */ React.createElement("span", { className: "inline-block px-4 py-2 rounded-lg text-white font-bold text-sm", style: { background: BLUE_DEEP } }, "Choisir le fichier"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 mt-2" }, "CSV ou Excel (.csv, .xlsx, .xls)"), /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.xlsx,.xls,.txt", className: "hidden", onChange: (e) => load(slot, e) }))));
+  const PrintList = ({ title, rows, withDiff }) => /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, pageBreakInside: "auto" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 13, color: "#123A66", marginBottom: 4 } }, title, " (", rows.length, ")"), /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 10 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, ["Châssis", "Véhicule", FIELD_LABELS.depotDate, FIELD_LABELS.atp, ...withDiff ? ["Différences"] : []].map((h) => /* @__PURE__ */ React.createElement("th", { key: h, style: { border: "1px solid #94a3b8", padding: "3px 5px", background: "#EAF1FA", textAlign: "left" } }, h)))), /* @__PURE__ */ React.createElement("tbody", null, rows.map((r) => {
+    const i = r.info || r.b;
+    return /* @__PURE__ */ React.createElement("tr", { key: r.norm }, /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #cbd5e1", padding: "2px 5px", fontFamily: "monospace" } }, r.chassis), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #cbd5e1", padding: "2px 5px" } }, i.description || ""), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #cbd5e1", padding: "2px 5px" } }, i.depotDate || ""), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #cbd5e1", padding: "2px 5px" } }, i.atp || ""), withDiff && /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #cbd5e1", padding: "2px 5px" } }, r.diffs.join(", ")));
+  }))));
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 py-8" }, /* @__PURE__ */ React.createElement("div", { className: "no-print" }, /* @__PURE__ */ React.createElement("button", { onClick: onBack, className: "flex items-center gap-1 text-sm font-bold text-slate-500 mb-4" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " Retour à l'accueil"), /* @__PURE__ */ React.createElement("h2", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, "Comparer deux fichiers de stock"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm mb-4" }, "Choisissez deux exports de stock : l'application indique les châssis présents dans les deux fichiers, ceux présents seulement dans le premier et ceux présents seulement dans le second. Cette comparaison est indépendante des inventaires et rien n'est enregistré."), /* @__PURE__ */ React.createElement("div", { className: "space-y-3 mb-3" }, renderSlot({ slot: "A", file: fileA, label: labelA, setLabel: setLabelA, draft: draftA, setDraft: setDraftA, title: "Fichier 1" }), renderSlot({ slot: "B", file: fileB, label: labelB, setLabel: setLabelB, draft: draftB, setDraft: setDraftB, title: "Fichier 2" })), fileA && fileA.dupItems.length > 0 && /* @__PURE__ */ React.createElement(
+    DuplicatesNotice,
+    {
+      items: fileA.dupItems,
+      sourceName: fileA.name,
+      onDownloadClean: () => exportClean(fileA, nameA),
+      note: `« ${nameA} » : chaque châssis n'est compté qu'une seule fois dans la comparaison (la dernière ligne est conservée).`
+    }
+  ), fileB && fileB.dupItems.length > 0 && /* @__PURE__ */ React.createElement(
+    DuplicatesNotice,
+    {
+      items: fileB.dupItems,
+      sourceName: fileB.name,
+      onDownloadClean: () => exportClean(fileB, nameB),
+      note: `« ${nameB} » : chaque châssis n'est compté qu'une seule fois dans la comparaison (la dernière ligne est conservée).`
+    }
+  ), busy && /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-500 mb-2" }, "Lecture du fichier..."), err && /* @__PURE__ */ React.createElement("div", { className: "text-sm font-semibold text-rose-600 mb-2" }, err), (fileA || fileB) && /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mb-4" }, fileA && fileB && /* @__PURE__ */ React.createElement("button", { onClick: swap, className: "text-xs font-bold underline", style: { color: BLUE_DEEP } }, "Inverser les deux fichiers"), /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "px-3 py-1.5 rounded-lg border-2 border-rose-200 text-rose-700 bg-rose-50 text-xs font-bold" }, "Tout réinitialiser")), fileA && fileB && !validated && !busy && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => {
+        setLabelA(draftA.trim());
+        setLabelB(draftB.trim());
+        setValidated(true);
+      },
+      className: "w-full mb-4 py-3.5 rounded-xl text-white font-extrabold text-sm",
+      style: { background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` }
+    },
+    "Valider et lancer la comparaison"
+  ), fileA && fileB && validated && /* @__PURE__ */ React.createElement("button", { onClick: () => setValidated(false), className: "mb-3 text-xs font-bold underline", style: { color: BLUE_DEEP } }, "Modifier les fichiers ou les noms"), res && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-3 mb-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-4 text-white", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, counts.a), /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold mt-1 opacity-90" }, "Châssis dans « ", nameA, " »")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-4 text-white", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, counts.b), /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold mt-1 opacity-90" }, "Châssis dans « ", nameB, " »")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-4 bg-emerald-600 text-white" }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, counts.both), /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold mt-1 opacity-90" }, "Communs aux deux")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-4 text-white", style: { background: "#2E7DC1" } }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, counts.union), /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold mt-1 opacity-90" }, "Châssis distincts au total")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-4 bg-amber-500 text-white" }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, counts.onlyA), /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold mt-1 opacity-90" }, "Seulement dans « ", nameA, " »")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-4 bg-rose-600 text-white" }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, counts.onlyB), /* @__PURE__ */ React.createElement("div", { className: "text-xs font-semibold mt-1 opacity-90" }, "Seulement dans « ", nameB, " »"))), (fileA.duplicates > 0 || fileB.duplicates > 0 || counts.changed > 0) && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 mb-3" }, counts.changed > 0 && /* @__PURE__ */ React.createElement("div", null, counts.changed, " châssis communs ont des informations différentes entre les deux fichiers (détail dans l'export Excel)."), fileA.duplicates > 0 && /* @__PURE__ */ React.createElement("div", null, fileA.duplicates, " doublon(s) ignoré(s) dans « ", nameA, " »."), fileB.duplicates > 0 && /* @__PURE__ */ React.createElement("div", null, fileB.duplicates, " doublon(s) ignoré(s) dans « ", nameB, " ».")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-2 mb-5" }, /* @__PURE__ */ React.createElement("button", { onClick: exportExcel, className: "py-3 rounded-lg text-white font-bold text-sm flex items-center justify-center gap-2", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Download, { size: 16 }), " Excel complet"), /* @__PURE__ */ React.createElement("button", { onClick: () => printPdf("summary"), className: "py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " PDF : quantités"), /* @__PURE__ */ React.createElement("button", { onClick: () => printPdf("full"), className: "py-3 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 16 }), " PDF : quantités + listes")), /* @__PURE__ */ React.createElement("div", { className: "flex gap-1 overflow-x-auto border-b-2 border-slate-100 mb-3" }, tabs.map(([k, l]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: k,
+      onClick: () => setTab(k),
+      className: "px-3 py-2 text-sm font-bold whitespace-nowrap border-b-2",
+      style: tab === k ? { borderColor: BLUE_DEEP, color: BLUE_DEEP } : { borderColor: "transparent", color: "#94a3b8" }
+    },
+    l
+  ))), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: filter,
+      onChange: (e) => setFilter(e.target.value),
+      placeholder: "Filtrer : châssis, marque, modèle… (combinables)",
+      className: "w-full px-3 py-2 mb-3 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none focus:border-[#1B4F8C]"
+    }
+  ), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, shownRows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-6" }, "Aucune entrée."), shownRows.slice(0, LIST_RENDER_CAP).map((r) => {
+    const i = r.info || r.b;
+    const detail = { description: i.description, registredAt: i.registredAt, depotDate: i.depotDate, atp: i.atp, shipName: i.shipName, weight: i.weight, companyNumber: i.companyNumber, bl: i.bl, entryDate: i.entryDate, extra: i.extra };
+    return /* @__PURE__ */ React.createElement(
+      ListRow,
+      {
+        key: r.norm,
+        chassis: r.chassis,
+        detail,
+        badge: r.diffs ? r.diffs.length ? "Modifié" : "Commun" : void 0,
+        badgeTone: r.diffs && r.diffs.length ? "rose" : "emerald"
+      }
+    );
+  }), /* @__PURE__ */ React.createElement(TruncationNote, { count: shownRows.length })), /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "w-full mt-6 py-3 rounded-xl border-2 border-rose-200 bg-rose-50 text-rose-700 font-extrabold text-sm" }, "Terminer et tout remettre à zéro"))), res && /* @__PURE__ */ React.createElement("div", { className: "print-only" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("img", { src: LOGO_BC, alt: "Bénin Control", style: { height: 56, width: "auto" } }), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 17, color: "#123A66" } }, "COMPARAISON DE DEUX FICHIERS DE STOCK"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#2E7DC1", fontWeight: 700 } }, "BÉNIN CONTROL / MAD-MAE — édité le ", (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR"))), /* @__PURE__ */ React.createElement("img", { src: LOGO_DOUANES, alt: "Douanes Béninoises", style: { height: 56, width: "auto" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, marginBottom: 10 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, "Fichier 1 :"), " ", nameA, fileA.name !== nameA ? ` (${fileA.name})` : ""), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, "Fichier 2 :"), " ", nameB, fileB.name !== nameB ? ` (${fileB.name})` : "")), /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { style: { border: "1px solid #94a3b8", padding: "5px 8px", background: "#123A66", color: "#fff", textAlign: "left" } }, "Indicateur"), /* @__PURE__ */ React.createElement("th", { style: { border: "1px solid #94a3b8", padding: "5px 8px", background: "#123A66", color: "#fff", textAlign: "right" } }, "Valeur"))), /* @__PURE__ */ React.createElement("tbody", null, summaryRows.map(([l, v]) => /* @__PURE__ */ React.createElement("tr", { key: l }, /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #cbd5e1", padding: "4px 8px" } }, l), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #cbd5e1", padding: "4px 8px", textAlign: "right", fontWeight: 700 } }, v))))), printMode === "full" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(PrintList, { title: "Communs aux deux fichiers", rows: res.both, withDiff: true }), /* @__PURE__ */ React.createElement(PrintList, { title: `Uniquement dans « ${nameA} »`, rows: res.onlyA }), /* @__PURE__ */ React.createElement(PrintList, { title: `Uniquement dans « ${nameB} »`, rows: res.onlyB }))));
+}
+function ArchiveScreen({ list, loading, error, onOpen, onTrash, onRestore, onPurge, onPurgeExpired, onRefresh, onExport, onBack, isAdmin, parcsList, onReopen, onCompare }) {
+  const [view, setView] = useState("list");
+  const [sel, setSel] = useState([]);
+  const [q, setQ] = useState("");
+  const [statusF, setStatusF] = useState("all");
+  const [yearF, setYearF] = useState("all");
+  const [delTarget, setDelTarget] = useState(null);
+  const [delText, setDelText] = useState("");
+  const [busyId, setBusyId] = useState(null);
+  const [purgeMsg, setPurgeMsg] = useState("");
+  const live = useMemo(() => list.filter((x) => x.status !== "trashed"), [list]);
+  const trashed = useMemo(() => list.filter((x) => x.status === "trashed"), [list]);
+  const years = useMemo(() => {
+    const s = new Set(live.map((x) => String(x.invDate || "").slice(0, 4)).filter(Boolean));
+    return Array.from(s).sort().reverse();
+  }, [live]);
+  const filtered = useMemo(() => {
+    const nq = slugify(q);
+    return live.filter((x) => {
+      if (statusF !== "all" && x.status !== statusF) return false;
+      if (yearF !== "all" && String(x.invDate || "").slice(0, 4) !== yearF) return false;
+      if (nq && !slugify(x.parcName).includes(nq)) return false;
+      return true;
+    });
+  }, [live, q, statusF, yearF]);
+  const totals = useMemo(() => {
+    let found = 0, registered = 0, missing = 0;
+    filtered.forEach((x) => {
+      const st = x.stats || {};
+      found += st.found || 0;
+      registered += st.registered || 0;
+      missing += st.missing || 0;
+    });
+    return { found, registered, missing };
+  }, [filtered]);
+  const dashRows = useMemo(() => {
+    const byParc = /* @__PURE__ */ new Map();
+    live.forEach((x) => {
+      if (yearF !== "all" && String(x.invDate || "").slice(0, 4) !== yearF) return;
+      const key = slugify(x.parcName);
+      if (!byParc.has(key)) byParc.set(key, { name: x.parcName, invs: [] });
+      byParc.get(key).invs.push(x);
+    });
+    const rows = [];
+    byParc.forEach((g) => {
+      const sorted = g.invs.slice().sort((a, b) => String(b.invDate).localeCompare(String(a.invDate)));
+      const last = sorted[0];
+      const prev = sorted.find((i, idx) => idx > 0 && i.stats && i.stats.expected);
+      const rate = (i) => i && i.stats && i.stats.expected ? Math.round(i.stats.found / i.stats.expected * 100) : null;
+      const r = rate(last);
+      const pr = prev ? rate(prev) : null;
+      rows.push({ name: g.name, count: sorted.length, last, rate: r, trend: r !== null && pr !== null ? r - pr : null, inProgress: last.status === "in_progress" });
+    });
+    rows.sort((a, b) => (a.rate === null ? 101 : a.rate) - (b.rate === null ? 101 : b.rate));
+    return rows;
+  }, [live, yearF]);
+  const doneParcs = useMemo(() => new Set(dashRows.map((r) => slugify(r.name))), [dashRows]);
+  const notDone = useMemo(() => (parcsList || []).filter((p) => !doneParcs.has(slugify(p))), [parcsList, doneParcs]);
+  const fmtDate = (iso) => String(iso || "").split("-").reverse().join("/");
+  const selItems = sel.map((id) => live.find((x) => x.id === id)).filter(Boolean);
+  const canCompare = selItems.length === 2 && slugify(selItems[0].parcName) === slugify(selItems[1].parcName);
+  const toggleSel = (id) => setSel((s) => s.includes(id) ? s.filter((v) => v !== id) : s.length >= 2 ? [s[1], id] : [...s, id]);
+  const daysLeft = (x) => {
+    const t = x.trashedAt && x.trashedAt.toMillis ? x.trashedAt.toMillis() : Date.now();
+    return Math.max(0, 30 - Math.floor((Date.now() - t) / 864e5));
+  };
+  return /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 py-8" }, /* @__PURE__ */ React.createElement("div", { className: "no-print" }, /* @__PURE__ */ React.createElement("button", { onClick: onBack, className: "flex items-center gap-1 text-sm font-bold text-slate-500 mb-4" }, /* @__PURE__ */ React.createElement(ArrowLeft, { size: 16 }), " Retour à l'accueil"), /* @__PURE__ */ React.createElement("h2", { className: "text-2xl font-extrabold mb-1", style: { color: BLUE_DEEP } }, "Archives des inventaires"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mb-4" }, "Tous les inventaires réalisés. Ouvrez-en un pour revoir les listes et télécharger à nouveau les rapports — sans pouvoir modifier les pointages."), /* @__PURE__ */ React.createElement("div", { className: `grid gap-2 mb-4 ${isAdmin ? "grid-cols-3" : "grid-cols-2"}` }, [["list", "Liste"], ["dashboard", "Tableau de bord"], ...isAdmin ? [["trash", `Corbeille (${trashed.length})`]] : []].map(([k, l]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: k,
+      onClick: () => setView(k),
+      className: "py-2.5 rounded-lg border-2 text-sm font-bold",
+      style: view === k ? { background: BLUE_DEEP, color: "#fff", borderColor: BLUE_DEEP } : { borderColor: "#cbd5e1", color: "#475569" }
+    },
+    l
+  ))), view !== "trash" && /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-3 gap-2 mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-3 text-white", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement("div", { className: "text-2xl font-extrabold font-plex-mono leading-none" }, filtered.length), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] font-semibold mt-1 opacity-90" }, "Inventaire(s)")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-3 bg-emerald-600 text-white" }, /* @__PURE__ */ React.createElement("div", { className: "text-2xl font-extrabold font-plex-mono leading-none" }, totals.found + totals.registered), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] font-semibold mt-1 opacity-90" }, "Véhicules présents")), /* @__PURE__ */ React.createElement("div", { className: "rounded-xl p-3 bg-rose-600 text-white" }, /* @__PURE__ */ React.createElement("div", { className: "text-2xl font-extrabold font-plex-mono leading-none" }, totals.missing), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] font-semibold mt-1 opacity-90" }, "Manquants cumulés"))), view !== "trash" && /* @__PURE__ */ React.createElement("div", { className: "space-y-2 mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "relative" }, /* @__PURE__ */ React.createElement(Search, { size: 15, className: "absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" }), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: q,
+      onChange: (e) => setQ(e.target.value),
+      placeholder: "Rechercher un parc...",
+      className: "w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border-2 border-slate-200 focus:outline-none focus:border-[#1B4F8C]"
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement("select", { value: statusF, onChange: (e) => setStatusF(e.target.value), className: "py-2.5 px-3 text-sm rounded-lg border-2 border-slate-200 bg-white font-semibold text-slate-700" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Tous les statuts"), /* @__PURE__ */ React.createElement("option", { value: "completed" }, "Clôturés"), /* @__PURE__ */ React.createElement("option", { value: "in_progress" }, "En cours")), /* @__PURE__ */ React.createElement("select", { value: yearF, onChange: (e) => setYearF(e.target.value), className: "py-2.5 px-3 text-sm rounded-lg border-2 border-slate-200 bg-white font-semibold text-slate-700" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Toutes les années"), years.map((y) => /* @__PURE__ */ React.createElement("option", { key: y, value: y }, y)))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-2" }, /* @__PURE__ */ React.createElement("button", { onClick: onRefresh, className: "py-2.5 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(RefreshCw, { size: 15 }), " Actualiser"), /* @__PURE__ */ React.createElement("button", { onClick: () => onExport(filtered), disabled: filtered.length === 0, className: "py-2.5 rounded-lg text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50", style: { background: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Download, { size: 15 }), " Exporter la liste (Excel)"))), view === "list" && selItems.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mb-3 rounded-xl border-2 border-sky-200 bg-sky-50 p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-sky-900" }, "Comparaison : ", selItems.length, "/2 inventaire(s) sélectionné(s)"), selItems.length === 2 && !canCompare && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-rose-700 mt-1" }, "Les deux inventaires doivent concerner le même parc."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-2" }, /* @__PURE__ */ React.createElement("button", { disabled: !canCompare, onClick: () => onCompare(selItems[0], selItems[1]), className: "flex-1 py-2.5 rounded-lg text-white text-sm font-bold disabled:opacity-50", style: { background: BLUE_DEEP } }, "Comparer ces deux inventaires"), /* @__PURE__ */ React.createElement("button", { onClick: () => setSel([]), className: "px-3 py-2.5 rounded-lg bg-white border-2 border-sky-300 text-sky-900 text-sm font-bold" }, "Effacer"))), error && /* @__PURE__ */ React.createElement("div", { className: "mb-3 rounded-lg bg-rose-50 border-2 border-rose-200 text-rose-800 text-sm p-3" }, error), loading && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-6" }, "Chargement..."), view === "dashboard" && !loading && /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-slate-100 bg-white p-4 mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-bold text-slate-700" }, "Parcs inventoriés", yearF !== "all" ? ` en ${yearF}` : "", " : ", dashRows.length, " / ", (parcsList || []).length), /* @__PURE__ */ React.createElement("div", { className: "h-2 rounded-full bg-slate-100 overflow-hidden mt-2" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full", style: { width: `${(parcsList || []).length ? Math.min(100, Math.round(dashRows.length / parcsList.length * 100)) : 0}%`, background: BLUE_LIGHT } })), /* @__PURE__ */ React.createElement("button", { onClick: () => window.print(), className: "mt-3 w-full py-2.5 rounded-lg border-2 text-sm font-bold flex items-center justify-center gap-2", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, /* @__PURE__ */ React.createElement(Printer, { size: 15 }), " Imprimer la synthèse de campagne (PDF)")), (() => {
+    const L = dashRows.map((r) => r.last);
+    const sum = (k) => L.reduce((n, i) => n + (i.stats && i.stats[k] || 0), 0);
+    const exp = sum("expected"), fnd = sum("found"), reg = sum("registered"), mis = sum("missing");
+    const closed = L.filter((i) => i.status === "completed").length, prog = L.filter((i) => i.status === "in_progress").length;
+    const todo = Math.max(0, (parcsList || []).length - dashRows.length);
+    const cells = [["Parcs clôturés", closed, "#0A8F44"], ["En cours", prog, "#B45309"], ["À faire", todo, "#64748b"], ["Attendus MMTE", exp, BLUE_DEEP], ["Retrouvés", fnd, "#047857"], ["Hors MMTE", reg, "#2E7DC1"], ["Manquants", mis, "#BE123C"], ["Taux global", exp ? Math.round(fnd / exp * 100) + " %" : "—", BLUE_DEEP]];
+    return /* @__PURE__ */ React.createElement("div", { "data-testid": "campaign-kpis", className: "grid grid-cols-4 gap-2 mb-4" }, cells.map(([l, v, c]) => /* @__PURE__ */ React.createElement("div", { key: l, className: "rounded-xl border-2 border-slate-100 bg-white p-2 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-lg font-extrabold font-plex-mono leading-none", style: { color: c } }, v), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] font-semibold text-slate-500 mt-1" }, l))));
+  })(), /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2 text-sm" }, "Situation par parc (du taux le plus faible au plus élevé)"), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, dashRows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-6" }, "Aucun inventaire."), dashRows.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.name, className: "rounded-lg border-2 border-slate-100 bg-white px-3 py-2.5" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-sm text-slate-800 truncate" }, r.name), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-slate-500" }, "Dernier : ", fmtDate(r.last.invDate), " · ", r.count, " inventaire(s)", r.inProgress ? " · en cours" : "")), /* @__PURE__ */ React.createElement("div", { className: "text-right shrink-0" }, /* @__PURE__ */ React.createElement("div", { className: "text-lg font-extrabold font-plex-mono", style: { color: r.rate === null ? "#94a3b8" : r.rate >= 90 ? "#047857" : r.rate >= 70 ? "#B45309" : "#BE123C" } }, r.rate === null ? "—" : `${r.rate}%`), r.trend !== null && /* @__PURE__ */ React.createElement("div", { className: `text-[10px] font-bold ${r.trend >= 0 ? "text-emerald-700" : "text-rose-700"}` }, r.trend >= 0 ? "+" : "", r.trend, " pt vs précédent")))))), notDone.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-5" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2 text-sm" }, "Parcs sans inventaire", yearF !== "all" ? ` en ${yearF}` : "", " (", notDone.length, ")"), /* @__PURE__ */ React.createElement("div", { className: "rounded-lg border-2 border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 leading-relaxed" }, notDone.join(" · ")))), view === "trash" && isAdmin && !loading && /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mb-3" }, "Les inventaires supprimés restent récupérables pendant 30 jours. Passé ce délai, vous pouvez les purger définitivement."), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: async () => {
+        const n = await onPurgeExpired();
+        setPurgeMsg(n ? `${n} inventaire(s) purgé(s).` : "Aucun inventaire de plus de 30 jours.");
+      },
+      className: "w-full mb-3 py-2.5 rounded-lg border-2 border-slate-300 text-sm font-bold text-slate-700"
+    },
+    "Purger les éléments de plus de 30 jours"
+  ), purgeMsg && /* @__PURE__ */ React.createElement("div", { className: "mb-3 text-xs text-slate-500" }, purgeMsg), trashed.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-8" }, "La corbeille est vide."), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, trashed.map((x) => /* @__PURE__ */ React.createElement("div", { key: x.id, className: "rounded-xl border-2 border-slate-100 bg-white p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-800" }, x.parcName), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 mt-0.5" }, "Inventaire du ", fmtDate(x.invDate), " · supprimé", x.trashedByName ? ` par ${x.trashedByName}` : "", " · purge possible dans ", daysLeft(x), " j"), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-3" }, /* @__PURE__ */ React.createElement("button", { disabled: busyId === x.id, onClick: async () => {
+    setBusyId(x.id);
+    await onRestore(x);
+    setBusyId(null);
+  }, className: "flex-1 py-2.5 rounded-lg text-white text-sm font-bold disabled:opacity-60", style: { background: BLUE } }, "Restaurer"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
+    setDelTarget(x.id);
+    setDelText("");
+  }, className: "px-3 py-2.5 rounded-lg border-2 border-rose-200 text-rose-700 text-sm font-bold" }, "Supprimer définitivement")), delTarget === x.id && /* @__PURE__ */ React.createElement("div", { className: "mt-3 rounded-lg border-2 border-rose-300 bg-rose-50 p-3" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs text-rose-700" }, "La liste MMTE, les pointages, les photos et le journal seront effacés sans retour possible. Tapez ", /* @__PURE__ */ React.createElement("b", null, "SUPPRIMER"), " pour confirmer."), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: delText,
+      onChange: (e) => setDelText(e.target.value),
+      placeholder: "SUPPRIMER",
+      className: "w-full mt-2 px-3 py-2 text-sm rounded-lg border-2 border-rose-200 bg-white focus:outline-none"
+    }
+  ), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-2" }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      disabled: delText.trim().toUpperCase() !== "SUPPRIMER" || busyId === x.id,
+      onClick: async () => {
+        setBusyId(x.id);
+        const ok = await onPurge(x);
+        setBusyId(null);
+        if (ok) setDelTarget(null);
+      },
+      className: "px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm disabled:opacity-50"
+    },
+    busyId === x.id ? "Suppression..." : "Supprimer"
+  ), /* @__PURE__ */ React.createElement("button", { onClick: () => setDelTarget(null), className: "px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm" }, "Annuler"))))))), view === "list" && !loading && filtered.length === 0 && !error && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-10" }, "Aucun inventaire ne correspond à votre recherche."), view === "list" && /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, filtered.map((x) => {
+    const st = x.stats || null;
+    const expected = st && st.expected != null ? st.expected : x.mmteCount;
+    const rate = st && st.expected ? Math.round(st.found / st.expected * 100) : null;
+    const done = x.status === "completed";
+    return /* @__PURE__ */ React.createElement("div", { key: x.id, className: "rounded-xl border-2 border-slate-100 bg-white p-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-start justify-between gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-800" }, x.parcName), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 mt-0.5" }, "Inventaire du ", fmtDate(x.invDate), x.createdByName ? ` · créé par ${x.createdByName}` : ""), done && x.completedAt && /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-slate-400 mt-0.5" }, "Clôturé le ", formatTimestamp(x.completedAt), x.completedByName ? ` par ${x.completedByName}` : "")), /* @__PURE__ */ React.createElement("span", { className: `shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${done ? "bg-slate-100 text-slate-600" : "bg-amber-100 text-amber-800"}` }, done ? "Clôturé" : "En cours")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-4 gap-1.5 mt-3 text-center" }, [
+      ["Attendus", expected, "text-slate-700"],
+      ["Trouvés", st ? st.found : null, "text-emerald-700"],
+      ["Hors MMTE", st ? st.registered : null, "text-[#1B4F8C]"],
+      ["Manquants", st ? st.missing : null, "text-rose-700"]
+    ].map(([l, v, c]) => /* @__PURE__ */ React.createElement("div", { key: l, className: "rounded-lg bg-slate-50 py-1.5" }, /* @__PURE__ */ React.createElement("div", { className: `text-base font-extrabold font-plex-mono ${c}` }, v != null ? v : "—"), /* @__PURE__ */ React.createElement("div", { className: "text-[10px] font-semibold text-slate-500" }, l)))), rate !== null && /* @__PURE__ */ React.createElement("div", { className: "mt-2" }, /* @__PURE__ */ React.createElement("div", { className: "h-1.5 rounded-full bg-slate-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full", style: { width: `${Math.min(100, rate)}%`, background: BLUE_LIGHT } })), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] text-slate-500 mt-1" }, rate, "% des véhicules attendus retrouvés")), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2 mt-3 text-xs font-semibold text-slate-600 cursor-pointer" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: sel.includes(x.id), onChange: () => toggleSel(x.id) }), "Sélectionner pour comparer"), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-3" }, /* @__PURE__ */ React.createElement("button", { onClick: () => onOpen(x), className: "flex-1 py-2.5 rounded-lg text-white text-sm font-bold", style: { background: BLUE } }, "Ouvrir (lecture seule)"), isAdmin && done && /* @__PURE__ */ React.createElement("button", { onClick: () => onReopen(x), className: "px-3 py-2.5 rounded-lg border-2 text-sm font-bold", style: { borderColor: BLUE_LIGHT, color: BLUE_DEEP } }, "Rouvrir"), isAdmin && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        disabled: busyId === x.id,
+        onClick: async () => {
+          if (!confirmT(`Déplacer « ${x.parcName} » (${fmtDate(x.invDate)}) dans la corbeille ?
+
+Il restera récupérable pendant 30 jours.`)) return;
+          setBusyId(x.id);
+          await onTrash(x);
+          setBusyId(null);
+        },
+        className: "px-3 py-2.5 rounded-lg border-2 border-rose-200 text-rose-700 text-sm font-bold flex items-center gap-1 disabled:opacity-60"
+      },
+      /* @__PURE__ */ React.createElement(Trash2, { size: 15 }),
+      " Corbeille"
+    )));
+  }))), /* @__PURE__ */ React.createElement("div", { className: "print-only" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 } }, /* @__PURE__ */ React.createElement("img", { src: LOGO_BC, alt: "Bénin Control", style: { height: 60, width: "auto" } }), /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 18, color: "#123A66" } }, "SYNTHÈSE DE CAMPAGNE D'INVENTAIRE"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#2E7DC1", fontWeight: 700 } }, "BÉNIN CONTROL / MAD-MAE", yearF !== "all" ? ` — ${yearF}` : "")), /* @__PURE__ */ React.createElement("img", { src: LOGO_DOUANES, alt: "Douanes Béninoises", style: { height: 60, width: "auto" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, marginBottom: 12 } }, "Parcs inventoriés : ", /* @__PURE__ */ React.createElement("b", null, dashRows.length), " / ", (parcsList || []).length, " — édité le ", (/* @__PURE__ */ new Date()).toLocaleDateString("fr-FR")), /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 12 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, ["Parc", "Dernier inventaire", "Attendus", "Trouvés", "Hors MMTE", "Manquants", "Taux"].map((h) => /* @__PURE__ */ React.createElement("td", { key: h, style: { border: "1px solid #94A3B8", padding: "6px 8px", background: "#123A66", color: "#fff", fontWeight: 700 } }, h)))), /* @__PURE__ */ React.createElement("tbody", null, dashRows.map((r) => {
+    const st = r.last && r.last.stats || {};
+    return /* @__PURE__ */ React.createElement("tr", { key: r.name }, /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px" } }, r.name), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px" } }, fmtDate(r.last.invDate)), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" } }, st.expected != null ? st.expected : "—"), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" } }, st.found != null ? st.found : "—"), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" } }, st.registered != null ? st.registered : "—"), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center" } }, st.missing != null ? st.missing : "—"), /* @__PURE__ */ React.createElement("td", { style: { border: "1px solid #94A3B8", padding: "5px 8px", textAlign: "center", fontWeight: 700 } }, r.rate === null ? "—" : `${r.rate}%`));
+  }))), notDone.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 16, fontSize: 12 } }, /* @__PURE__ */ React.createElement("b", null, "Parcs sans inventaire (", notDone.length, ") :"), " ", notDone.join(" · "))));
+}
+function FollowupPanel({ missingList, followups, onFollow, onUnfollow }) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [edit, setEdit] = useState(null);
+  const fm = useMemo(() => new Map(followups.map((f) => [f.norm, f])), [followups]);
+  const done = missingList.filter((m) => fm.has(m.norm)).length;
+  const rows = missingList.filter((m) => !filter.trim() || matchesAllTerms(filter, { chassis: m.chassis, ...m.info || {} }));
+  const sorted = [...rows].sort((a, b) => (fm.has(a.norm) ? 1 : 0) - (fm.has(b.norm) ? 1 : 0));
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "followup-panel", className: "no-print mt-4 bg-white rounded-2xl border-2 border-amber-200 shadow-sm p-5" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "followup-toggle", onClick: () => setOpen(!open), className: "w-full flex items-center justify-between text-left" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700" }, "Suivi des manquants"), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500" }, `${done} régularisé${done > 1 ? "s" : ""} sur ${missingList.length} · ${missingList.length - done} encore manquant${missingList.length - done > 1 ? "s" : ""}`)), /* @__PURE__ */ React.createElement("span", { className: "text-sm font-bold", style: { color: BLUE_DEEP } }, open ? "Masquer" : "Ouvrir")), open && /* @__PURE__ */ React.createElement("div", { className: "mt-3" }, /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mb-2" }, "Un véhicule manquant a été retrouvé ou régularisé dans MMTE après l'inventaire ? Marquez-le ici, puis régénérez la fiche et le rapport : les chiffres sont mis à jour."), /* @__PURE__ */ React.createElement("input", { "data-testid": "followup-filter", value: filter, onChange: (e) => setFilter(e.target.value), placeholder: "Filtrer par châssis, description…", className: "w-full mb-2 px-3 py-2 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none" }), /* @__PURE__ */ React.createElement("div", { className: "space-y-2 max-h-[45vh] overflow-y-auto" }, sorted.slice(0, LIST_RENDER_CAP).map((m) => {
+    const f = fm.get(m.norm);
+    const ed = edit && edit.norm === m.norm ? edit : null;
+    return /* @__PURE__ */ React.createElement("div", { key: m.norm, "data-testid": "fu-row-" + m.norm, className: "rounded-xl border-2 px-3 py-2 " + (f ? "border-emerald-200 bg-emerald-50" : "border-slate-100") }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between gap-2" }, /* @__PURE__ */ React.createElement("div", { className: "min-w-0" }, /* @__PURE__ */ React.createElement("div", { className: "font-plex-mono text-sm font-bold truncate" }, m.chassis), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500 truncate" }, m.info && m.info.description || "")), f ? /* @__PURE__ */ React.createElement("button", { "data-testid": "fu-undo-" + m.norm, onClick: () => onUnfollow(m.norm), className: "text-xs font-bold text-slate-500 underline whitespace-nowrap" }, "Annuler") : !ed ? /* @__PURE__ */ React.createElement("button", { "data-testid": "fu-mark-" + m.norm, onClick: () => setEdit({ norm: m.norm, status: "retrouve", note: "" }), className: "px-3 py-1.5 rounded-lg text-xs font-bold text-white whitespace-nowrap", style: { background: BLUE_DEEP } }, "Marquer") : null), f && /* @__PURE__ */ React.createElement("div", { className: "text-xs text-emerald-800 mt-1" }, /* @__PURE__ */ React.createElement("b", null, f.status === "regularise" ? "Régularisé dans MMTE" : "Retrouvé sur le parc"), f.byName ? ` · ${f.byName}` : "", f.at && f.at.toMillis ? ` · ${formatTimestamp(f.at)}` : "", f.note ? ` · ${f.note}` : ""), ed && /* @__PURE__ */ React.createElement("div", { className: "mt-2 space-y-2" }, /* @__PURE__ */ React.createElement("select", { "data-testid": "fu-status", value: ed.status, onChange: (e) => setEdit({ ...ed, status: e.target.value }), className: "w-full px-2 py-2 text-sm rounded-lg border-2 border-slate-200" }, /* @__PURE__ */ React.createElement("option", { value: "retrouve" }, "Retrouvé sur le parc"), /* @__PURE__ */ React.createElement("option", { value: "regularise" }, "Régularisé dans MMTE (sorti, transféré…)")), /* @__PURE__ */ React.createElement("input", { "data-testid": "fu-note", value: ed.note, maxLength: 200, onChange: (e) => setEdit({ ...ed, note: e.target.value }), placeholder: "Observation (facultatif)", className: "w-full px-3 py-2 text-sm rounded-lg border-2 border-slate-200" }), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "fu-save", onClick: () => {
+      onFollow(m.norm, m.chassis, ed.status, ed.note.trim());
+      setEdit(null);
+    }, className: "px-3 py-1.5 rounded-lg text-xs font-bold text-white", style: { background: "#0A8F44" } }, "Valider"), /* @__PURE__ */ React.createElement("button", { onClick: () => setEdit(null), className: "px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-slate-200 text-slate-600" }, "Annuler"))));
+  }), /* @__PURE__ */ React.createElement(TruncationNote, { count: sorted.length }))));
+}
+function ReadOnlyLists({ totalList, foundList, registeredList, missingList }) {
+  const [tab, setTab] = useState("total");
+  const [filter, setFilter] = useState("");
+  const nf = normalize(filter);
+  const match = (r) => !filter.trim() || matchesAllTerms(filter, r);
+  const tabs = [
+    ["total", `Total (${totalList.length})`],
+    ["found", `Trouvés (${foundList.length})`],
+    ["registered", `Hors MMTE (${registeredList.length})`],
+    ["missing", `Manquants (${missingList.length})`]
+  ];
+  const rows = tab === "total" ? totalList : tab === "found" ? foundList : tab === "registered" ? registeredList : missingList;
+  const shown = rows.filter((r) => match(r));
+  return /* @__PURE__ */ React.createElement("div", { className: "no-print mb-6" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-slate-700 mb-2" }, "Détails de l'inventaire"), /* @__PURE__ */ React.createElement("div", { className: "flex gap-1 overflow-x-auto border-b-2 border-slate-100 mb-3" }, tabs.map(([k, l]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: k,
+      onClick: () => setTab(k),
+      className: "px-3 py-2 text-sm font-bold whitespace-nowrap border-b-2",
+      style: tab === k ? { borderColor: BLUE_DEEP, color: BLUE_DEEP } : { borderColor: "transparent", color: "#94a3b8" }
+    },
+    l
+  ))), /* @__PURE__ */ React.createElement("div", { className: "relative mb-3" }, /* @__PURE__ */ React.createElement(Search, { size: 15, className: "absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" }), /* @__PURE__ */ React.createElement(
+    "input",
+    {
+      value: filter,
+      onChange: (e) => setFilter(e.target.value),
+      placeholder: "Filtrer : châssis, marque, modèle… (combinables)",
+      className: "w-full pl-9 pr-3 py-2 text-sm rounded-lg border-2 border-slate-200 font-plex-mono focus:outline-none focus:border-[#1B4F8C]"
+    }
+  )), /* @__PURE__ */ React.createElement("div", { className: "space-y-2 max-h-[50vh] overflow-y-auto" }, shown.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "text-center text-sm text-slate-400 py-6" }, "Aucune entrée."), shown.slice(0, LIST_RENDER_CAP).map(
+    (r) => tab === "missing" ? /* @__PURE__ */ React.createElement(ListRow, { key: r.norm, chassis: r.chassis, detail: r.info, badge: "Absent", badgeTone: "rose" }) : /* @__PURE__ */ React.createElement(
+      ListRow,
+      {
+        key: r.norm,
+        chassis: r.chassis,
+        agent: r.agentName,
+        scannedAt: r.scannedAt,
+        detail: r,
+        badge: tab === "total" ? r.source === "mmte" ? "MMTE" : "Parc" : void 0,
+        badgeTone: r.source === "mmte" ? "emerald" : "sky"
+      }
+    )
+  ), /* @__PURE__ */ React.createElement(TruncationNote, { count: shown.length })));
+}
+function ReportTable({ title, rows }) {
+  if (rows.length === 0) return null;
+  return /* @__PURE__ */ React.createElement("div", { className: "mb-6 break-inside-avoid" }, /* @__PURE__ */ React.createElement("h3", { className: "font-bold text-sm mb-2", style: { color: BLUE_DEEP } }, title, " (", rows.length, ")"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 gap-x-6 gap-y-1 text-xs font-plex-mono" }, rows.map((r, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "border-b border-slate-100 py-0.5" }, r.chassis, r.description ? ` — ${r.description}` : ""))));
+}
+function SummaryCard({ label, value, tone, full }) {
+  const tones = { navy: "text-white", emerald: "bg-emerald-600 text-white", sky: "bg-[#2E7DC1] text-white", rose: "bg-rose-600 text-white" };
+  const style = tone === "navy" ? { background: BLUE_DEEP } : void 0;
+  return /* @__PURE__ */ React.createElement("div", { className: `rounded-xl p-4 ${tones[tone]} ${full ? "col-span-2" : ""}`, style }, /* @__PURE__ */ React.createElement("div", { className: "text-3xl font-extrabold font-plex-mono leading-none" }, value), /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wide opacity-90 mt-1 font-semibold" }, label));
+}
+ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(InventaireMMTE, null));
+
+  

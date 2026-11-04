@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>INVENTAIRE MMTE &amp; Suivi des stocks — Bénin Control</title>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#123A66">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Inventaire MMTE">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="icon" href="./icons/icon-192.png">
+
+  <!-- Styles et bibliothèques hébergés avec l'application (plus de dépendance aux CDN au démarrage) -->
+  <link rel="stylesheet" href="./lib/app.css?v=@@VERSION@@">
+  <script src="./lib/react-18.3.1.production.min.js"></script>
+  <script src="./lib/react-dom-18.3.1.production.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Firebase (authentification + base de données partagée) -->
+  <script src="./lib/firebase-app-compat-10.14.1.js"></script>
+  <script src="./lib/firebase-auth-compat-10.14.1.js"></script>
+  <script src="./lib/firebase-firestore-compat-10.14.1.js"></script>
+</head>
+<body class="bg-white text-slate-800 min-h-screen">
+
+  <div id="root"></div>
+
+  <script>
+/*@@APP@@*/</script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

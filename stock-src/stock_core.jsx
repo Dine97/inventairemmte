@@ -2,66 +2,11 @@
 // STOCK MMTE — Suivi hebdomadaire des stocks des parcs
 // Données : Supabase (projet stock-mmte), identité : Firebase (INVENTAIRE MMTE)
 // ============================================================
-const STK_API = "https://hrxldrhfqyxyzsetlamc.supabase.co/functions/v1/stock-api";
-const STK_ERR = {
-  NON_CONNECTE: "Vous n'êtes pas connecté.",
-  SESSION_EXPIREE: "Votre session a expiré. Déconnectez-vous puis reconnectez-vous.",
-  INVITE_NON_AUTORISE: "L'accès invité ne permet pas d'utiliser le suivi des stocks.",
-  COMPTE_NON_APPROUVE: "Votre compte n'est pas encore approuvé.",
-  RESERVE_ADMIN: "Action réservée aux administrateurs.",
-  DEJA_VALIDEE: "Cette justification est déjà validée : seul un administrateur peut la modifier.",
-  MOTIF_OBLIGATOIRE: "Indiquez le motif.",
-  IMPORT_PAS_LE_DERNIER: "Seul le dernier import d'un parc peut être annulé. Annulez d'abord les imports plus récents.",
-  IMPORT_DEJA_ANNULE: "Cet import est déjà annulé.",
-  CHASSIS_OBLIGATOIRE: "Le châssis est obligatoire.",
-  FICHIER_TROP_GROS: "Fichier trop volumineux (8 Mo maximum).",
-  VEHICULE_INTROUVABLE: "Aucun véhicule ne correspond à ce châssis.",
-  RESEAU: "Connexion impossible au serveur des stocks. Vérifiez Internet puis réessayez.",
-  LENTEUR: "Le serveur des stocks ne répond pas assez vite (connexion lente). Réessayez dans un instant.",
-  DATE_STOCK_MANQUANTE: "Indiquez la date du stock.",
-  LECTURE_SEULE: "Votre accès au suivi des stocks est en consultation seule.",
-  ACCES_STOCK_REFUSE: "Vous n'avez pas accès au suivi des stocks. Demandez l'accès à un administrateur MAD-MAE.",
-  FUSION_IMPOSSIBLE: "Fusion impossible : les deux véhicules doivent être différents.",
-  IMPORT_NON_ANNULE: "Cet import n'est pas annulé."
-};
-function stkErrText(e) {
-  const m = String((e && e.message) || e || "");
-  if (m.startsWith("IMPORT_ANTERIEUR")) return `Un import plus récent existe déjà pour ce parc (stock du ${stkFmt(m.split(":")[1])}). Choisissez une date de stock égale ou postérieure.`;
-  if (STK_ERR[m]) return STK_ERR[m];
-  if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return STK_ERR.RESEAU;
-  return "Erreur : " + m;
-}
-const STK_SLOW = { commit_import: 180e3, export_all: 180e3, stock_at: 90e3, mmte_sync: 120e3, merge: 90e3, cancel_import: 90e3, restore_import: 90e3, upload_file: 90e3 };
-async function stkCall(action, params, retried, timeoutMs) {
-  const u = auth.currentUser;
-  if (!u) throw new Error("NON_CONNECTE");
-  const token = await u.getIdToken(!!retried);
-  let r;
-  const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
-  const limit = timeoutMs || STK_SLOW[action] || 30e3;
-  const timer = ctl ? setTimeout(() => ctl.abort(), limit) : null;
-  try {
-    r = await fetch(STK_API, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify({ action, params: params || {} }), signal: ctl ? ctl.signal : void 0 });
-  } catch (e) { throw new Error(e && e.name === "AbortError" ? "LENTEUR" : "RESEAU"); }
-  finally { if (timer) clearTimeout(timer); }
-  let j = null;
-  try { j = await r.json(); } catch (e) { throw new Error("RESEAU"); }
-  if (!j.ok) {
-    if (j.error === "SESSION_EXPIREE" && !retried) return stkCall(action, params, true);
-    throw new Error(j.error || "ERREUR");
-  }
-  return j.data;
-}
 
 // ---------- Dates & situation ----------
 function stkToday() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function stkFmt(iso) {
-  if (!iso) return "";
-  const s = String(iso).slice(0, 10).split("-");
-  return s.length === 3 ? `${s[2]}/${s[1]}/${s[0]}` : String(iso);
 }
 function stkFmtTs(ts) {
   if (!ts) return "";
@@ -106,23 +51,6 @@ const STK_ENTRY = { initial: "Stock initial", entree: "Entrée", transfert: "Ent
 const STK_EXIT = { sortie: "Sortie", transfert: "Transfert", erreur: "Erreur de fichier", manuel: "Sortie manuelle" };
 function stkVeh(r) { return [r.marque, r.modele, r.annee].filter(Boolean).join(" "); }
 
-// ---------- Icônes ----------
-const StkIc = {
-  Grid: (p) => <Icon {...p}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></Icon>,
-  Layers: (p) => <Icon {...p}><path d="m12 2 9 5-9 5-9-5 9-5z" /><path d="m3 12 9 5 9-5" /><path d="m3 17 9 5 9-5" /></Icon>,
-  Swap: (p) => <Icon {...p}><path d="M7 4 3 8l4 4" /><path d="M3 8h14" /><path d="m17 20 4-4-4-4" /><path d="M21 16H7" /></Icon>,
-  Clip: (p) => <Icon {...p}><path d="m21.4 11-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8" /></Icon>,
-  Plus: (p) => <Icon {...p}><path d="M12 5v14M5 12h14" /></Icon>,
-  Edit: (p) => <Icon {...p}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" /></Icon>,
-  Cal: (p) => <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></Icon>,
-  X: (p) => <Icon {...p}><path d="M18 6 6 18M6 6l12 12" /></Icon>,
-  Truck: (p) => <Icon {...p}><path d="M1 3h15v13H1z" /><path d="M16 8h4l3 3v5h-7z" /><circle cx="5.5" cy="18.5" r="2.5" /><circle cx="18.5" cy="18.5" r="2.5" /></Icon>,
-  Inbox: (p) => <Icon {...p}><path d="M22 12h-6l-2 3h-4l-2-3H2" /><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" /></Icon>,
-  Check: (p) => <Icon {...p}><path d="M20 6 9 17l-5-5" /></Icon>,
-  Chev: (p) => <Icon {...p}><path d="m9 18 6-6-6-6" /></Icon>,
-  Gear: (p) => <Icon {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></Icon>,
-  Apps: (p) => <Icon {...p}><circle cx="6" cy="6" r="2.2" /><circle cx="18" cy="6" r="2.2" /><circle cx="6" cy="18" r="2.2" /><circle cx="18" cy="18" r="2.2" /></Icon>
-};
 
 // ---------- Exports Excel / PDF ----------
 function stkExportXlsx(fileName, title, meta, columns, rows) {

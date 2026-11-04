@@ -40,9 +40,10 @@ async function fsGet(path: string, token: string) {
   for (const [k, v] of Object.entries(d.fields || {})) out[k] = fsVal(v);
   return out;
 }
-async function identify(req: Request): Promise<Who> {
+async function identify(req: Request, bodyToken?: string): Promise<Who> {
+  // Jeton dans le corps (requête « simple », sans pré-vérification CORS) ou, à défaut, dans l'en-tête
   const h = req.headers.get("authorization") || "";
-  const token = h.replace(/^Bearer\s+/i, "");
+  const token = String(bodyToken || h.replace(/^Bearer\s+/i, ""));
   if (!token) throw new ApiError("NON_CONNECTE", 401);
   let payload: any;
   try {
@@ -93,6 +94,10 @@ async function fetchAll(make: () => any, max = 50000) {
 }
 async function audit(who: Who, action: string, entity: string, entity_id: unknown, detail = "", before: unknown = null, after: unknown = null) {
   await sb.from("audit_log").insert({ by_uid: who.uid, by_name: who.name, action, entity, entity_id: entity_id == null ? null : String(entity_id), detail, before, after });
+}
+async function auditMany(who: Who, rows: { action: string; entity: string; entity_id: unknown; detail: string; after?: unknown }[]) {
+  if (!rows.length) return;
+  await sb.from("audit_log").insert(rows.map((r) => ({ by_uid: who.uid, by_name: who.name, action: r.action, entity: r.entity, entity_id: r.entity_id == null ? null : String(r.entity_id), detail: r.detail, after: r.after ?? null })));
 }
 function adminOnly(who: Who) { if (!who.isAdmin) throw new ApiError("RESERVE_ADMIN", 403); }
 function agentOnly(who: Who) { if (!who.isAdmin && who.access !== "agent") throw new ApiError("LECTURE_SEULE", 403); }
@@ -282,7 +287,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
       const others = must(await sb.from("v_stays").select("chassis,parc,exit_date").eq("justif_numero", f.justif_numero).not("stay_id", "in", `(${ids.join(",")})`).limit(20)) as any[];
       warning = others;
     }
-    for (const c of cur) await audit(who, "justification", "vehicle", c.vehicle_id, `Sortie justifiée${f.justif_numero ? " — déclaration " + f.justif_numero : ""}`, null, f);
+    await auditMany(who, cur.map((c) => ({ action: "justification", entity: "vehicle", entity_id: c.vehicle_id, detail: `Sortie justifiée${f.justif_numero ? " — déclaration " + f.justif_numero : ""}`, after: f })));
     return { ok: true, warning };
   },
   async unjustify(p, who) {
@@ -291,7 +296,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     const cur = must(await sb.from("stays").select("id,justif_status,vehicle_id").in("id", ids)) as any[];
     if (!who.isAdmin && cur.some((c) => c.justif_status === "validee")) throw new ApiError("DEJA_VALIDEE");
     must(await sb.from("stays").update({ justif_status: "non_justifiee", valide_by: null, valide_at: null, updated_at: new Date().toISOString() }).in("id", ids));
-    for (const c of cur) await audit(who, "retrait_justification", "vehicle", c.vehicle_id, "Justification retirée");
+    await auditMany(who, cur.map((c) => ({ action: "retrait_justification", entity: "vehicle", entity_id: c.vehicle_id, detail: "Justification retirée" })));
     return { ok: true };
   },
   async validate(p, who) {
@@ -299,7 +304,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     const ids: number[] = (p.stay_ids || []).map(Number).filter(Boolean);
     const cur = must(await sb.from("stays").select("id,vehicle_id,justif_status").in("id", ids)) as any[];
     must(await sb.from("stays").update({ justif_status: "validee", valide_by: who.name, valide_at: new Date().toISOString(), updated_at: new Date().toISOString() }).in("id", ids).neq("justif_status", "non_justifiee"));
-    for (const c of cur) if (c.justif_status !== "non_justifiee") await audit(who, "validation", "vehicle", c.vehicle_id, "Justification de sortie validée");
+    await auditMany(who, cur.filter((c) => c.justif_status !== "non_justifiee").map((c) => ({ action: "validation", entity: "vehicle", entity_id: c.vehicle_id, detail: "Justification de sortie validée" })));
     return { ok: true };
   },
   async upload_file(p, who) {
@@ -314,10 +319,8 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     if (up.error) throw new ApiError(up.error.message, 500);
     const file = { path, name: p.name || safe, type: p.type || "", size: bin.length, at: new Date().toISOString(), by: who.name };
     const cur = must(await sb.from("stays").select("id,justif_files,vehicle_id").in("id", ids)) as any[];
-    for (const c of cur) {
-      must(await sb.from("stays").update({ justif_files: [...(c.justif_files || []), file], updated_at: new Date().toISOString() }).eq("id", c.id));
-      await audit(who, "piece_jointe", "vehicle", c.vehicle_id, `Pièce jointe ajoutée : ${file.name}`);
-    }
+    await Promise.all(cur.map(async (c) => must(await sb.from("stays").update({ justif_files: [...(c.justif_files || []), file], updated_at: new Date().toISOString() }).eq("id", c.id))));
+    await auditMany(who, cur.map((c) => ({ action: "piece_jointe", entity: "vehicle", entity_id: c.vehicle_id, detail: `Pièce jointe ajoutée : ${file.name}` })));
     return file;
   },
   async file_url(p) {
@@ -578,6 +581,25 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     ]);
     return { vehicles: must(vehicles), stays: must(stays), parcs: must(parcs) };
   },
+  async log_error(p, who) {
+    const cut = (x: unknown, n: number) => (x == null ? null : String(x).slice(0, n));
+    const list = (Array.isArray(p.errors) ? p.errors : [p]).slice(0, 20);
+    if (list.length) await sb.from("client_errors").insert(list.map((e: any) => ({
+      uid: who.uid, name: who.name, app_version: cut(e.app_version, 20), kind: cut(e.kind, 40),
+      message: cut(e.message, 1000), stack: cut(e.stack, 4000), url: cut(e.url, 300), ua: cut(e.ua, 300),
+    })));
+    return { ok: true };
+  },
+  async errors_list(p, who) {
+    adminOnly(who);
+    return must(await sb.from("client_errors").select("*").order("at", { ascending: false }).limit(Math.min(Number(p.limit) || 200, 1000)));
+  },
+  async errors_purge(_p, who) {
+    adminOnly(who);
+    must(await sb.from("client_errors").delete().gte("id", 0));
+    await audit(who, "suppression", "erreurs", null, "Journal des erreurs vidé");
+    return { ok: true };
+  },
   async purge(p, who) {
     adminOnly(who);
     const table = ({ vehicle: "vehicles", stay: "stays", parc: "parcs" } as any)[p.entity];
@@ -591,8 +613,9 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   try {
-    const who = await identify(req);
-    const body = await req.json().catch(() => ({}));
+    // Le corps est envoyé en text/plain pour éviter la requête OPTIONS (gain d'un aller-retour)
+    const body = await req.text().then((t) => (t ? JSON.parse(t) : {})).catch(() => ({}));
+    const who = await identify(req, body.token);
     const fn = actions[String(body.action || "")];
     if (!fn) throw new ApiError("ACTION_INCONNUE");
     const data = await fn(body.params || {}, who);
