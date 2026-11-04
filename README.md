@@ -99,3 +99,29 @@ tablette ne fonctionneront.
 1. Remplacer les fichiers à l'identique à l'endroit où ils sont hébergés.
 2. Augmenter `APP_VERSION` dans le code pour déclencher la bannière de
    mise à jour chez les utilisateurs déjà connectés.
+
+---
+
+## Module « Suivi des stocks » (version 6.0.0)
+
+Après la connexion, l'application salue l'utilisateur et lui propose d'ouvrir
+**Inventaire MMTE** ou **Suivi des stocks**. Le menu latéral permet ensuite de
+passer de l'une à l'autre sans se reconnecter (les invités vont directement à
+l'inventaire).
+
+- **Mêmes comptes** : la connexion Firebase d'INVENTAIRE MMTE est réutilisée.
+  Agents approuvés et administrateurs y ont accès ; seuls les administrateurs
+  annulent un import, valident une justification et modifient ou suppriment
+  véhicules, mouvements, parcs et paramètres.
+- **Mêmes parcs** : la liste des parcs de l'inventaire est reprise automatiquement.
+- **Données** : projet Supabase `stock-mmte` (région Paris). Le navigateur
+  n'accède jamais directement à la base : tout passe par la fonction sécurisée
+  `stock-api`, qui vérifie le jeton Firebase de l'utilisateur.
+- **Aucune configuration supplémentaire** n'est nécessaire dans Firebase.
+
+Fonctions : tableau de bord par parc, import hebdomadaire de tous formats Excel
+(détection des colonnes, modèle mémorisé par parc), calcul des entrées / sorties /
+transferts par comparaison avec l'import précédent, statut dépôt calculé à
+365 jours de la date d'arrivée du navire (paramétrable), stock à une date,
+recherche avancée et fiche historique de chaque châssis, justification facultative
+des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbeille.
