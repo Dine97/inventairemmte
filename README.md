@@ -176,3 +176,9 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
 - **Vitesse** : styles générés une fois pour toutes (plus de Tailwind en ligne), bibliothèques hébergées avec l'application et servies depuis l'appareil, module stock chargé à la demande (préchargé dès l'écran de choix), appels à l'API sans requête préalable (le jeton voyage dans le corps), dernier tableau de bord affiché immédiatement puis actualisé.
 - **Fiabilité** : les erreurs survenues sur les appareils sont envoyées au serveur et consultables dans *Administration stock → Erreurs récentes* ; sources de l'inventaire lisibles dans `src/`, construction unique (`build.mjs`), tests automatiques et vérification GitHub Actions à chaque envoi.
 
+### Version 6.4.0 — import groupé du lundi
+
+- Nouvel écran *Import groupé du lundi* : on dépose d'un coup tous les fichiers reçus des parcs, avec une seule date de stock.
+- Le parc de chaque fichier est reconnu par le nom du fichier (même abrégé, ex. « Stock_ZF »), sinon par la forme de son tableau déjà connue ; sinon on le choisit dans la liste. Une fois importé, la forme du tableau est mémorisée pour les semaines suivantes.
+- Pour chaque fichier : véhicules, entrées, sorties, points à vérifier, fichier en retard ou en double ; puis import de tous les fichiers prêts à la suite, avec relance des échecs et liste des parcs sans fichier cette semaine.
+

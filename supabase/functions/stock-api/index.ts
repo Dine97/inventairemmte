@@ -220,6 +220,16 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return { templates: tpl, synonyms };
   },
 
+  // Modèles de lecture de tous les parcs (reconnaissance du parc d'un fichier dans l'import groupé)
+  async templates_bulk(_p, who) {
+    agentOnly(who);
+    const [tpl, syn] = await Promise.all([
+      sb.from("file_templates").select("parc_id,signature,mapping,header_row,sheet,parcs(name)"),
+      sb.from("column_synonyms").select("id,field,synonym"),
+    ]);
+    return { templates: must(tpl), synonyms: must(syn) };
+  },
+
   async preview_import(p, who) {
     agentOnly(who);
     return must(await sb.rpc("stock_preview_import", { p: { parc_name: p.parc_name, chassis: p.chassis || [] } }));

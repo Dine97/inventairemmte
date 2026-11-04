@@ -82,6 +82,7 @@ const STK_SECTIONS = [
   { key: "rapport", label: "Rapport hebdomadaire", Ic: (p) => <FileSpreadsheet {...p} /> },
   { key: "search", label: "Recherche avancée", Ic: (p) => <Search {...p} /> },
   { key: "import", label: "Importer un stock", Ic: (p) => <Upload {...p} /> },
+  { key: "bulk", label: "Import groupé du lundi", Ic: (p) => <StkIc.Layers {...p} /> },
   { key: "moves", label: "Entrées et sorties", Ic: (p) => <StkIc.Swap {...p} /> },
   { key: "justif", label: "Justification des sorties", Ic: (p) => <StkIc.Clip {...p} /> },
   { key: "anomalies", label: "Centre des anomalies", Ic: (p) => <AlertTriangle {...p} /> },

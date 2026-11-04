@@ -51,6 +51,7 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   else if (section === "anomalies") body = <StkAnomalies />;
   else if (section === "mmte") body = <StkMmteCheck />;
   else if (section === "import") body = <StkImport preset={importPreset} />;
+  else if (section === "bulk") body = <StkBulkImport />;
   else if (section === "moves") body = <StkMovements />;
   else if (section === "justif") body = <StkJustifScreen />;
   else if (section === "imports") body = <StkImportsScreen />;

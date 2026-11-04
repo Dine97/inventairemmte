@@ -59,25 +59,7 @@ function StkImport({ preset }) {
     if (!parsed || !parcOk) return;
     setBusy("Enregistrement de l'import..."); setErr("");
     try {
-      const first = stockSheets[0];
-      const newSyn = [];
-      Object.keys(forced).forEach((sn) => {
-        const sh = parsed.sheets.find((s) => s.name === sn);
-        if (!sh) return;
-        Object.entries(sh.mapping).forEach(([field, j]) => {
-          const h = sh.header[j];
-          if (h && field !== "ignore" && stkFieldForHeader(h, stkBuildSynonyms(tpl.synonyms)) !== field) newSyn.push({ field, synonym: stkNorm(h) });
-        });
-      });
-      const res = await stkCall("commit_import", {
-        parc_name: parc.trim().toUpperCase(), stock_date: date, file_name: file.name, file_size: file.size,
-        sheets: parsed.sheets.map((s) => s.name), header_row: first ? first.headerLine : null, mapping: first ? first.mapping : null,
-        declared: parsed.declared, nb_lignes: parsed.rows.length, comment,
-        anomalies: parsed.anomalies.map((a) => ({ ...a, items: (a.items || []).slice(0, 300) })),
-        rows: parsed.rows.map((r) => ({ chassis: r.chassis, chassis_raw: r.chassis_raw, marque: r.marque, modele: r.modele, annee: r.annee, navire: r.navire, manifeste: r.manifeste, bl: r.bl, date_arrivee: r.date_arrivee, date_transfert: r.date_transfert, importateur: r.importateur, data: r.statut ? { ...r.data, "Statut (fichier)": r.statut } : r.data })),
-        template: first ? { signature: first.signature, mapping: first.mapping, header_row: first.headerRow, sheet: first.name } : null,
-        new_synonyms: newSyn
-      });
+      const res = await stkCall("commit_import", stkCommitPayload({ parsed, parcName: parc, date, file, comment, forced, synonyms: tpl.synonyms }));
       setResult(res); setBusy("");
       reloadDash();
     } catch (e) { setBusy(""); setErr(stkErrText(e)); }
@@ -94,7 +76,7 @@ function StkImport({ preset }) {
   </>;
 
   return <>
-    <StkPageHead title="Importer le stock d'un parc" sub="Choisissez le parc, déposez le fichier Excel reçu (tous formats : .xlsx, .xls, .xlsm, .ods, .csv). L'outil reconnaît les colonnes et compare avec le dernier stock du parc." />
+    <StkPageHead title="Importer le stock d'un parc" sub="Choisissez le parc, déposez le fichier Excel reçu (tous formats : .xlsx, .xls, .xlsm, .ods, .csv). L'outil reconnaît les colonnes et compare avec le dernier stock du parc." right={<StkBtn small onClick={() => C.go("bulk")}><StkIc.Layers size={14} /> Plusieurs fichiers : import groupé</StkBtn>} />
     <StkCard className="p-4 md:p-5 space-y-4">
       <div className="grid md:grid-cols-3 gap-3">
         <StkField label="Parc"><ParcAutocomplete value={parc} onChange={setParc} parcsList={parcNames} /></StkField>
