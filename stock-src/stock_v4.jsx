@@ -3,7 +3,7 @@
 // ============================================================
 
 // Données envoyées au serveur pour un import (utilisé par l'import simple et l'import groupé)
-function stkCommitPayload({ parsed, parcName, date, file, comment, forced, synonyms }) {
+function stkCommitPayload({ parsed, parcName, date, file, comment, forced, synonyms, applied }) {
   const first = parsed.sheets.filter((s) => s.role === "stock")[0];
   const newSyn = [];
   Object.keys(forced || {}).forEach((sn) => {
@@ -18,8 +18,9 @@ function stkCommitPayload({ parsed, parcName, date, file, comment, forced, synon
     parc_name: String(parcName).trim().toUpperCase(), stock_date: date, file_name: file.name, file_size: file.size,
     sheets: parsed.sheets.map((s) => s.name), header_row: first ? first.headerLine : null, mapping: first ? first.mapping : null,
     declared: parsed.declared, nb_lignes: parsed.rows.length, comment: comment || "",
-    anomalies: parsed.anomalies.map((a) => ({ ...a, items: (a.items || []).slice(0, 300) })),
-    rows: parsed.rows.map((r) => ({ chassis: r.chassis, chassis_raw: r.chassis_raw, marque: r.marque, modele: r.modele, annee: r.annee, navire: r.navire, manifeste: r.manifeste, bl: r.bl, date_arrivee: r.date_arrivee, date_transfert: r.date_transfert, importateur: r.importateur, data: r.statut ? { ...r.data, "Statut (fichier)": r.statut } : r.data })),
+    anomalies: (applied ? applied.anomalies : parsed.anomalies).map((a) => ({ ...a, items: (a.items || []).slice(0, 300) })),
+    aliases: applied ? applied.aliases : [],
+    rows: (applied ? applied.rows : parsed.rows).map((r) => ({ chassis: r.chassis, chassis_raw: r.chassis_raw, marque: r.marque, modele: r.modele, annee: r.annee, navire: r.navire, manifeste: r.manifeste, bl: r.bl, date_arrivee: r.date_arrivee, date_transfert: r.date_transfert, importateur: r.importateur, data: r.statut ? { ...r.data, "Statut (fichier)": r.statut } : r.data })),
     template: first ? { signature: first.signature, mapping: first.mapping, header_row: first.headerRow, sheet: first.name } : null,
     new_synonyms: newSyn
   };
@@ -56,6 +57,8 @@ function StkBulkImport() {
   const [running, setRunning] = useState(false);
   const [done, setDone] = useState(false);
   const [showList, setShowList] = useState(null);
+  const [review, setReview] = useState(null); // id du fichier dont on revoit les points
+  const me = C.userName || (C.me && C.me.name);
   const inputRef = useRef(null);
   const itemsRef = useRef(items);
   itemsRef.current = items;
@@ -74,7 +77,7 @@ function StkBulkImport() {
   const analyse = async (it, parcName, R) => {
     const tpls = (R.templates || []).filter((t) => t.parcs && t.parcs.name === parcName);
     let parsed;
-    try { parsed = stkParseWorkbook(it.wb, { synonyms: R.synonyms, templates: tpls }); }
+    try { parsed = stkApplyAliases(stkParseWorkbook(it.wb, { synonyms: R.synonyms, templates: tpls }), R.aliases); }
     catch (e) { upd(it.id, { status: "erreur", err: "Lecture impossible : " + (e.message || e), parsed: null, preview: null }); return; }
     if (!parsed.rows.length) { upd(it.id, { parsed, preview: null, status: "illisible", err: "" }); return; }
     if (!parcName) { upd(it.id, { parsed, preview: null, status: "sans_parc", err: "" }); return; }
@@ -120,7 +123,10 @@ function StkBulkImport() {
   const countBy = {};
   items.forEach((x) => { if (x.include && x.parc && x.status !== "ok") countBy[x.parc] = (countBy[x.parc] || 0) + 1; });
   const isDup = (x) => x.parc && countBy[x.parc] > 1;
-  const ready = items.filter((x) => x.include && x.status === "pret" && !isDup(x));
+  const issuesOf = (x) => (x.parsed ? stkBuildIssues(x.parsed, x.preview, date) : []);
+  const pendingOf = (x) => issuesOf(x).filter((i) => !(x.decisions || {})[i.key]).length;
+  const ready = items.filter((x) => x.include && x.status === "pret" && !isDup(x) && !pendingOf(x));
+  const toReview = items.filter((x) => x.include && x.status === "pret" && !isDup(x) && pendingOf(x));
   const blocking = items.filter((x) => x.include && x.status !== "ok" && (x.status !== "pret" || isDup(x)));
   const analysing = items.some((x) => x.status === "lecture" || x.status === "comparaison");
   const inBatch = new Set(items.filter((x) => x.parc && x.status !== "erreur").map((x) => x.parc));
@@ -135,7 +141,8 @@ function StkBulkImport() {
     for (const it of ready) {
       upd(it.id, { status: "import", err: "" });
       try {
-        const res = await stkCall("commit_import", stkCommitPayload({ parsed: it.parsed, parcName: it.parc, date, file: it.file, comment: "Import groupé", forced: {}, synonyms: R.synonyms }));
+        const applied = stkApplyDecisions(it.parsed, issuesOf(it), it.decisions || {}, me);
+        const res = await stkCall("commit_import", stkCommitPayload({ parsed: it.parsed, parcName: it.parc, date, file: it.file, comment: "Import groupé", forced: {}, synonyms: R.synonyms, applied }));
         upd(it.id, { status: "ok", result: res });
       } catch (e) { upd(it.id, { status: "echec", err: stkErrText(e) }); }
     }
@@ -184,8 +191,9 @@ function StkBulkImport() {
           const pv = x.preview, ps = x.parsed;
           const late = pv && pv.last_stock_date && date < pv.last_stock_date;
           const same = pv && pv.last_stock_date && date === pv.last_stock_date;
-          const anomalies = ps ? ps.anomalies.filter((a) => a.niveau !== "info") : [];
-          const [label, tone] = isDup(x) && x.status !== "ok" ? ["Deux fichiers pour ce parc", "bg-rose-50 text-rose-800 border-rose-200"] : ST[x.status] || ST.erreur;
+          const nIssues = issuesOf(x).length, nPending = pendingOf(x);
+          const [label, tone] = isDup(x) && x.status !== "ok" ? ["Deux fichiers pour ce parc", "bg-rose-50 text-rose-800 border-rose-200"]
+            : x.status === "pret" && nPending ? [`${nPending} point(s) à décider`, "bg-amber-50 text-amber-900 border-amber-300"] : ST[x.status] || ST.erreur;
           const res = x.result;
           return <tr key={x.id} className={`border-b border-slate-100 align-top ${x.include ? "" : "opacity-50"}`} data-testid="bulk-row">
             <td className="py-2.5 px-3"><input type="checkbox" checked={x.include} disabled={running || x.status === "ok"} onChange={(e) => upd(x.id, { include: e.target.checked })} aria-label="Inclure ce fichier" /></td>
@@ -193,7 +201,7 @@ function StkBulkImport() {
               <div className="text-[11px] text-slate-500">{(x.file.size / 1024).toFixed(0)} Ko{ps && ps.sheets.length ? ` · ${ps.sheets.length} onglet(s) lu(s)` : ""}{x.how === "nom" ? " · parc reconnu par le nom du fichier" : x.how === "modele" ? " · parc reconnu par la forme du tableau" : ""}</div>
               {late && <div className="text-[11px] text-amber-800 mt-0.5">Antérieur au dernier import du parc ({stkFmt(pv.last_stock_date)}) : l'historique sera recalculé.</div>}
               {same && <div className="text-[11px] text-amber-800 mt-0.5">Un import existe déjà pour ce parc à cette date.</div>}
-              {anomalies.length > 0 && <button className="text-[11px] text-amber-800 underline mt-0.5" onClick={() => setShowList({ title: x.file.name + " — points à vérifier", items: anomalies.map((a) => a.texte) })}>{anomalies.length} point(s) à vérifier</button>}
+              {nIssues > 0 && x.status !== "ok" && <button className={`text-[11px] underline mt-0.5 ${nPending ? "text-amber-800 font-bold" : "text-slate-500"}`} data-testid="bulk-review" onClick={() => setReview(x.id)}>{nPending ? `${nPending} point(s) à vérifier : corriger ou accepter` : `${nIssues} point(s) vérifié(s) : revoir`}</button>}
               {x.err && <div className="text-[11px] text-rose-700 mt-0.5">{x.err}</div>}
             </td>
             <td className="px-2 py-2"><select value={x.parc} disabled={running || x.status === "ok" || !x.wb} onChange={(e) => changeParc(x, e.target.value)} className={`${stkInput} py-1.5 ${!x.parc ? "border-amber-300 bg-amber-50" : ""}`} data-testid="bulk-parc">
@@ -213,6 +221,7 @@ function StkBulkImport() {
       <div className="p-4 md:p-5 space-y-3 border-t border-slate-200 bg-slate-50/60">
         {analysing && <StkMsg tone="info">Lecture et comparaison des fichiers en cours...</StkMsg>}
         {!analysing && blocking.length > 0 && !done && <StkMsg tone="warn">{blocking.length} fichier(s) ne seront pas importés tant qu'ils ne sont pas corrigés : choisissez le parc, retirez le fichier en double, ou décochez-le. Un fichier dont le tableau n'est pas reconnu s'importe seul depuis « Import d'un seul fichier » (correction des colonnes possible).</StkMsg>}
+        {!analysing && toReview.length > 0 && !running && <StkMsg tone="warn"><div className="flex flex-wrap items-center gap-2"><span className="flex-1">{toReview.length} fichier(s) ont des points à vérifier : ouvrez « points à vérifier » sur chaque ligne pour corriger ou accepter.</span><StkBtn small onClick={() => { if (!window.confirm(`Accepter tels quels tous les points des ${toReview.length} fichier(s) ?`)) return; setItems((xs) => xs.map((y) => (toReview.some((t) => t.id === y.id) ? { ...y, decisions: Object.fromEntries(issuesOf(y).map((i) => [i.key, (y.decisions || {})[i.key] || { status: "accepte" }])) } : y))); }} data-testid="bulk-accept-all">Tout accepter tel quel</StkBtn></div></StkMsg>}
         {done && <StkMsg tone={items.some((x) => x.status === "echec") ? "warn" : "ok"}><b>{okItems.length} fichier(s) importé(s)</b> : {tot.v.toLocaleString("fr-FR")} véhicules, {tot.e} entrées, {tot.s} sorties, {tot.t} transferts.{items.some((x) => x.status === "echec") ? " Certains fichiers ont échoué (voir le détail) : vous pouvez relancer." : ""}</StkMsg>}
         <div className="flex flex-wrap gap-2 items-center">
           <StkBtn kind="primary" disabled={running || analysing || !ready.length} onClick={importAll} data-testid="bulk-go"><StkIc.Check size={16} /> {running ? "Import en cours..." : `Importer ${ready.length} fichier(s)`}</StkBtn>
@@ -226,6 +235,11 @@ function StkBulkImport() {
       <div className="font-bold text-[#0B1F38]">Parcs sans fichier pour la semaine du lundi {stkFmt(monday)} ({missing.length})</div>
       <div className="flex flex-wrap gap-2">{missing.map((d) => <span key={d.parc_id} className="px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-sm font-semibold text-amber-900">{d.parc}{d.last_import ? <span className="text-xs font-normal"> · dernier {stkFmt(d.last_import)}</span> : <span className="text-xs font-normal"> · jamais importé</span>}</span>)}</div>
     </StkCard>}
+    {review && (() => { const x = items.find((y) => y.id === review); if (!x) return null; const iss = issuesOf(x);
+      return <StkModal wide title={`${x.file.name} — points à vérifier`} onClose={() => setReview(null)} footer={<StkBtn kind="primary" onClick={() => setReview(null)}>Terminé</StkBtn>}>
+        <StkAnomalyReview issues={iss} decisions={x.decisions || {}} setDecisions={(fn) => upd(x.id, (y) => ({ decisions: typeof fn === "function" ? fn(y.decisions || {}) : fn }))} stockDate={date} onEditColumns={null} />
+        <div className="text-xs text-slate-500 mt-3">Pour indiquer une autre colonne (par exemple la date d'arrivée), retirez ce fichier et importez-le seul avec « Import d'un seul fichier ».</div>
+      </StkModal>; })()}
     {showList && <StkModal title={showList.title} onClose={() => setShowList(null)}><div className="font-plex-mono text-sm columns-1 md:columns-2 gap-6">{showList.items.map((t, i) => <div key={i} className="py-0.5 break-all">{t}</div>)}</div></StkModal>}
   </>;
 }

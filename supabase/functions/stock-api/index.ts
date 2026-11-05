@@ -216,18 +216,22 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
   async templates(p) {
     const parc = p.parc_name ? must(await sb.from("parcs").select("id").eq("name", String(p.parc_name).trim().toUpperCase()).maybeSingle()) as any : null;
     const tpl = parc ? must(await sb.from("file_templates").select("*").eq("parc_id", parc.id)) : [];
-    const synonyms = must(await sb.from("column_synonyms").select("id,field,synonym"));
-    return { templates: tpl, synonyms };
+    const [synonyms, aliases] = await Promise.all([
+      sb.from("column_synonyms").select("id,field,synonym").then(must),
+      sb.from("chassis_aliases").select("alias,chassis").then(must),
+    ]);
+    return { templates: tpl, synonyms, aliases };
   },
 
   // Modèles de lecture de tous les parcs (reconnaissance du parc d'un fichier dans l'import groupé)
   async templates_bulk(_p, who) {
     agentOnly(who);
-    const [tpl, syn] = await Promise.all([
+    const [tpl, syn, ali] = await Promise.all([
       sb.from("file_templates").select("parc_id,signature,mapping,header_row,sheet,parcs(name)"),
       sb.from("column_synonyms").select("id,field,synonym"),
+      sb.from("chassis_aliases").select("alias,chassis"),
     ]);
-    return { templates: must(tpl), synonyms: must(syn) };
+    return { templates: must(tpl), synonyms: must(syn), aliases: must(ali) };
   },
 
   async preview_import(p, who) {
@@ -240,12 +244,21 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     if (!p.parc_name || !p.stock_date || !Array.isArray(p.rows)) throw new ApiError("DONNEES_INCOMPLETES");
     const payload = { ...p, by_uid: who.uid, by_name: who.name };
     delete payload.template;
+    delete payload.aliases;
     const res: any = must(await sb.rpc("stock_commit_import", { p: payload }));
     if (p.template && p.template.signature && p.template.mapping) {
       await sb.from("file_templates").upsert({ parc_id: res.parc_id, signature: p.template.signature, mapping: p.template.mapping, header_row: p.template.header_row, sheet: p.template.sheet, updated_at: new Date().toISOString(), updated_by: who.name }, { onConflict: "parc_id,signature" });
     }
     if (Array.isArray(p.new_synonyms)) {
       for (const s of p.new_synonyms) if (s.field && s.synonym) await sb.from("column_synonyms").upsert({ field: s.field, synonym: s.synonym, created_by: who.name }, { onConflict: "synonym" });
+    }
+    // Corrections de châssis décidées pendant la revue : mémorisées pour les prochains fichiers
+    const norm = (c: unknown) => String(c || "").toUpperCase().replace(/[\s\-\.\/_*]/g, "");
+    const ali = (Array.isArray(p.aliases) ? p.aliases : []).map((a: any) => ({ alias: norm(a.alias), chassis: norm(a.chassis), created_by: who.name }))
+      .filter((a: any) => a.alias.length >= 4 && a.chassis.length >= 4 && a.alias !== a.chassis).slice(0, 2000);
+    if (ali.length) {
+      await sb.from("chassis_aliases").upsert(ali, { onConflict: "alias" });
+      await audit(who, "correction_chassis", "import", res.import_id, `${ali.length} correction(s) de châssis mémorisée(s) : ${ali.slice(0, 5).map((a: any) => a.alias + " → " + a.chassis).join(", ")}${ali.length > 5 ? "…" : ""}`);
     }
     await audit(who, "import", "import", res.import_id, `${p.parc_name} — stock du ${p.stock_date} — ${p.file_name || ""} : ${res.nb_chassis} châssis, ${res.entrees} entrées, ${res.sorties} sorties, ${res.transferts} transferts`);
     return res;

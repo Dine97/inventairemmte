@@ -189,3 +189,12 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
 - Les saisies sont rejouées avec les imports dans l'ordre des dates (migration `008_mouvements_saisis.sql`) : un fichier en retard ou une annulation ne les perd pas ; une saisie antérieure au dernier import recalcule l'historique du parc.
 - Onglet *Saisies enregistrées* : consultation, export Excel, annulation d'une saisie ou d'un lot (un agent annule ses propres saisies, l'administrateur toutes), rétablissement par l'administrateur.
 
+### Version 6.6.0 — revue des anomalies avant import
+
+- Étape *2. Points à vérifier* dans l'import (et dans l'import groupé, fichier par fichier) : chaque point est **corrigé** ou **accepté tel quel** avant que la validation soit possible ; « Tout accepter tel quel » en un clic.
+- Châssis atypiques (seulement les nouveaux véhicules dès le 2e import) : correction ligne par ligne, exclusion, et mémorisation de la correction pour les fichiers suivants.
+- Véhicules sans date d'arrivée : indiquer la colonne, reprendre la date de transfert, une même date pour tous, ou date par véhicule.
+- Nouveau contrôle : dates postérieures à la date du stock (correction, effacement ou acceptation).
+- Lignes sans châssis lisible : saisie du châssis pour les ajouter ; doublons et total annoncé : acceptation.
+- Les décisions (qui, quoi) sont enregistrées avec l'import et visibles dans l'historique des imports.
+

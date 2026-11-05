@@ -8,6 +8,7 @@
 | `stock_views.jsx` | Tableau de bord, parc, recherche, fiche véhicule, justification, mouvements, imports |
 | `stock_import_admin.jsx` | Import d'un fichier, administration (dont « Erreurs récentes ») |
 | `stock_v2.jsx` | Rapport hebdomadaire, graphiques, anomalies, contrôles inventaire et MMTE, filtres, sauvegarde, utilisateurs |
+| `stock_v6.jsx` | Revue des anomalies avant import : corriger, exclure, accepter tel quel, corrections mémorisées |
 | `stock_v5.jsx` | Entrées et sorties saisies (une par une ou par fichier), saisies enregistrées |
 | `stock_v4.jsx` | Import groupé du lundi (plusieurs fichiers de parcs en une fois) |
 | `stock_v3.jsx` | Inventaire depuis le stock du parc, export du stock à une date, comptes et accès aux applications |
