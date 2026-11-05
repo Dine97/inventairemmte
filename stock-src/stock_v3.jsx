@@ -15,16 +15,15 @@ function stkStockToInventoryMap(rows, cfg, label) {
     if (r.date_transfert) extra["Date de transfert"] = stkDmy(r.date_transfert);
     if (r.marque) extra["Marque"] = r.marque;
     if (r.importateur) extra["Importateur"] = r.importateur;
-    map.set(norm, {
-      chassis: r.chassis_raw || r.chassis,
-      description: stkVeh(r) || undefined,
-      atp: r.manifeste || undefined,
-      shipName: r.navire || undefined,
-      bl: r.bl || undefined,
-      depotDate: sit.depot ? stkDmy(sit.depot) : undefined,
-      entryDate: r.entry_date ? stkDmy(r.entry_date) : undefined,
-      extra
-    });
+    const info = { chassis: r.chassis_raw || r.chassis, extra };
+    // Aucun champ vide : Firestore refuse les valeurs « undefined »
+    if (stkVeh(r)) info.description = stkVeh(r);
+    if (r.manifeste) info.atp = r.manifeste;
+    if (r.navire) info.shipName = r.navire;
+    if (r.bl) info.bl = r.bl;
+    if (sit.depot) info.depotDate = stkDmy(sit.depot);
+    if (r.entry_date) info.entryDate = stkDmy(r.entry_date);
+    map.set(norm, info);
   });
   return map;
 }

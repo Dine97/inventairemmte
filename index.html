@@ -14,7 +14,7 @@
   <link rel="icon" href="./icons/icon-192.png">
 
   <!-- Styles et bibliothèques hébergés avec l'application (plus de dépendance aux CDN au démarrage) -->
-  <link rel="stylesheet" href="./lib/app.css?v=6.4.0">
+  <link rel="stylesheet" href="./lib/app.css?v=6.4.1">
   <script src="./lib/react-18.3.1.production.min.js"></script>
   <script src="./lib/react-dom-18.3.1.production.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -77,7 +77,7 @@ const Globe = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__P
 const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
 const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
 const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
-const APP_VERSION = "6.4.0";
+const APP_VERSION = "6.4.1";
 const firebaseConfig = {
   apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
   authDomain: "benin-control-mmte.firebaseapp.com",
@@ -652,7 +652,8 @@ function writeErrorMessage(err) {
 }
 async function writeMmteChunks(ref, entries) {
   for (let i = 0, idx = 0; i < entries.length; i += MMTE_CHUNK_SIZE, idx++) {
-    const items = entries.slice(i, i + MMTE_CHUNK_SIZE).map(([norm, info]) => ({ norm, ...info }));
+    // Firestore refuse les champs « undefined » : ils sont retirés avant l'envoi
+    const items = entries.slice(i, i + MMTE_CHUNK_SIZE).map(([norm, info]) => JSON.parse(JSON.stringify({ norm, ...info })));
     await ref.collection("mmteChunks").doc(String(idx).padStart(5, "0")).set({ idx, items });
   }
 }
@@ -1024,6 +1025,7 @@ Object.assign(EN_DICT, {
   "Charger la liste collée": "Load the pasted list",
   "Collez la liste des châssis, un par ligne": "Paste the list of chassis numbers, one per line",
   "châssis chargés depuis MMTE": "chassis loaded from MMTE",
+  "châssis dans la liste de référence": "chassis in the reference list",
   "Synchronisé avec le serveur.": "Synchronised with the server.",
   "Nouveau parc": "New park",
   "Merci d'importer la liste des châssis MMTE avant de démarrer.": "Please import the MMTE chassis list before starting.",
@@ -2806,7 +2808,10 @@ function InventaireMMTEApp() {
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (err) {
-      setImportError("Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.");
+      try { stkReportError("demarrage_inventaire", err, parcName); } catch (e) {}
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      const denied = err && /permission|PERMISSION_DENIED/i.test(String(err.code || err.message));
+      setImportError(offline || !err || !err.code || /unavailable|deadline/i.test(String(err.code)) ? "Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez." : denied ? "Le serveur a refusé l'enregistrement de l'inventaire (droits insuffisants). Contactez l'administrateur." : "L'inventaire n'a pas pu être créé (" + String(err.message || err.code).slice(0, 160) + "). L'erreur a été transmise à l'administrateur.");
       try {
         await ref.delete();
       } catch (e) {
@@ -4927,7 +4932,7 @@ function SetupScreen({
       rows: 6,
       className: "w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-sm font-plex-mono focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
     }
-  ), /* @__PURE__ */ React.createElement("button", { onClick: handleLoadPaste, className: "mt-2 px-4 py-2 rounded-lg text-white font-bold text-sm", style: { background: BLUE_DEEP } }, "Charger la liste collée")), importError && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-600 mt-2 font-semibold" }, importError), mmteSize > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-3 inline-flex items-center gap-2 text-emerald-700 bg-emerald-50 border-2 border-emerald-200 rounded-lg px-3 py-2 text-sm font-bold" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16 }), " ", mmteSize, " châssis chargés depuis MMTE"), importDup && /* @__PURE__ */ React.createElement(DuplicatesNotice, { items: importDup.items, sourceName: importDup.name })), existingClosedInv ? /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-amber-300 bg-amber-50 p-4 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-amber-900" }, "Un inventaire clôturé existe déjà pour ce parc à cette date"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-amber-800" }, "Clôturé ", existingClosedInv.meta.completedAt ? "le " + formatTimestamp(existingClosedInv.meta.completedAt) : "", existingClosedInv.meta.completedByName ? " par " + existingClosedInv.meta.completedByName : "", ". Que voulez-vous faire ?"), /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("button", { onClick: handleLoadPaste, className: "mt-2 px-4 py-2 rounded-lg text-white font-bold text-sm", style: { background: BLUE_DEEP } }, "Charger la liste collée")), importError && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-600 mt-2 font-semibold" }, importError), mmteSize > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-3 inline-flex items-center gap-2 text-emerald-700 bg-emerald-50 border-2 border-emerald-200 rounded-lg px-3 py-2 text-sm font-bold" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16 }), " ", mmteSize, importMode === "stock" ? " châssis dans la liste de référence" : " châssis chargés depuis MMTE"), importDup && /* @__PURE__ */ React.createElement(DuplicatesNotice, { items: importDup.items, sourceName: importDup.name })), existingClosedInv ? /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-amber-300 bg-amber-50 p-4 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-amber-900" }, "Un inventaire clôturé existe déjà pour ce parc à cette date"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-amber-800" }, "Clôturé ", existingClosedInv.meta.completedAt ? "le " + formatTimestamp(existingClosedInv.meta.completedAt) : "", existingClosedInv.meta.completedByName ? " par " + existingClosedInv.meta.completedByName : "", ". Que voulez-vous faire ?"), /* @__PURE__ */ React.createElement(
     "button",
     {
       onClick: reopenClosedInventory,
