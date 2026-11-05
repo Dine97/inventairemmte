@@ -183,7 +183,7 @@ begin
   insert into vehicles (chassis, chassis_raw, marque, modele, annee, navire, manifeste, bl, date_arrivee, importateur)
   select t.chassis, coalesce(nullif(t.it->>'chassis_raw',''), t.it->>'chassis'), nullif(t.it->>'marque',''), nullif(t.it->>'modele',''), nullif(t.it->>'annee',''),
          nullif(t.it->>'navire',''), nullif(t.it->>'manifeste',''), nullif(t.it->>'bl',''), nullif(t.it->>'date_arrivee','')::date, nullif(t.it->>'importateur','')
-  from t_m t where not exists (select 1 from vehicles v where v.chassis = t.chassis)
+  from t_m t where v_kind = 'entree' and not exists (select 1 from vehicles v where v.chassis = t.chassis)
   on conflict (chassis) do nothing;
   -- fiche existante : compléter seulement les informations manquantes
   update vehicles v set
@@ -226,6 +226,11 @@ begin
            'absents', count(*) filter (where m.result = 'absent'),
            'details', coalesce(jsonb_agg(jsonb_build_object('id', m.id, 'chassis', v.chassis, 'date', m.move_date, 'result', m.result) order by v.chassis), '[]'))
   into res from stock_moves m join vehicles v on v.id = m.vehicle_id where m.batch_id = v_batch;
+  -- sorties de châssis inconnus de la base : signalées, rien n'est créé
+  select res || jsonb_build_object('total', (res->>'total')::int + count(*), 'inconnus', count(*),
+           'details', (res->'details') || coalesce(jsonb_agg(jsonb_build_object('chassis', t.chassis, 'date', t.d, 'result', 'inconnu') order by t.chassis), '[]'))
+  into res from t_m t where not exists (select 1 from vehicles v where v.chassis = t.chassis);
+  if not exists (select 1 from stock_moves where batch_id = v_batch) and (res->>'inconnus')::int = 0 then raise exception 'AUCUN_CHASSIS'; end if;
   return res;
 end $$;
 

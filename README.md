@@ -182,3 +182,10 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
 - Le parc de chaque fichier est reconnu par le nom du fichier (même abrégé, ex. « Stock_ZF »), sinon par la forme de son tableau déjà connue ; sinon on le choisit dans la liste. Une fois importé, la forme du tableau est mémorisée pour les semaines suivantes.
 - Pour chaque fichier : véhicules, entrées, sorties, points à vérifier, fichier en retard ou en double ; puis import de tous les fichiers prêts à la suite, avec relance des échecs et liste des parcs sans fichier cette semaine.
 
+### Version 6.5.0 — entrées et sorties saisies
+
+- Nouvel écran *Saisir entrées / sorties* (et bouton « Saisie manuelle » sur chaque parc) : une par une (saisie ou scan du châssis) ou par fichier Excel / liste collée.
+- Aperçu avant enregistrement (présent, absent du parc, déjà présent, dans un autre parc → transfert, véhicule inconnu) ; justification facultative des sorties (type, n° et date de déclaration).
+- Les saisies sont rejouées avec les imports dans l'ordre des dates (migration `008_mouvements_saisis.sql`) : un fichier en retard ou une annulation ne les perd pas ; une saisie antérieure au dernier import recalcule l'historique du parc.
+- Onglet *Saisies enregistrées* : consultation, export Excel, annulation d'une saisie ou d'un lot (un agent annule ses propres saisies, l'administrateur toutes), rétablissement par l'administrateur.
+

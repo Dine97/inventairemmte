@@ -10,7 +10,8 @@ const STK_MOVE_RESULT = {
   ok: ["Enregistré", "bg-emerald-50 text-emerald-800 border-emerald-200"],
   ok_transfert: ["Enregistré (transfert)", "bg-emerald-50 text-emerald-800 border-emerald-200"],
   deja_present: ["Déjà dans le parc : sans effet", "bg-amber-50 text-amber-900 border-amber-300"],
-  absent: ["Absent du parc à cette date : sans effet", "bg-rose-50 text-rose-800 border-rose-200"]
+  absent: ["Absent du parc à cette date : sans effet", "bg-rose-50 text-rose-800 border-rose-200"],
+  inconnu: ["Châssis inconnu : sans effet", "bg-rose-50 text-rose-800 border-rose-200"]
 };
 
 // Lecture d'une liste de châssis collée (un par ligne, ou séparés par des virgules / points-virgules)
@@ -136,8 +137,8 @@ function StkManualMoves({ preset }) {
     const det = result.details || [];
     return <>{head}{tabs}
       <StkCard className="p-4 md:p-5 space-y-4">
-        <StkMsg tone={result.ok === result.total ? "ok" : "warn"}><b>{result.ok} {kind === "entree" ? "entrée(s)" : "sortie(s)"} enregistrée(s)</b> sur {result.total} pour le parc {parc}.{result.transferts ? ` Dont ${result.transferts} transfert(s) depuis un autre parc.` : ""}{result.deja_present ? ` ${result.deja_present} déjà présent(s) : sans effet.` : ""}{result.absents ? ` ${result.absents} absent(s) du parc à cette date : sans effet.` : ""}{result.reconstruit ? " Saisie antérieure au dernier import : l'historique du parc a été recalculé." : ""}</StkMsg>
-        <StkTable rowKey={(r) => r.id} rows={det} columns={[
+        <StkMsg tone={result.ok === result.total ? "ok" : "warn"}><b>{result.ok} {kind === "entree" ? "entrée(s)" : "sortie(s)"} enregistrée(s)</b> sur {result.total} pour le parc {parc}.{result.transferts ? ` Dont ${result.transferts} transfert(s) depuis un autre parc.` : ""}{result.deja_present ? ` ${result.deja_present} déjà présent(s) : sans effet.` : ""}{result.absents ? ` ${result.absents} absent(s) du parc à cette date : sans effet.` : ""}{result.inconnus ? ` ${result.inconnus} châssis inconnu(s) de la base : sans effet.` : ""}{result.reconstruit ? " Saisie antérieure au dernier import : l'historique du parc a été recalculé." : ""}</StkMsg>
+        <StkTable rowKey={(r) => r.chassis} rows={det} columns={[
           { key: "chassis", label: "Châssis", render: (r) => <button className="font-plex-mono font-bold text-[#1B4F8C] underline" onClick={() => openVehicle({ chassis: r.chassis })}>{r.chassis}</button> },
           { key: "date", label: "Date", render: (r) => stkFmt(r.date) },
           { key: "result", label: "Résultat", render: (r) => { const t = STK_MOVE_RESULT[r.result] || ["—", ""]; return <StkBadge tone={t[1]}>{t[0]}</StkBadge>; } }
