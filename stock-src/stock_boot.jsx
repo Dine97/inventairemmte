@@ -22,7 +22,11 @@ const STK_ERR = {
   LECTURE_SEULE: "Votre accès au suivi des stocks est en consultation seule.",
   ACCES_STOCK_REFUSE: "Vous n'avez pas accès au suivi des stocks. Demandez l'accès à un administrateur MAD-MAE.",
   FUSION_IMPOSSIBLE: "Fusion impossible : les deux véhicules doivent être différents.",
-  IMPORT_NON_ANNULE: "Cet import n'est pas annulé."
+  IMPORT_NON_ANNULE: "Cet import n'est pas annulé.",
+  AUCUN_CHASSIS: "Ajoutez au moins un châssis.",
+  DATE_MOUVEMENT_MANQUANTE: "Indiquez la date du mouvement.",
+  TYPE_MOUVEMENT_INVALIDE: "Choisissez entrée ou sortie.",
+  PARC_MANQUANT: "Choisissez le parc."
 };
 function stkErrText(e) {
   const m = String((e && e.message) || e || "");
@@ -83,6 +87,7 @@ const STK_SECTIONS = [
   { key: "search", label: "Recherche avancée", Ic: (p) => <Search {...p} /> },
   { key: "import", label: "Importer un stock", Ic: (p) => <Upload {...p} /> },
   { key: "bulk", label: "Import groupé du lundi", Ic: (p) => <StkIc.Layers {...p} /> },
+  { key: "saisie", label: "Saisir entrées / sorties", Ic: (p) => <StkIc.Edit {...p} /> },
   { key: "moves", label: "Entrées et sorties", Ic: (p) => <StkIc.Swap {...p} /> },
   { key: "justif", label: "Justification des sorties", Ic: (p) => <StkIc.Clip {...p} /> },
   { key: "anomalies", label: "Centre des anomalies", Ic: (p) => <AlertTriangle {...p} /> },

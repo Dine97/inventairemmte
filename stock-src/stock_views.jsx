@@ -15,6 +15,7 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   const [toast, setToast] = useState("");
   const [searchPreset, setSearchPreset] = useState(null);
   const [importPreset, setImportPreset] = useState(null);
+  const [movePreset, setMovePreset] = useState(null);
   const load = async () => {
     try {
       setErr("");
@@ -41,7 +42,7 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
     parcName: (id) => (dash.find((d) => d.parc_id === Number(id)) || {}).parc || "",
     openParc: (id) => { setParcId(Number(id)); setSection("parc"); },
     openVehicle: (v) => setVehicle(v),
-    go: (s, preset) => { if (s === "search") setSearchPreset(preset || null); if (s === "import") setImportPreset(preset || null); setSection(s); },
+    go: (s, preset) => { if (s === "search") setSearchPreset(preset || null); if (s === "import") setImportPreset(preset || null); if (s === "saisie") setMovePreset(preset || null); setSection(s); },
     reloadDash, reloadAll: load, toast: setToast
   };
   let body = null;
@@ -52,6 +53,7 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   else if (section === "mmte") body = <StkMmteCheck />;
   else if (section === "import") body = <StkImport preset={importPreset} />;
   else if (section === "bulk") body = <StkBulkImport />;
+  else if (section === "saisie") body = <StkManualMoves key={JSON.stringify(movePreset)} preset={movePreset} />;
   else if (section === "moves") body = <StkMovements />;
   else if (section === "justif") body = <StkJustifScreen />;
   else if (section === "imports") body = <StkImportsScreen />;
@@ -223,6 +225,7 @@ function StkParc({ parcId }) {
     <StkPageHead back={() => go("dash")} title={info.parc || "Parc"}
       sub={atDate ? <span className="font-bold text-amber-800">Stock au {stkFmt(atDate.date)} · basé sur l'import du {atDate.lastImport ? stkFmt(atDate.lastImport.stock_date) : "—"} <button className="underline ml-2" onClick={() => { setAtDate(null); setTab("disponible"); }}>Revenir au stock actuel</button></span> : (data && data.lastImport ? `Dernier import : stock du ${stkFmt(data.lastImport.stock_date)} (${data.lastImport.file_name || ""})` : "Aucun import pour ce parc")}
       right={<>
+        {stkCanEdit(C) && <StkBtn onClick={() => go("saisie", { parc: info.parc })}><StkIc.Edit size={16} /> Saisie manuelle</StkBtn>}
         {stkCanEdit(C) && <StkBtn kind="primary" onClick={() => go("import", { parc: info.parc })}><Upload size={16} /> Importer le stock</StkBtn>}
         <StkBtn onClick={() => setAskDate(true)}><StkIc.Cal size={16} /> Stock à une date</StkBtn>
         <StkBtn onClick={() => setExpAt(true)}><Download size={16} /> Exporter à une date</StkBtn>
@@ -307,8 +310,8 @@ function StkPeriod({ parcId, parcName }) {
   const ref = sub === "debut" ? stkAddDays(from, -1) : to;
   const label = { entrees: "Entrées", sorties: "Sorties", debut: `Stock au ${stkFmt(stkAddDays(from, -1))}`, fin: `Stock au ${stkFmt(to)}` }[sub];
   const exp = (k) => {
-    const extra = sub === "sorties" ? [{ h: "Date de sortie", x: (r) => stkFmt(r.exit_date) }, { h: "Type", x: (r) => (STK_EXIT[r.exit_kind] || "") + (r.to_parc ? " vers " + r.to_parc : "") }, { h: "Justification", x: (r) => STK_JUSTIF[r.justif_status || "non_justifiee"].label }, { h: "N° déclaration", k: "justif_numero" }]
-      : [{ h: "Entrée au parc", x: (r) => stkFmt(r.entry_date) }, { h: "Origine", x: (r) => STK_ENTRY[r.entry_kind] + (r.from_parc ? " depuis " + r.from_parc : "") }];
+    const extra = sub === "sorties" ? [{ h: "Date de sortie", x: (r) => stkFmt(r.exit_date) }, { h: "Type", x: (r) => (stkExitLabel(r) || "") + (r.to_parc ? " vers " + r.to_parc : "") }, { h: "Justification", x: (r) => STK_JUSTIF[r.justif_status || "non_justifiee"].label }, { h: "N° déclaration", k: "justif_numero" }]
+      : [{ h: "Entrée au parc", x: (r) => stkFmt(r.entry_date) }, { h: "Origine", x: (r) => stkEntryLabel(r) + (r.from_parc ? " depuis " + r.from_parc : "") }];
     const cols = stkExportCols(cfg, ref).concat(extra);
     const meta = [`Parc : ${parcName}`, `Période du ${stkFmt(from)} au ${stkFmt(to)}`];
     if (k === "x") stkExportXlsx(`${label}_${parcName}_${from}_${to}`, `${label} — ${parcName}`, meta, cols, rows);
@@ -452,7 +455,7 @@ function StkVehicleModal({ target, onClose }) {
   };
   const Info = ({ l, v: val, mono }) => <div className="bg-white rounded-xl border border-slate-200 px-3 py-2"><div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">{l}</div><div className={`text-sm font-semibold text-[#0B1F38] mt-0.5 break-words ${mono ? "font-plex-mono" : ""}`}>{val || "—"}</div></div>;
   const printFiche = () => {
-    const cols = [{ h: "Parc", k: "parc" }, { h: "Entrée", x: (s) => `${stkFmt(s.entry_date)} — ${STK_ENTRY[s.entry_kind]}${s.from_parc ? " depuis " + s.from_parc : ""}` }, { h: "Sortie", x: (s) => s.exit_date ? `${stkFmt(s.exit_date)} — ${STK_EXIT[s.exit_kind] || ""}${s.to_parc ? " vers " + s.to_parc : ""}` : "Présent" }, { h: "Justification", x: (s) => s.exit_date ? `${STK_JUSTIF[s.justif_status].label}${s.justif_numero ? " — " + s.justif_numero : ""}` : "" }];
+    const cols = [{ h: "Parc", k: "parc" }, { h: "Entrée", x: (s) => `${stkFmt(s.entry_date)} — ${stkEntryLabel(s)}${s.from_parc ? " depuis " + s.from_parc : ""}` }, { h: "Sortie", x: (s) => s.exit_date ? `${stkFmt(s.exit_date)} — ${stkExitLabel(s) || ""}${s.to_parc ? " vers " + s.to_parc : ""}` : "Présent" }, { h: "Justification", x: (s) => s.exit_date ? `${STK_JUSTIF[s.justif_status].label}${s.justif_numero ? " — " + s.justif_numero : ""}` : "" }];
     stkPrintPdf(`Fiche véhicule ${v.chassis}`, [`${stkVeh(v)} · Navire ${v.navire || "—"} · Arrivée ${stkFmt(v.date_arrivee) || "—"}${cfg.transfert && v.date_transfert ? " · Transfert " + stkFmt(v.date_transfert) : ""} · Dépôt ${stkFmt(sit.depot) || "—"}`, `Parc actuel : ${d.parc ? d.parc.name : "sorti"} · Manifeste ${v.manifeste || "—"} · BL ${v.bl || "—"}`], cols, d.stays, false);
   };
   return <StkModal wide title={v ? <span>Fiche véhicule · <span className="font-plex-mono">{v.chassis}</span></span> : "Fiche véhicule"} onClose={onClose}
@@ -493,8 +496,8 @@ function StkVehicleModal({ target, onClose }) {
             {isAdmin && <><button className="text-xs font-bold text-[#1B4F8C] underline" onClick={() => setEditStay(s)}>Modifier</button><button className="text-xs font-bold text-rose-700 underline" onClick={() => act("stay_delete", { id: s.stay_id }, "Mettre ce mouvement à la corbeille ?")}>Supprimer</button></>}
           </div>
           <div className="grid md:grid-cols-2 gap-2 mt-2 text-sm">
-            <div className="rounded-lg bg-emerald-50/60 border border-emerald-100 px-3 py-2"><div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">{STK_ENTRY[s.entry_kind]}{s.from_parc ? ` depuis ${s.from_parc}` : ""}</div><div className="font-semibold">{stkFmt(s.entry_date)} <span className="text-[11px] font-normal text-slate-500">{s.entry_from_file ? "(date du fichier du parc)" : s.entry_import_id ? "(date de l'import)" : ""}</span></div>{s.entry_import_id && <div className="text-[11px] text-slate-500">{impName(s.entry_import_id)}</div>}</div>
-            <div className={`rounded-lg px-3 py-2 border ${s.exit_date ? "bg-rose-50/60 border-rose-100" : "bg-slate-50 border-slate-100"}`}><div className="text-[11px] font-bold uppercase tracking-wider text-rose-800">{s.exit_date ? `${STK_EXIT[s.exit_kind] || "Sortie"}${s.to_parc ? ` vers ${s.to_parc}` : ""}` : "Sortie"}</div><div className="font-semibold">{s.exit_date ? <>{stkFmt(s.exit_date)} <span className="text-[11px] font-normal text-slate-500">(constatée à l'import)</span></> : "—"}</div>{s.exit_import_id && <div className="text-[11px] text-slate-500">Absent de {impName(s.exit_import_id)}</div>}</div>
+            <div className="rounded-lg bg-emerald-50/60 border border-emerald-100 px-3 py-2"><div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">{stkEntryLabel(s)}{s.from_parc ? ` depuis ${s.from_parc}` : ""}</div><div className="font-semibold">{stkFmt(s.entry_date)} <span className="text-[11px] font-normal text-slate-500">{s.entry_from_file ? "(date du fichier du parc)" : s.entry_import_id ? "(date de l'import)" : ""}</span></div>{s.entry_import_id && <div className="text-[11px] text-slate-500">{impName(s.entry_import_id)}</div>}</div>
+            <div className={`rounded-lg px-3 py-2 border ${s.exit_date ? "bg-rose-50/60 border-rose-100" : "bg-slate-50 border-slate-100"}`}><div className="text-[11px] font-bold uppercase tracking-wider text-rose-800">{s.exit_date ? `${stkExitLabel(s) || "Sortie"}${s.to_parc ? ` vers ${s.to_parc}` : ""}` : "Sortie"}</div><div className="font-semibold">{s.exit_date ? <>{stkFmt(s.exit_date)} <span className="text-[11px] font-normal text-slate-500">(constatée à l'import)</span></> : "—"}</div>{s.exit_import_id && <div className="text-[11px] text-slate-500">Absent de {impName(s.exit_import_id)}</div>}</div>
           </div>
           {s.exit_date && <div className="mt-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
             <div className="flex flex-wrap items-center gap-2">
@@ -655,7 +658,7 @@ function StkJustifScreen() {
   const selRows = filtered.filter((r) => sel.has(r.stay_id));
   const validate = async () => { try { await stkCall("validate", { stay_ids: selRows.map((r) => r.stay_id) }); load(); reloadDash(); } catch (e) { alert(stkErrText(e)); } };
   const exp = (k) => {
-    const cols = [{ h: "Châssis", k: "chassis", w: 22 }, { h: "Véhicule", x: stkVeh, w: 24 }, { h: "Parc", k: "parc" }, { h: "Date de sortie", x: (r) => stkFmt(r.exit_date) }, { h: "Type", x: (r) => (STK_EXIT[r.exit_kind] || "") + (r.to_parc ? " vers " + r.to_parc : "") }, { h: "Justification", x: (r) => STK_JUSTIF[r.justif_status].label }, { h: "N° déclaration", k: "justif_numero" }, { h: "Date décl.", x: (r) => stkFmt(r.justif_date) }, { h: "Bureau", k: "justif_bureau" }];
+    const cols = [{ h: "Châssis", k: "chassis", w: 22 }, { h: "Véhicule", x: stkVeh, w: 24 }, { h: "Parc", k: "parc" }, { h: "Date de sortie", x: (r) => stkFmt(r.exit_date) }, { h: "Type", x: (r) => (stkExitLabel(r) || "") + (r.to_parc ? " vers " + r.to_parc : "") }, { h: "Justification", x: (r) => STK_JUSTIF[r.justif_status].label }, { h: "N° déclaration", k: "justif_numero" }, { h: "Date décl.", x: (r) => stkFmt(r.justif_date) }, { h: "Bureau", k: "justif_bureau" }];
     const title = `Sorties — ${STK_JUSTIF[tab].label.toLowerCase()}s`;
     const meta = [`Période du ${stkFmt(from)} au ${stkFmt(to)}`, parc ? `Parc : ${(dash.find((d) => d.parc_id === Number(parc)) || {}).parc}` : "Tous les parcs"];
     k === "x" ? stkExportXlsx(`Sorties_${tab}_${to}`, title, meta, cols, filtered) : stkPrintPdf(title, meta, cols, filtered);
@@ -686,7 +689,8 @@ function StkJustifScreen() {
 
 // ---------------- Entrées et sorties (tous parcs) ----------------
 function StkMovements() {
-  const { cfg, dash, openVehicle } = React.useContext(StkCtx);
+  const C = React.useContext(StkCtx);
+  const { cfg, dash, openVehicle, go } = C;
   const [kind, setKind] = useState("entrees");
   const [parc, setParc] = useState("");
   const [from, setFrom] = useState(stkAddDays(stkToday(), -7));
@@ -702,13 +706,13 @@ function StkMovements() {
   const filtered = stkFilterRows(rows || [], q);
   const exp = (k) => {
     const base = [{ h: "Châssis", k: "chassis", w: 22 }, { h: "Marque", k: "marque" }, { h: "Modèle", k: "modele" }, { h: "Année", k: "annee", w: 7 }, { h: "Navire", k: "navire", w: 20 }, { h: "Parc", k: "parc" }, { h: "Date d'arrivée", x: (r) => stkFmt(r.date_arrivee) }];
-    const extra = kind === "entrees" ? [{ h: "Entrée au parc", x: (r) => stkFmt(r.entry_date) }, { h: "Origine", x: (r) => STK_ENTRY[r.entry_kind] + (r.from_parc ? " depuis " + r.from_parc : "") }] : [{ h: "Date de sortie", x: (r) => stkFmt(r.exit_date) }, { h: "Type", x: (r) => (STK_EXIT[r.exit_kind] || "") + (r.to_parc ? " vers " + r.to_parc : "") }, { h: "Justification", x: (r) => STK_JUSTIF[r.justif_status].label }, { h: "N° déclaration", k: "justif_numero" }];
+    const extra = kind === "entrees" ? [{ h: "Entrée au parc", x: (r) => stkFmt(r.entry_date) }, { h: "Origine", x: (r) => stkEntryLabel(r) + (r.from_parc ? " depuis " + r.from_parc : "") }] : [{ h: "Date de sortie", x: (r) => stkFmt(r.exit_date) }, { h: "Type", x: (r) => (stkExitLabel(r) || "") + (r.to_parc ? " vers " + r.to_parc : "") }, { h: "Justification", x: (r) => STK_JUSTIF[r.justif_status].label }, { h: "N° déclaration", k: "justif_numero" }];
     const title = kind === "entrees" ? "Entrées de véhicules" : "Sorties de véhicules";
     const meta = [`Période du ${stkFmt(from)} au ${stkFmt(to)}`, parc ? `Parc : ${(dash.find((d) => d.parc_id === Number(parc)) || {}).parc}` : "Tous les parcs"];
     k === "x" ? stkExportXlsx(`${title}_${from}_${to}`, title, meta, base.concat(extra), filtered) : stkPrintPdf(title, meta, base.concat(extra), filtered);
   };
   return <>
-    <StkPageHead title="Entrées et sorties" sub="Mouvements constatés en comparant chaque import au précédent du même parc." />
+    <StkPageHead title="Entrées et sorties" sub="Mouvements constatés en comparant chaque import au précédent du même parc, et mouvements saisis à la main (mention « saisie »)." right={stkCanEdit(C) ? <StkBtn small onClick={() => go("saisie")}><StkIc.Edit size={14} /> Saisir une entrée ou une sortie</StkBtn> : null} />
     <StkTabs tabs={[{ key: "entrees", label: "Entrées" }, { key: "sorties", label: "Sorties" }]} value={kind} onChange={setKind} />
     <StkCard className="p-4 md:p-5">
       <div className="flex flex-wrap gap-3 items-end mb-3">

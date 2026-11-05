@@ -104,7 +104,7 @@ function agentOnly(who: Who) { if (!who.isAdmin && who.access !== "agent") throw
 function pick(o: any, keys: string[]) { const r: any = {}; for (const k of keys) if (o && k in o) r[k] = o[k] === "" ? null : o[k]; return r; }
 const today = () => new Date(Date.now() + 3600e3).toISOString().slice(0, 10); // heure du Bénin
 
-const LIST_COLS = "stay_id,vehicle_id,parc_id,parc,entry_import_id,entry_date,entry_kind,from_parc,exit_import_id,exit_date,exit_kind,to_parc,justif_type,justif_numero,justif_date,justif_bureau,justif_status,justif_files,justif_by,valide_by,entry_from_file,chassis,chassis_raw,marque,modele,annee,navire,manifeste,bl,date_arrivee,date_transfert,importateur,mmte_depot_date";
+const LIST_COLS = "stay_id,vehicle_id,parc_id,parc,entry_import_id,entry_date,entry_kind,from_parc,exit_import_id,exit_date,exit_kind,to_parc,justif_type,justif_numero,justif_date,justif_bureau,justif_status,justif_files,justif_by,valide_by,entry_from_file,chassis,chassis_raw,marque,modele,annee,navire,manifeste,bl,date_arrivee,date_transfert,importateur,mmte_depot_date,entry_move_id,exit_move_id";
 const VEH_FIELDS = ["locked_fields", "chassis_raw", "marque", "modele", "annee", "navire", "manifeste", "bl", "date_arrivee", "date_transfert", "importateur", "notes", "data"];
 const STAY_FIELDS = ["parc_id", "entry_date", "entry_kind", "from_parc_id", "exit_date", "exit_kind", "to_parc_id", "justif_type", "justif_numero", "justif_date", "justif_bureau", "justif_note", "justif_status"];
 const JUSTIF_FIELDS = ["justif_type", "justif_numero", "justif_date", "justif_bureau", "justif_note"];
@@ -591,6 +591,47 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     ]);
     return { vehicles: must(vehicles), stays: must(stays), parcs: must(parcs) };
   },
+  // ---- Entrées et sorties saisies (une par une ou par fichier) ----
+  async moves_preview(p, who) {
+    agentOnly(who);
+    const list = (Array.isArray(p.chassis) ? p.chassis : []).map((c: string) => String(c).toUpperCase().replace(/[\s\-\.\/_*]/g, "")).filter(Boolean).slice(0, 20000);
+    return must(await sb.rpc("stock_moves_preview", { p_parc_name: String(p.parc_name || ""), p_chassis: list }));
+  },
+  async moves_add(p, who) {
+    agentOnly(who);
+    if (!p.parc_name) throw new ApiError("PARC_MANQUANT");
+    if (!Array.isArray(p.items) || !p.items.length) throw new ApiError("AUCUN_CHASSIS");
+    const payload = pick(p, ["parc_name", "kind", "date", "motif", "justif_type", "justif_numero", "justif_date", "justif_bureau", "source", "file_name"]);
+    const r: any = must(await sb.rpc("stock_add_moves", { p: { ...payload, items: p.items.slice(0, 20000), by_uid: who.uid, by_name: who.name } }));
+    await audit(who, p.kind === "entree" ? "saisie_entree" : "saisie_sortie", "parc", r.parc_id,
+      `${String(p.parc_name).toUpperCase()} — ${p.kind === "entree" ? "entrées" : "sorties"} saisies au ${p.date}${p.file_name ? " (fichier " + p.file_name + ")" : ""} : ${r.ok} enregistrée(s) sur ${r.total}`);
+    if (r.details && r.details.length <= 200) await auditMany(who, r.details.filter((d: any) => d.result === "ok" || d.result === "ok_transfert").map((d: any) => ({ action: p.kind === "entree" ? "saisie_entree" : "saisie_sortie", entity: "vehicle_chassis", entity_id: d.chassis, detail: `${p.kind === "entree" ? "Entrée" : "Sortie"} saisie au ${d.date} — ${String(p.parc_name).toUpperCase()}` })));
+    return r;
+  },
+  async moves_list(p) {
+    let q = sb.from("stock_moves").select("id,parc_id,kind,move_date,motif,justif_type,justif_numero,source,file_name,batch_id,result,created_by_uid,created_by_name,created_at,cancelled_at,cancelled_by,cancel_reason,vehicles(chassis,marque,modele),parcs(name)");
+    if (p.parc_id) q = q.eq("parc_id", Number(p.parc_id));
+    if (p.from) q = q.gte("move_date", p.from);
+    if (p.to) q = q.lte("move_date", p.to);
+    return must(await q.order("move_date", { ascending: false }).order("id", { ascending: false }).limit(Math.min(Number(p.limit) || 2000, 5000)));
+  },
+  async moves_cancel(p, who) {
+    agentOnly(who);
+    const ids: number[] = (p.ids || []).map(Number).filter(Boolean);
+    if (!ids.length) throw new ApiError("AUCUN_CHASSIS");
+    if (p.restore) adminOnly(who);
+    else {
+      if (!p.reason) throw new ApiError("MOTIF_OBLIGATOIRE");
+      if (!who.isAdmin) {
+        const own = must(await sb.from("stock_moves").select("id").in("id", ids).eq("created_by_uid", who.uid)) as any[];
+        if (own.length !== ids.length) throw new ApiError("RESERVE_ADMIN", 403);
+      }
+    }
+    must(await sb.rpc("stock_cancel_moves", { p_ids: ids, p_reason: String(p.reason || ""), p_by: who.name, p_restore: !!p.restore }));
+    await audit(who, p.restore ? "saisie_retablie" : "saisie_annulee", "moves", ids.join(","), p.restore ? `${ids.length} saisie(s) rétablie(s)` : `${ids.length} saisie(s) annulée(s) : ${p.reason}`);
+    return { ok: true };
+  },
+
   async log_error(p, who) {
     const cut = (x: unknown, n: number) => (x == null ? null : String(x).slice(0, n));
     const list = (Array.isArray(p.errors) ? p.errors : [p]).slice(0, 20);
