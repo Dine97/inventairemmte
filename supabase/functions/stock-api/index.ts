@@ -604,21 +604,21 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     ]);
     return { vehicles: must(vehicles), stays: must(stays), parcs: must(parcs) };
   },
-  // ---- Recherche par liste, vue par navire, mise en service ----
+  // ---- Recherche par liste, vue par manifeste, mise en service ----
   async lookup(p) {
     const list = [...new Set((Array.isArray(p.chassis) ? p.chassis : []).map((c: string) => String(c).toUpperCase().replace(/[\s\-\.\/_*]/g, "")).filter((c: string) => c.length >= 4))].slice(0, 5000);
     if (!list.length) return [];
     return must(await sb.rpc("stock_lookup", { p_chassis: list }));
   },
-  async ships() {
+  async manifests() {
     const s = await settingsMap();
-    return must(await sb.rpc("stock_ships", { p_ref: today(), p_duree: Number(s.duree_sejour) || 365, p_seuil: Number(s.seuil_alerte) || 30, p_mmte: s.source_depot === "mmte" }));
+    return must(await sb.rpc("stock_manifests", { p_ref: today(), p_duree: Number(s.duree_sejour) || 365, p_seuil: Number(s.seuil_alerte) || 30, p_mmte: s.source_depot === "mmte" }));
   },
-  async ship_vehicles(p) {
-    const n = String(p.navire || "");
+  async manifest_vehicles(p) {
+    const m = String(p.manifeste || "");
     return await fetchAll(() => {
       let q = sb.from("v_stays").select(LIST_COLS).is("exit_date", null);
-      q = n === "(navire non indiqué)" ? q.or("navire.is.null,navire.eq.") : q.eq("navire", n);
+      q = m === "(manifeste non indiqué)" ? q.or("manifeste.is.null,manifeste.eq.") : q.eq("manifeste", m);
       return q.order("parc").order("chassis");
     }, 20000);
   },

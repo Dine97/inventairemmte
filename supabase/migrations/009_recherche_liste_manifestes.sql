@@ -61,3 +61,26 @@ $$;
 
 revoke all on function public.stock_lookup(text[]), public.stock_ships(date, int, int, boolean) from public, anon, authenticated;
 grant execute on function public.stock_lookup(text[]), public.stock_ships(date, int, int, boolean) to service_role;
+
+-- Vue par manifeste (un navire peut revenir plusieurs fois, le manifeste est unique)
+create or replace function public.stock_manifests(p_ref date, p_duree int, p_seuil int, p_mmte boolean default false)
+returns jsonb language sql stable security definer set search_path = public as $$
+  with o as (
+    select coalesce(nullif(v.manifeste, ''), '(manifeste non indiqué)') as manifeste, nullif(v.navire, '') as navire, v.bl, v.date_arrivee, s.parc_id, p.name as parc,
+      case when p_mmte and v.mmte_depot_date is not null then v.mmte_depot_date
+           when v.date_arrivee is not null then v.date_arrivee + p_duree end as dep
+    from stays s join vehicles v on v.id = s.vehicle_id and v.deleted_at is null join parcs p on p.id = s.parc_id
+    where s.exit_date is null and s.deleted_at is null)
+  select coalesce(jsonb_agg(x order by x.presents desc, x.manifeste), '[]'::jsonb) from (
+    select manifeste, count(*) as presents,
+      (array_agg(distinct navire) filter (where navire is not null))[1:5] as navires,
+      count(distinct parc_id) as nb_parcs, (array_agg(distinct parc order by parc))[1:12] as parcs,
+      min(date_arrivee) as arrivee_min, max(date_arrivee) as arrivee_max, min(dep) as depot_min,
+      count(*) filter (where dep <= p_ref) as depot,
+      count(*) filter (where dep > p_ref and dep <= p_ref + p_seuil) as bientot,
+      count(*) filter (where dep is null) as sans_date,
+      count(distinct bl) as nb_bl
+    from o group by manifeste) x;
+$$;
+revoke all on function public.stock_manifests(date, int, int, boolean) from public, anon, authenticated;
+grant execute on function public.stock_manifests(date, int, int, boolean) to service_role;

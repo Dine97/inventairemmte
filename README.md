@@ -205,6 +205,6 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
 - **Fichier probablement incomplet** : point à décider si le fichier compte moins de 70 % du stock actuel du parc.
 - **Inventaire** : messages d'erreur précis (cause réelle) au lieu de « Erreur de connexion », erreurs transmises au journal.
 - **Recherche par liste** : liste de châssis collée ou fichier Excel ; parc, situation, date de dépôt, dernière sortie ; numéros incomplets (fin du châssis) et corrections mémorisées reconnus ; suggestion pour les fautes de frappe ; export Excel (migration `009`).
-- **Vue par navire** : véhicules en parc par navire (parcs, arrivée, premier dépôt, dépôts, manifestes), détail et export.
+- **Vue par manifeste** (6.7.1, remplace la vue par navire : un navire peut revenir plusieurs fois, le manifeste est unique) : véhicules en parc par manifeste (navire, parcs, arrivée, premier dépôt, dépôts, BL), détail et export.
 - **À faire** sur le tableau de bord : fichiers attendus, sorties non justifiées, dépôts proches, véhicules sans date.
 

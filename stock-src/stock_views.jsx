@@ -54,7 +54,7 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   else if (section === "import") body = <StkImport preset={importPreset} />;
   else if (section === "bulk") body = <StkBulkImport />;
   else if (section === "liste") body = <StkListLookup />;
-  else if (section === "navires") body = <StkShips />;
+  else if (section === "manifestes" || section === "navires") body = <StkManifests />;
   else if (section === "miseenservice" && isAdmin) body = <StkRollout />;
   else if (section === "saisie") body = <StkManualMoves key={JSON.stringify(movePreset)} preset={movePreset} />;
   else if (section === "moves") body = <StkMovements />;

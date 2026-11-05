@@ -1,5 +1,5 @@
 // ============================================================
-// STOCK MMTE v7 — recherche par liste, vue par navire, mise en service, encadré « À faire »
+// STOCK MMTE v7 — recherche par liste, vue par manifeste, mise en service, encadré « À faire »
 // ============================================================
 
 // ---------- Recherche par liste de châssis ----------
@@ -100,47 +100,51 @@ function StkListLookup() {
   </>;
 }
 
-// ---------- Vue par navire ----------
-function StkShips() {
+// ---------- Vue par manifeste (un navire peut revenir plusieurs fois, le manifeste est unique) ----------
+function StkManifests() {
   const { cfg, openVehicle } = React.useContext(StkCtx);
   const [rows, setRows] = useState(null);
   const [err, setErr] = useState("");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(null);
   const [detail, setDetail] = useState(null);
-  useEffect(() => { stkCall("ships", {}).then(setRows).catch((e) => setErr(stkErrText(e))); }, []);
-  const openShip = async (n) => {
-    setOpen(n); setDetail(null);
-    try { setDetail(await stkCall("ship_vehicles", { navire: n })); } catch (e) { setErr(stkErrText(e)); }
+  useEffect(() => { stkCall("manifests", {}).then(setRows).catch((e) => setErr(stkErrText(e))); }, []);
+  const openM = async (m) => {
+    setOpen(m); setDetail(null);
+    try { setDetail(await stkCall("manifest_vehicles", { manifeste: m })); } catch (e) { setErr(stkErrText(e)); }
   };
-  const list = (rows || []).filter((r) => !q || r.navire.includes(q.trim().toUpperCase()) || (r.manifestes || []).some((m) => String(m).includes(q.trim().toUpperCase())));
+  const Q = q.trim().toUpperCase();
+  const list = (rows || []).filter((r) => !Q || r.manifeste.includes(Q) || (r.navires || []).some((n) => String(n).includes(Q)));
   const tot = list.reduce((a, r) => ({ v: a.v + +r.presents, d: a.d + +r.depot }), { v: 0, d: 0 });
-  const exportShips = () => stkExportXlsx(`Navires_${stkToday()}`, "Véhicules en parc par navire", [`Au ${stkFmt(stkToday())}`], [
-    { h: "Navire", k: "navire", w: 26 }, { h: "En parc", k: "presents" }, { h: "Parcs", x: (r) => (r.parcs || []).join(", "), w: 40 }, { h: "Arrivée", x: (r) => r.arrivee_min === r.arrivee_max ? stkFmt(r.arrivee_min) : `${stkFmt(r.arrivee_min)} au ${stkFmt(r.arrivee_max)}`, w: 24 },
-    { h: "Premier dépôt", x: (r) => stkFmt(r.depot_min) }, { h: "En dépôt", k: "depot" }, { h: `Dépôt < ${cfg.seuil} j`, k: "bientot" }, { h: "Manifestes", x: (r) => (r.manifestes || []).join(", "), w: 40 }
+  const arr = (r) => (r.arrivee_min === r.arrivee_max ? stkFmt(r.arrivee_min) : `${stkFmt(r.arrivee_min)} → ${stkFmt(r.arrivee_max)}`);
+  const exportAll = () => stkExportXlsx(`Manifestes_${stkToday()}`, "Véhicules en parc par manifeste", [`Au ${stkFmt(stkToday())}`], [
+    { h: "Manifeste", k: "manifeste", w: 18 }, { h: "Navire", x: (r) => (r.navires || []).join(", "), w: 26 }, { h: "En parc", k: "presents" }, { h: "BL", k: "nb_bl" },
+    { h: "Parcs", x: (r) => (r.parcs || []).join(", "), w: 40 }, { h: "Arrivée", x: arr, w: 24 }, { h: "Premier dépôt", x: (r) => stkFmt(r.depot_min) },
+    { h: "En dépôt", k: "depot" }, { h: `Dépôt < ${cfg.seuil} j`, k: "bientot" }, { h: "Sans date", k: "sans_date" }
   ], list);
-  const exportDetail = () => detail && stkExportXlsx(`Navire_${open}_${stkToday()}`, `Navire ${open} — véhicules en parc`, [`Au ${stkFmt(stkToday())}`, `${detail.length} véhicule(s)`], [{ h: "Parc", k: "parc" }].concat(stkExportCols(cfg, stkToday())), detail);
+  const exportDetail = () => detail && stkExportXlsx(`Manifeste_${open}_${stkToday()}`, `Manifeste ${open} — véhicules en parc`, [`Au ${stkFmt(stkToday())}`, `${detail.length} véhicule(s)`], [{ h: "Parc", k: "parc" }].concat(stkExportCols(cfg, stkToday())), detail);
   return <>
-    <StkPageHead title="Vue par navire" sub="Véhicules encore présents dans les parcs, regroupés par navire : nombre, parcs, date d'arrivée et date de dépôt." right={rows && rows.length ? <StkBtn small onClick={exportShips}><Download size={14} /> Excel</StkBtn> : null} />
-    <StkCard className="p-4 flex flex-wrap gap-3 items-center"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrer : navire ou manifeste" className={`${stkInput} max-w-sm`} data-testid="ships-filter" /><div className="text-sm text-slate-600">{list.length} navire(s) · {tot.v.toLocaleString("fr-FR")} véhicule(s) en parc · {tot.d.toLocaleString("fr-FR")} en dépôt</div></StkCard>
+    <StkPageHead title="Vue par manifeste" sub="Véhicules encore présents dans les parcs, regroupés par manifeste (unique pour chaque escale, alors qu'un navire peut revenir plusieurs fois) : navire, parcs, arrivée et date de dépôt." right={rows && rows.length ? <StkBtn small onClick={exportAll}><Download size={14} /> Excel</StkBtn> : null} />
+    <StkCard className="p-4 flex flex-wrap gap-3 items-center"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrer : n° de manifeste ou navire" className={`${stkInput} max-w-sm`} data-testid="manifests-filter" /><div className="text-sm text-slate-600">{list.length} manifeste(s) · {tot.v.toLocaleString("fr-FR")} véhicule(s) en parc · {tot.d.toLocaleString("fr-FR")} en dépôt</div></StkCard>
     {err && <StkMsg tone="err">{err}</StkMsg>}
-    {!rows ? <StkLoading /> : <StkCard className="p-0 overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm min-w-[860px]" data-testid="ships-table">
-      <thead><tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200"><th className="py-2 px-3">Navire</th><th className="px-2 text-right">En parc</th><th className="px-2">Parcs</th><th className="px-2">Arrivée</th><th className="px-2">Premier dépôt</th><th className="px-2 text-right">En dépôt</th><th className="px-2 text-right">&lt; {cfg.seuil} j</th></tr></thead>
-      <tbody>{list.slice(0, 500).map((r) => <tr key={r.navire} className="border-b border-slate-100 hover:bg-[#F4F8FC] cursor-pointer" onClick={() => openShip(r.navire)}>
-        <td className="py-2 px-3 font-semibold text-[#1B4F8C]">{r.navire}<div className="text-[11px] font-normal text-slate-500">{r.nb_manifestes} manifeste(s){r.manifestes && r.manifestes.length ? " : " + r.manifestes.slice(0, 3).join(", ") + (r.manifestes.length > 3 ? "…" : "") : ""}</div></td>
+    {!rows ? <StkLoading /> : <StkCard className="p-0 overflow-hidden"><div className="overflow-x-auto"><table className="w-full text-sm min-w-[880px]" data-testid="manifests-table">
+      <thead><tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 bg-slate-50 border-b border-slate-200"><th className="py-2 px-3">Manifeste</th><th className="px-2">Navire</th><th className="px-2 text-right">En parc</th><th className="px-2">Parcs</th><th className="px-2">Arrivée</th><th className="px-2">Premier dépôt</th><th className="px-2 text-right">En dépôt</th><th className="px-2 text-right">&lt; {cfg.seuil} j</th></tr></thead>
+      <tbody>{list.slice(0, 1000).map((r) => <tr key={r.manifeste} className="border-b border-slate-100 hover:bg-[#F4F8FC] cursor-pointer" onClick={() => openM(r.manifeste)}>
+        <td className="py-2 px-3 font-plex-mono font-bold text-[#1B4F8C]">{r.manifeste}<div className="text-[11px] font-sans font-normal text-slate-500">{r.nb_bl} BL</div></td>
+        <td className="px-2 text-xs">{(r.navires || []).join(", ") || "—"}</td>
         <td className="px-2 text-right font-plex-mono font-bold">{r.presents}</td>
         <td className="px-2 text-xs">{(r.parcs || []).join(", ")}{r.nb_parcs > 12 ? "…" : ""}</td>
-        <td className="px-2 text-xs whitespace-nowrap">{r.arrivee_min === r.arrivee_max ? stkFmt(r.arrivee_min) : `${stkFmt(r.arrivee_min)} → ${stkFmt(r.arrivee_max)}`}</td>
+        <td className="px-2 text-xs whitespace-nowrap">{arr(r)}</td>
         <td className="px-2 text-xs whitespace-nowrap">{stkFmt(r.depot_min)}</td>
         <td className={`px-2 text-right font-plex-mono ${+r.depot ? "text-rose-700 font-bold" : "text-slate-400"}`}>{r.depot}</td>
         <td className={`px-2 text-right font-plex-mono ${+r.bientot ? "text-amber-700 font-bold" : "text-slate-400"}`}>{r.bientot}</td>
       </tr>)}</tbody></table></div></StkCard>}
-    {open && <StkModal wide title={`Navire ${open}`} onClose={() => setOpen(null)} footer={detail && detail.length ? <StkBtn onClick={exportDetail}><Download size={16} /> Excel</StkBtn> : null}>
+    {open && <StkModal wide title={`Manifeste ${open}`} onClose={() => setOpen(null)} footer={detail && detail.length ? <StkBtn onClick={exportDetail}><Download size={16} /> Excel</StkBtn> : null}>
       {!detail ? <StkLoading /> : <StkTable rowKey={(r) => r.stay_id} rows={detail} onRow={(r) => openVehicle({ id: r.vehicle_id })} columns={[
         { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold">{r.chassis}</span> },
         { key: "veh", label: "Véhicule", render: (r) => stkVeh(r) },
         { key: "parc", label: "Parc" },
-        { key: "manifeste", label: "Manifeste" },
+        { key: "navire", label: "Navire" },
         { key: "bl", label: "BL" },
         { key: "date_arrivee", label: "Arrivée", render: (r) => stkFmt(r.date_arrivee) },
         { key: "sit", label: "Situation", render: (r) => <StkSitBadge row={r} /> }
