@@ -53,7 +53,8 @@ function StkImport({ preset }) {
   const tooOld = lastDate && date < lastDate;
   const typos = useMemo(() => preview && !preview.is_initial ? stkTypoPairs(preview.entrees, preview.sorties) : [], [preview]);
   // Points à vérifier : chaque anomalie est corrigée ou acceptée avant la validation
-  const issues = useMemo(() => stkBuildIssues(parsed, preview, date), [parsed, preview, date]);
+  const prevCount = useMemo(() => { const d = dash.find((y) => y.parc === parc.trim().toUpperCase()); return d && (!d.last_import || date >= d.last_import) ? +d.presents : null; }, [dash, parc, date]);
+  const issues = useMemo(() => stkBuildIssues(parsed, preview, date, prevCount), [parsed, preview, date, prevCount]);
   const [decisions, setDecisions] = useState({});
   useEffect(() => { setDecisions({}); }, [parsed]);
   const applied = useMemo(() => stkApplyDecisions(parsed, issues, decisions, C.userName || (C.me && C.me.name)), [parsed, issues, decisions]);

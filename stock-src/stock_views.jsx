@@ -53,6 +53,9 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   else if (section === "mmte") body = <StkMmteCheck />;
   else if (section === "import") body = <StkImport preset={importPreset} />;
   else if (section === "bulk") body = <StkBulkImport />;
+  else if (section === "liste") body = <StkListLookup />;
+  else if (section === "navires") body = <StkShips />;
+  else if (section === "miseenservice" && isAdmin) body = <StkRollout />;
   else if (section === "saisie") body = <StkManualMoves key={JSON.stringify(movePreset)} preset={movePreset} />;
   else if (section === "moves") body = <StkMovements />;
   else if (section === "justif") body = <StkJustifScreen />;
@@ -126,6 +129,7 @@ function StkDashboard({ lastImports }) {
       <StkKpi label="Sorties non justifiées" value={tot.nj} tone="slate" onClick={() => go("justif")} />
       <StkKpi label="Imports en retard" value={late.length} tone={late.length ? "amber" : "green"} sub="Dernier import > 7 jours" />
     </div>
+    <StkTodo />
     <StkMondayReminder />
     <StkCard className="p-4 md:p-5">
       <div className="flex flex-wrap gap-2 items-center mb-4">
@@ -346,7 +350,7 @@ function StkPeriod({ parcId, parcName }) {
 // ---------------- Recherche avancée ----------------
 function StkSearch({ preset }) {
   const { cfg, dash, openVehicle } = React.useContext(StkCtx);
-  const [f, setF] = useState({ q: (preset && preset.q) || "", field: "", parc_id: "", statut: "", navire: "", marque: "", arr_from: "", arr_to: "", situation: "", sans_date: false });
+  const [f, setF] = useState({ q: "", field: "", parc_id: "", statut: "", navire: "", marque: "", arr_from: "", arr_to: "", situation: "", sans_date: false, ...(preset || {}) });
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -369,7 +373,7 @@ function StkSearch({ preset }) {
     } catch (e) { setErr(stkErrText(e)); }
     setBusy(false);
   };
-  useEffect(() => { if (preset && preset.q) run(); }, []);
+  useEffect(() => { if (preset && (preset.q || preset.situation || preset.sans_date || preset.navire)) run(); }, []);
   const applySaved = (params) => { const n = { q: "", field: "", parc_id: "", statut: "", navire: "", marque: "", arr_from: "", arr_to: "", situation: "", sans_date: false, ...params }; setF(n); run(n); };
   const cols = [
     { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] break-all">{r.chassis}</span> },

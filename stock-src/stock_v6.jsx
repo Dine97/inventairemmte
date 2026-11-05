@@ -22,9 +22,12 @@ function stkApplyAliases(parsed, aliases) {
 const stkRowKey = (r) => `${r.sheet || ""}:${r.line}`;
 
 // Points à décider, construits à partir des lignes lues
-function stkBuildIssues(parsed, preview, stockDate) {
+function stkBuildIssues(parsed, preview, stockDate, prevCount) {
   if (!parsed || !parsed.rows.length) return [];
   const out = [];
+  if (prevCount && prevCount >= 20 && parsed.unique < prevCount * 0.7) out.push({ key: "incomplet", code: "fichier_incomplet", rows: [],
+    title: `Fichier probablement incomplet : ${parsed.unique} véhicules contre ${prevCount} au dernier stock du parc (−${Math.round((1 - parsed.unique / prevCount) * 100)} %)`,
+    help: "Un tel écart vient souvent d'un onglet oublié, d'un filtre resté actif dans Excel ou d'un fichier coupé. Validé tel quel, il enregistrerait des centaines de fausses sorties. Vérifiez le fichier avant de confirmer." });
   const newSet = preview && !preview.is_initial ? new Set(preview.entrees || []) : null;
   const atyp = parsed.rows.filter((r) => r.flags.includes("chassis_atypique") && (!newSet || newSet.has(r.chassis)));
   if (atyp.length) out.push({ key: "atypique", code: "chassis_atypique", rows: atyp,
@@ -110,6 +113,7 @@ function stkApplyDecisions(parsed, issues, decisions, byName) {
   const codeOf = {}; issues.forEach((i) => (codeOf[i.code] = i.key));
   const decided = (key) => { const d = D[key]; if (!d) return null; return d.status === "accepte" ? `Accepté tel quel par ${byName || "l'agent"}` : `Corrigé par ${byName || "l'agent"} : ${summary[key] || ""}`; };
   const anomalies = parsed.anomalies.map((a) => (codeOf[a.code] && D[codeOf[a.code]] ? { ...a, decision: decided(codeOf[a.code]) } : a));
+  issues.filter((i) => i.key === "incomplet").forEach((i) => anomalies.push({ code: "fichier_incomplet", niveau: "erreur", texte: i.title, decision: decided("incomplet") }));
   issues.filter((i) => i.key === "futur").forEach((i) => anomalies.push({ code: "date_future", niveau: "alerte", texte: i.title, items: i.rows.map((r) => r.chassis), decision: decided("futur") }));
   return { rows: kept, aliases, anomalies, excluded: ex.size };
 }

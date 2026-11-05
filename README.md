@@ -198,3 +198,13 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
 - Lignes sans châssis lisible : saisie du châssis pour les ajouter ; doublons et total annoncé : acceptation.
 - Les décisions (qui, quoi) sont enregistrées avec l'import et visibles dans l'historique des imports.
 
+### Version 6.7.0 — mise en service, recherche par liste, navires
+
+- **Import groupé, une date par fichier** : la date du stock est lue dans le nom du fichier (« 261101 », « 02-11-2026 », « 2026_10_26 »…) ou dans son en-tête, modifiable ; plusieurs semaines d'un même parc acceptées et importées dans l'ordre chronologique (reprise de l'historique).
+- **Mise en service** (administrateur) : parcs importés ou non (premier et dernier fichier, nombre d'imports), agents connectés ou non, liste des parcs à relancer.
+- **Fichier probablement incomplet** : point à décider si le fichier compte moins de 70 % du stock actuel du parc.
+- **Inventaire** : messages d'erreur précis (cause réelle) au lieu de « Erreur de connexion », erreurs transmises au journal.
+- **Recherche par liste** : liste de châssis collée ou fichier Excel ; parc, situation, date de dépôt, dernière sortie ; numéros incomplets (fin du châssis) et corrections mémorisées reconnus ; suggestion pour les fautes de frappe ; export Excel (migration `009`).
+- **Vue par navire** : véhicules en parc par navire (parcs, arrivée, premier dépôt, dépôts, manifestes), détail et export.
+- **À faire** sur le tableau de bord : fichiers attendus, sorties non justifiées, dépôts proches, véhicules sans date.
+

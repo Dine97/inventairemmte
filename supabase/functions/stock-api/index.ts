@@ -604,6 +604,36 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     ]);
     return { vehicles: must(vehicles), stays: must(stays), parcs: must(parcs) };
   },
+  // ---- Recherche par liste, vue par navire, mise en service ----
+  async lookup(p) {
+    const list = [...new Set((Array.isArray(p.chassis) ? p.chassis : []).map((c: string) => String(c).toUpperCase().replace(/[\s\-\.\/_*]/g, "")).filter((c: string) => c.length >= 4))].slice(0, 5000);
+    if (!list.length) return [];
+    return must(await sb.rpc("stock_lookup", { p_chassis: list }));
+  },
+  async ships() {
+    const s = await settingsMap();
+    return must(await sb.rpc("stock_ships", { p_ref: today(), p_duree: Number(s.duree_sejour) || 365, p_seuil: Number(s.seuil_alerte) || 30, p_mmte: s.source_depot === "mmte" }));
+  },
+  async ship_vehicles(p) {
+    const n = String(p.navire || "");
+    return await fetchAll(() => {
+      let q = sb.from("v_stays").select(LIST_COLS).is("exit_date", null);
+      q = n === "(navire non indiqué)" ? q.or("navire.is.null,navire.eq.") : q.eq("navire", n);
+      return q.order("parc").order("chassis");
+    }, 20000);
+  },
+  async rollout(_p, who) {
+    adminOnly(who);
+    const imps = await fetchAll(() => sb.from("imports").select("parc_id,stock_date").eq("status", "valide").order("id"), 100000) as any[];
+    const by: Record<string, any> = {};
+    for (const i of imps) {
+      const b = by[i.parc_id] || (by[i.parc_id] = { parc_id: i.parc_id, first: i.stock_date, last: i.stock_date, n: 0 });
+      b.n++; if (i.stock_date < b.first) b.first = i.stock_date; if (i.stock_date > b.last) b.last = i.stock_date;
+    }
+    const users = must(await sb.from("stock_users").select("uid,email,name,access,last_seen"));
+    return { parcs: Object.values(by), users };
+  },
+
   // ---- Entrées et sorties saisies (une par une ou par fichier) ----
   async moves_preview(p, who) {
     agentOnly(who);

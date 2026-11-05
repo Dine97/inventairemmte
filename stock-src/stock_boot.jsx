@@ -85,6 +85,8 @@ const STK_SECTIONS = [
   { key: "dash", label: "Tableau de bord", Ic: (p) => <StkIc.Grid {...p} /> },
   { key: "rapport", label: "Rapport hebdomadaire", Ic: (p) => <FileSpreadsheet {...p} /> },
   { key: "search", label: "Recherche avancée", Ic: (p) => <Search {...p} /> },
+  { key: "liste", label: "Recherche par liste", Ic: (p) => <ClipboardPaste {...p} /> },
+  { key: "navires", label: "Vue par navire", Ic: (p) => <StkIc.Truck {...p} /> },
   { key: "import", label: "Importer un stock", Ic: (p) => <Upload {...p} /> },
   { key: "bulk", label: "Import groupé du lundi", Ic: (p) => <StkIc.Layers {...p} /> },
   { key: "saisie", label: "Saisir entrées / sorties", Ic: (p) => <StkIc.Edit {...p} /> },
@@ -93,6 +95,7 @@ const STK_SECTIONS = [
   { key: "anomalies", label: "Centre des anomalies", Ic: (p) => <AlertTriangle {...p} /> },
   { key: "mmte", label: "Contrôle avec MMTE", Ic: (p) => <ShieldCheck {...p} /> },
   { key: "imports", label: "Historique des imports", Ic: (p) => <Archive {...p} /> },
+  { key: "miseenservice", label: "Mise en service", Ic: (p) => <StkIc.Check {...p} />, admin: true },
   { key: "admin", label: "Administration stock", Ic: (p) => <StkIc.Gear {...p} />, admin: true }
 ];
 

@@ -46,7 +46,7 @@ const Globe = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__P
 const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
 const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
 const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
-const APP_VERSION = "6.6.0";
+const APP_VERSION = "6.7.0";
 const firebaseConfig = {
   apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
   authDomain: "benin-control-mmte.firebaseapp.com",
@@ -618,6 +618,18 @@ function writeErrorMessage(err) {
     return "Refusé : ce châssis vient d'être pointé par un autre agent, ou vos droits ont expiré.";
   }
   return "Erreur d'enregistrement, réessayez.";
+}
+// Message d'erreur précis (au lieu d'un « Erreur de connexion » générique) + envoi au journal des erreurs
+function invErrMsg(err, action) {
+  try { stkReportError("inventaire", err, action); } catch (e) {}
+  const code = String((err && err.code) || "");
+  const msg = String((err && err.message) || "");
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  if (offline || /unavailable|deadline-exceeded/i.test(code) || (!code && /network|fetch|offline|timeout/i.test(msg))) return "Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.";
+  if (/permission-denied/i.test(code)) return `${action} : le serveur a refusé l'opération (droits insuffisants). Contactez l'administrateur.`;
+  if (/not-found/i.test(code)) return `${action} : inventaire introuvable (il a peut-être été supprimé).`;
+  if (/resource-exhausted/i.test(code)) return `${action} : quota du serveur dépassé pour aujourd'hui. Réessayez plus tard ou contactez l'administrateur.`;
+  return `${action} impossible (${(msg || code || "erreur inconnue").slice(0, 160)}). L'erreur a été transmise à l'administrateur.`;
 }
 async function writeMmteChunks(ref, entries) {
   for (let i = 0, idx = 0; i < entries.length; i += MMTE_CHUNK_SIZE, idx++) {
@@ -2711,7 +2723,7 @@ function InventaireMMTEApp() {
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (err) {
-      setImportError("Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.");
+      setImportError(invErrMsg(err, "Rejoindre l'inventaire"));
     } finally {
       setStarting(false);
     }
@@ -2777,10 +2789,7 @@ function InventaireMMTEApp() {
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (err) {
-      try { stkReportError("demarrage_inventaire", err, parcName); } catch (e) {}
-      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-      const denied = err && /permission|PERMISSION_DENIED/i.test(String(err.code || err.message));
-      setImportError(offline || !err || !err.code || /unavailable|deadline/i.test(String(err.code)) ? "Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez." : denied ? "Le serveur a refusé l'enregistrement de l'inventaire (droits insuffisants). Contactez l'administrateur." : "L'inventaire n'a pas pu être créé (" + String(err.message || err.code).slice(0, 160) + "). L'erreur a été transmise à l'administrateur.");
+      setImportError(invErrMsg(err, "Création de l'inventaire"));
       try {
         await ref.delete();
       } catch (e) {
@@ -2814,7 +2823,7 @@ function InventaireMMTEApp() {
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (err) {
-      setImportError("Erreur de connexion au serveur. Réessayez.");
+      setImportError(invErrMsg(err, "Réouverture de l'inventaire"));
     } finally {
       setStarting(false);
     }
@@ -2851,7 +2860,7 @@ function InventaireMMTEApp() {
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (err) {
-      setImportError("Erreur de connexion au serveur. Réessayez.");
+      setImportError(invErrMsg(err, "Remplacement de l'inventaire"));
     } finally {
       setStarting(false);
     }
@@ -3111,7 +3120,7 @@ function InventaireMMTEApp() {
       list.sort((a, b) => String(b.invDate || "").localeCompare(String(a.invDate || "")));
       setArchiveList(list);
     } catch (e) {
-      setArchiveError("Impossible de charger les archives. Vérifiez votre connexion et réessayez.");
+      setArchiveError(invErrMsg(e, "Chargement des archives"));
     } finally {
       setArchiveLoading(false);
     }
@@ -3177,7 +3186,7 @@ function InventaireMMTEApp() {
       setArchiveList((l) => l.map((x) => x.id === inv.id ? { ...x, ...patch, trashedAt: { toMillis: () => Date.now() } } : x));
       return true;
     } catch (e) {
-      setArchiveError("Impossible de déplacer cet inventaire dans la corbeille (droits ou connexion).");
+      setArchiveError(invErrMsg(e, "Mise à la corbeille"));
       return false;
     }
   };
@@ -3189,7 +3198,7 @@ function InventaireMMTEApp() {
       setArchiveList((l) => l.map((x) => x.id === inv.id ? { ...x, status: back } : x));
       return true;
     } catch (e) {
-      setArchiveError("Impossible de restaurer cet inventaire.");
+      setArchiveError(invErrMsg(e, "Restauration de l'inventaire"));
       return false;
     }
   };
@@ -3242,7 +3251,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (e) {
-      setArchiveError("Impossible de rouvrir cet inventaire. Réessayez.");
+      setArchiveError(invErrMsg(e, "Réouverture de l'inventaire"));
     } finally {
       setArchiveLoading(false);
     }
@@ -3271,7 +3280,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       setCompareData({ older, newer, onlyOld, onlyNew, both, countOld: ma.size, countNew: mb.size });
       setPhase("compare");
     } catch (e) {
-      setArchiveError("Impossible de comparer ces inventaires. Réessayez.");
+      setArchiveError(invErrMsg(e, "Comparaison des inventaires"));
     } finally {
       setArchiveLoading(false);
     }
