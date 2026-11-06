@@ -35,6 +35,22 @@ function stkGuessParc(fileName, book, parcNames, templates) {
   const words = new Set(fileName.replace(/\.[a-z0-9]+$/i, "").split(/[^A-Za-z0-9]+/).map(stkNorm).filter((w) => w.length >= 2));
   const byWord = parcNames.filter((n) => { const w = stkNorm(String(n).split(/\s+/)[0]); return w.length >= 2 && words.has(w); });
   if (byWord.length === 1) return { parc: byWord[0], how: "nom" };
+  // Modèle MMTE : case « PARC : » remplie par le parc dans les premières lignes
+  try {
+    for (const sn of book.SheetNames) {
+      const rows = stkSheetRows(book.Sheets[sn]).slice(0, 10);
+      for (const r of rows) {
+        const k = (r || []).findIndex((c) => /^PARC$/.test(stkNorm(stkText(c))));
+        if (k < 0) continue;
+        const v = stkNorm(stkText((r || []).slice(k + 1).find((c) => c != null && stkText(c).trim() !== "") || ""));
+        if (v.length < 2) continue;
+        const exact = parcNames.filter((n) => stkNorm(n) === v);
+        if (exact.length === 1) return { parc: exact[0], how: "fichier" };
+        const part = parcNames.filter((n) => stkNorm(n).length >= 2 && (v.includes(stkNorm(n)) || stkNorm(n).includes(v))).sort((a, b) => stkNorm(b).length - stkNorm(a).length);
+        if (part.length) return { parc: part[0], how: "fichier" };
+      }
+    }
+  } catch (e) {}
   const sigs = new Set();
   try {
     book.SheetNames.forEach((sn) => {
@@ -60,6 +76,14 @@ function stkGuessFileDate(fileName, book) {
   try {
     const sn = book.SheetNames[0];
     const rows = stkSheetRows(book.Sheets[sn]).slice(0, 8);
+    // Modèle MMTE : case « DATE DU STOCK : » suivie d'une vraie date Excel (dans n'importe quel onglet)
+    for (const r of book.SheetNames.flatMap((n) => stkSheetRows(book.Sheets[n]).slice(0, 8))) {
+      const k = (r || []).findIndex((c) => !(c instanceof Date) && /^DATEDUSTOCK/.test(stkNorm(stkText(c))));
+      if (k < 0) continue;
+      const v = (r || []).slice(k + 1).find((c) => c != null && c !== "");
+      const p = v != null ? stkParseDate(v) : null;
+      if (p && stkValidStockDate(p.iso)) return { date: p.iso, src: "fichier" };
+    }
     for (const r of rows) {
       const txt = (r || []).map((c) => (c instanceof Date ? "" : stkText(c))).join(" ");
       const mm = /(?:au|du|date|le|semaine|stock)[^0-9]{0,15}(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/i.exec(txt);
@@ -226,7 +250,7 @@ function StkBulkImport() {
           return <tr key={x.id} className={`border-b border-slate-100 align-top ${x.include ? "" : "opacity-50"}`} data-testid="bulk-row">
             <td className="py-2.5 px-3"><input type="checkbox" checked={x.include} disabled={running || x.status === "ok"} onChange={(e) => upd(x.id, { include: e.target.checked })} aria-label="Inclure ce fichier" /></td>
             <td className="px-2 py-2.5"><div className="font-semibold text-[#0B1F38] break-all">{x.file.name}</div>
-              <div className="text-[11px] text-slate-500">{(x.file.size / 1024).toFixed(0)} Ko{ps && ps.sheets.length ? ` · ${ps.sheets.length} onglet(s) lu(s)` : ""}{x.how === "nom" ? " · parc reconnu par le nom du fichier" : x.how === "modele" ? " · parc reconnu par la forme du tableau" : ""}</div>
+              <div className="text-[11px] text-slate-500">{(x.file.size / 1024).toFixed(0)} Ko{ps && ps.sheets.length ? ` · ${ps.sheets.length} onglet(s) lu(s)` : ""}{x.how === "nom" ? " · parc reconnu par le nom du fichier" : x.how === "modele" ? " · parc reconnu par la forme du tableau" : x.how === "fichier" ? " · parc reconnu dans le fichier" : ""}</div>
               {late && <div className="text-[11px] text-amber-800 mt-0.5">Antérieur au dernier import du parc ({stkFmt(pv.last_stock_date)}) : l'historique sera recalculé.</div>}
               {same && <div className="text-[11px] text-amber-800 mt-0.5">Un import existe déjà pour ce parc à cette date.</div>}
               {nIssues > 0 && x.status !== "ok" && <button className={`text-[11px] underline mt-0.5 ${nPending ? "text-amber-800 font-bold" : "text-slate-500"}`} data-testid="bulk-review" onClick={() => setReview(x.id)}>{nPending ? `${nPending} point(s) à vérifier : corriger ou accepter` : `${nIssues} point(s) vérifié(s) : revoir`}</button>}

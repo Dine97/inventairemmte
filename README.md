@@ -206,5 +206,6 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
 - **Inventaire** : messages d'erreur précis (cause réelle) au lieu de « Erreur de connexion », erreurs transmises au journal.
 - **Recherche par liste** : liste de châssis collée ou fichier Excel ; parc, situation, date de dépôt, dernière sortie ; numéros incomplets (fin du châssis) et corrections mémorisées reconnus ; suggestion pour les fautes de frappe ; export Excel (migration `009`).
 - **Vue par manifeste** (6.7.1, remplace la vue par navire : un navire peut revenir plusieurs fois, le manifeste est unique) : véhicules en parc par manifeste (navire, parcs, arrivée, premier dépôt, dépôts, BL), détail et export.
+- **Modèle de fichier pour les parcs** (6.7.2) : `modeles/MODELE_STOCK_PARC_MMTE.xlsx` (onglets STOCK, SORTIES facultatif, MODE D'EMPLOI). L'import reconnaît le parc et la date du stock dans les cases « PARC : » et « DATE DU STOCK : », même si le fichier est mal nommé.
 - **À faire** sur le tableau de bord : fichiers attendus, sorties non justifiées, dépôts proches, véhicules sans date.
 
