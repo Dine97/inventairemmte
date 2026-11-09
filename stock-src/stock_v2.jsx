@@ -134,7 +134,8 @@ function StkReport() {
       `Anomalies en cours : ${(a.multi_parcs || []).length} véhicule(s) dans deux parcs · ${(a.proches || []).length} faute(s) de frappe probable(s) · ${(a.reapparus || []).length} réapparition(s) · ${(a.sans_date || []).length} sans date · ${(a.ecarts_mmte || []).length} écart(s) avec MMTE`];
   };
   const totalRow = { parc: "TOTAL", ...tot, nb_imports: list.reduce((a, r) => a + +r.nb_imports, 0) };
-  const exp = (k) => k === "x" ? stkExportXlsx(`Rapport_stocks_${from}_${to}`, "Rapport hebdomadaire — Suivi des stocks MAD ROULANTS", meta(), cols, [...list, totalRow]) : stkPrintPdf("Rapport hebdomadaire — Suivi des stocks MAD ROULANTS", meta(), cols.filter((c) => c.h !== "Stock initial importé"), [...list, totalRow]);
+  const exp = (k) => k === "x" ? stkExportXlsx(`Rapport_stocks_${from}_${to}`, "Rapport hebdomadaire — Suivi des stocks MAD ROULANTS", meta(), cols, [...list, totalRow]) : stkPrintPdf("Rapport hebdomadaire — Suivi des stocks MAD ROULANTS", meta(), cols.filter((c) => c.h !== "Stock initial importé"), [...list, totalRow], undefined,
+    { title: "Rapport hebdomadaire des stocks", sub: stkMonday(from) === from && to === stkAddDays(from, 6) ? `Semaine ${stkIsoWeek(from)} — du ${stkFmt(from)} au ${stkFmt(to)}` : `Du ${stkFmt(from)} au ${stkFmt(to)}` });
   const T = (v, tone) => <span className={`font-plex-mono ${tone || ""}`}>{(+v || 0).toLocaleString("fr-FR")}</span>;
   const tcols = [
     { key: "parc", label: "Parc", render: (r) => <b className="text-[#0B1F38]">{r.parc}</b> },

@@ -323,3 +323,35 @@ function StkMovementsWeek() {
     </StkCard>
   </>;
 }
+
+// ---------------- Bandeau photo du tableau de bord (6.10.2) ----------------
+function StkHeroBanner({ tot }) {
+  const C = React.useContext(StkCtx);
+  const { dash, go } = C;
+  const today = stkToday();
+  const mon = stkMonday(today);
+  const act = dash.filter((d) => d.active !== false && d.suivi_hebdo !== false);
+  const ok = act.filter((d) => d.last_import && stkWeekCovers([d.last_import], mon)).length;
+  const name = String(C.userName || (C.me && C.me.name) || "").trim();
+  const now = new Date();
+  const hello = typeof greetingWord === "function" ? greetingWord(now) : "Bonjour";
+  const dateTxt = typeof formatDateFr === "function" ? formatDateFr(now) : stkFmt(today);
+  const K = ({ v, l, on }) => <button onClick={on} className="text-left">
+    <div className="text-[28px] md:text-[32px] font-bold leading-none text-[#E8D3A2]" style={{ fontFamily: "Lora,Georgia,serif" }}>{v}</div>
+    <div className="text-xs text-white/80 mt-1">{l}</div>
+  </button>;
+  return <div className="relative rounded-3xl overflow-hidden min-h-[220px] bg-[#0B1F38] shadow-[0_30px_60px_-40px_rgba(11,31,56,.8)]" data-testid="hero-banner"
+    style={{ backgroundImage: "url(./lib/img/mad-roulants-nuit.jpg)", backgroundSize: "cover", backgroundPosition: "center 60%" }}>
+    <div className="absolute inset-0" style={{ background: "linear-gradient(90deg,rgba(11,31,56,.94) 0%,rgba(11,31,56,.6) 55%,rgba(11,31,56,.12))" }} />
+    <div className="relative px-6 py-6 md:px-8 md:py-7 text-white">
+      <span className="inline-block bg-[#0B1F38]/80 text-[#E8D3A2] font-extrabold text-[11px] tracking-[.14em] px-3 py-1 rounded-full">MAD ROULANTS</span>
+      <div className="mt-2 text-2xl md:text-[28px] font-semibold" style={{ fontFamily: "'Sora',system-ui,sans-serif" }}>{hello}{name ? `, ${name}` : ""}</div>
+      <div className="text-sm text-white/80">{dateTxt} · semaine {stkIsoWeek(mon)}</div>
+      <div className="flex flex-wrap gap-x-8 gap-y-4 mt-5">
+        <K v={(+tot.presents || 0).toLocaleString("fr-FR")} l="véhicules en parc" />
+        <K v={`${ok} / ${act.length}`} l="parcs à jour" on={() => go("couverture")} />
+        <K v={(+tot.nj || 0).toLocaleString("fr-FR")} l="sorties à justifier" on={() => go("justif")} />
+      </div>
+    </div>
+  </div>;
+}

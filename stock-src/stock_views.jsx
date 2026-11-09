@@ -121,6 +121,7 @@ function StkDashboard({ lastImports }) {
   let list = dash.filter((d) => d.active !== false && (!q || d.parc.includes(q.trim().toUpperCase())) && (!onlyStock || +d.presents > 0));
   list = [...list].sort((a, b) => sort === "name" ? a.parc.localeCompare(b.parc) : sort === "depot" ? b.depot - a.depot : sort === "import" ? String(b.last_import || "").localeCompare(String(a.last_import || "")) : (b.presents - a.presents) || a.parc.localeCompare(b.parc));
   return <>
+    <StkHeroBanner tot={tot} />
     <StkPageHead title="Tableau de bord des stocks" sub={`Situation au ${stkFmt(today)} · séjour de ${cfg.duree} jours à compter de la date d'arrivée du navire`} right={<><StkBtn small onClick={() => setExpAt(true)}><Download size={15} /> Exporter le stock à une date</StkBtn><StkBtn small onClick={reloadDash}><RefreshCw size={15} /> Actualiser</StkBtn></>} />
     {expAt && <StkExportAtDateModal onClose={() => setExpAt(false)} />}
     <StkCard className="p-4"><StkQuickSearch big /></StkCard>

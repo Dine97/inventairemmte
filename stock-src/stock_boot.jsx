@@ -183,7 +183,15 @@ function StkAppChooser({ name, onChoose, canInventory }) {
     <div className="text-center"><h2 className="text-2xl md:text-3xl font-semibold text-[#0B1F38]">Quelle application voulez-vous ouvrir ?</h2></div>
     <div className="grid md:grid-cols-2 gap-5">
       <Card k="inventaire" title="Inventaire MMTE" Ic={(p) => <ScanLine {...p} />} tone="bg-gradient-to-br from-[#2E7DC1] to-[#123A66]" text="Inventaire physique des parcs : pointage des châssis par scan, liste MMTE, manquants, fiches et rapports." />
-      <Card k="stock" title="Suivi des stocks MAD ROULANTS" Ic={(p) => <StkIc.Layers {...p} />} tone="bg-gradient-to-br from-[#C9A96A] to-[#8A6A2E]" text="Stock hebdomadaire de chaque parc : entrées, sorties, véhicules en dépôt, historique complet de chaque châssis et justification des sorties." />
+      <button onClick={() => onChoose("stock")} data-testid="choose-stock" className="group relative text-left rounded-3xl border-2 border-[#C9A96A] shadow-sm hover:shadow-xl transition overflow-hidden min-h-[260px] bg-[#0B1F38]"
+        style={{ backgroundImage: "url(./lib/img/mad-roulants-nuit.jpg)", backgroundSize: "cover", backgroundPosition: "center" }}>
+        <div className="absolute inset-0 transition-opacity group-hover:opacity-90" style={{ background: "linear-gradient(180deg,rgba(11,31,56,.05),rgba(11,31,56,.92))" }} />
+        <div className="absolute left-6 right-6 bottom-6 md:left-8 md:right-8 md:bottom-7 text-white">
+          <div className="font-semibold text-2xl leading-tight" style={{ fontFamily: "'Sora',system-ui,sans-serif" }}>Suivi des stocks <span className="text-[#E8D3A2]">MAD ROULANTS</span></div>
+          <div className="text-sm text-white/85 mt-2 leading-relaxed">Stock hebdomadaire de chaque parc, entrées, sorties, transferts, véhicules en dépôt et justification des sorties.</div>
+          <div className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-[#E8D3A2]">Ouvrir <StkIc.Chev size={16} /></div>
+        </div>
+      </button>
     </div>
   </div>;
 }
