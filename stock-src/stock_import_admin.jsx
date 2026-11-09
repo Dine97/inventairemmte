@@ -12,6 +12,7 @@ function StkImport({ preset }) {
   const [parsed, setParsed] = useState(null);
   const [preview, setPreview] = useState(null);
   const [busy, setBusy] = useState("");
+  const [prog, setProg] = useState(null);
   const [err, setErr] = useState("");
   const [result, setResult] = useState(null);
   const [editMap, setEditMap] = useState(null);
@@ -25,7 +26,10 @@ function StkImport({ preset }) {
     let t = { templates: [], synonyms: [] };
     try { setBusy("Recherche du modèle de lecture du parc..."); t = await stkCall("templates", { parc_name: parcName }); setTpl(t); } catch (e) {}
     setBusy("Lecture du fichier...");
-    const res = stkApplyAliases(stkParseWorkbook(book, { synonyms: t.synonyms, templates: t.templates, forced: frc }), t.aliases);
+    let res;
+    try { res = stkApplyAliases(await stkParseBook(book, { synonyms: t.synonyms, templates: t.templates, forced: frc }, setProg), t.aliases); }
+    catch (e) { setProg(null); setBusy(""); setErr("Lecture impossible : " + (e.message || e)); return; }
+    setProg(null);
     setParsed(res);
     if (!res.rows.length) { setBusy(""); return; }
     if (!parcName) { setBusy(""); return; }
@@ -41,13 +45,21 @@ function StkImport({ preset }) {
     if (!parc) { const g = parcNames.find((n) => stkNorm(f.name).includes(stkNorm(n))); if (g) setParc(g); }
     try {
       setBusy("Ouverture du fichier...");
-      const buf = await f.arrayBuffer();
-      const book = XLSX.read(buf, { cellDates: true, type: "array" });
+      stkCloseBook(wb);
+      const book = await stkOpenWorkbook(f, setProg);
+      setProg(null);
       setWb(book);
-      const guess = parc || parcNames.find((n) => stkNorm(f.name).includes(stkNorm(n))) || "";
+      // parc saisi pendant l'ouverture du fichier (valeur à jour, pas celle du moment du choix du fichier)
+      const cur = (parcRef.current || "").trim().toUpperCase();
+      const guess = cur || parcNames.find((n) => stkNorm(f.name).includes(stkNorm(n))) || "";
       await analyse(book, guess, {});
-    } catch (e) { setBusy(""); setErr("Fichier illisible : " + (e.message || e)); }
+    } catch (e) { setProg(null); setBusy(""); setErr("Fichier illisible : " + (e.message || e)); }
   };
+  const wbRef = useRef(null);
+  wbRef.current = wb;
+  const parcRef = useRef(parc);
+  parcRef.current = parc;
+  useEffect(() => () => stkCloseBook(wbRef.current), []);
   useEffect(() => { if (wb && parcOk) { const t = setTimeout(() => analyse(wb, parc.trim().toUpperCase(), forced), 500); return () => clearTimeout(t); } }, [parc]);
   const lastDate = preview && preview.last_stock_date;
   const tooOld = lastDate && date < lastDate;
@@ -107,7 +119,7 @@ function StkImport({ preset }) {
         <div className="font-bold text-[#123A66] mt-2">{file ? file.name : "Déposer le fichier ici ou cliquer pour le choisir"}</div>
         {file && <div className="text-xs text-slate-500 mt-1">{(file.size / 1024).toFixed(0)} Ko · cliquer pour changer de fichier</div>}
       </label>
-      {busy && <StkMsg tone="info">{busy}</StkMsg>}
+      {busy && <StkMsg tone="info">{busy}{prog && <div className="mt-2"><StkProgressBar p={prog} size={file && file.size} /></div>}</StkMsg>}
       {err && <StkMsg tone="err">{err}</StkMsg>}
     </StkCard>
 

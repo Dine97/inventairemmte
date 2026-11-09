@@ -221,7 +221,7 @@ function StkTodo() {
   const { dash, cfg, go, isAdmin } = C;
   const monday = stkMonday(stkToday());
   const act = dash.filter((d) => d.active !== false);
-  const late = act.filter((d) => d.last_import && d.last_import < monday).length;
+  const late = act.filter((d) => d.suivi_hebdo !== false && d.last_import && !stkWeekCovers([d.last_import], monday)).length;
   const never = act.filter((d) => !d.last_import).length;
   const nj = act.reduce((a, d) => a + +d.non_justifiees, 0);
   const soon = act.reduce((a, d) => a + +d.bientot, 0);
@@ -229,7 +229,7 @@ function StkTodo() {
   const sans = act.reduce((a, d) => a + +d.sans_date, 0);
   const canEdit = stkCanEdit(C);
   const items = [
-    late + (canEdit ? never : 0) > 0 && { tone: "amber", n: late + (canEdit ? never : 0), t: `fichier(s) de stock attendu(s) cette semaine${never ? ` (dont ${never} parc(s) jamais importé(s))` : ""}`, b: canEdit ? "Import groupé" : null, on: () => go("bulk") },
+    late + (canEdit ? never : 0) > 0 && { tone: "amber", n: late + (canEdit ? never : 0), t: `fichier(s) de stock attendu(s) cette semaine${never ? ` (dont ${never} parc(s) jamais importé(s))` : ""}`, b: "Couverture et relances", on: () => go("couverture") },
     nj > 0 && { tone: "rose", n: nj, t: "sortie(s) non justifiée(s)", b: "Justifier", on: () => go("justif") },
     soon > 0 && { tone: "amber", n: soon, t: `véhicule(s) passent en dépôt dans moins de ${cfg.seuil} jours`, b: "Voir la liste", on: () => go("search", { situation: "bientot" }) },
     depot > 0 && { tone: "slate", n: depot, t: "véhicule(s) en dépôt dans les parcs", b: "Voir la liste", on: () => go("search", { situation: "depot" }) },

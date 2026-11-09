@@ -53,6 +53,7 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   else if (section === "mmte") body = <StkMmteCheck />;
   else if (section === "import") body = <StkImport preset={importPreset} />;
   else if (section === "bulk") body = <StkBulkImport />;
+  else if (section === "couverture") body = <StkCoverage />;
   else if (section === "liste") body = <StkListLookup />;
   else if (section === "manifestes" || section === "navires") body = <StkManifests />;
   else if (section === "miseenservice" && isAdmin) body = <StkRollout />;

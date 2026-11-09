@@ -76,10 +76,11 @@ function StkManualMoves({ preset }) {
     if (!f) return;
     setErr(""); setBusy("Lecture du fichier...");
     try {
-      const book = XLSX.read(await f.arrayBuffer(), { cellDates: true, type: "array" });
+      const book = await stkOpenWorkbook(f, (p) => setBusy(stkProgressText(p, f.size)));
       let synonyms = [];
       try { synonyms = (await stkCall("templates", {})).synonyms || []; } catch (e) {}
-      const res = stkParseWorkbook(book, { synonyms });
+      let res;
+      try { res = await stkParseBook(book, { synonyms }, (p) => setBusy(stkProgressText(p, f.size))); } finally { stkCloseBook(book); }
       if (!res.rows.length) { setErr("Aucune colonne de châssis reconnue dans ce fichier. Vous pouvez aussi copier la colonne des châssis et la coller dans la zone de texte."); setBusy(""); return; }
       const all = [].concat(...res.sheets.map((s) => s.rows));
       const seen = new Set();

@@ -123,8 +123,8 @@ function StkBulkImport() {
   const analyse = async (it, parcName, R) => {
     const tpls = (R.templates || []).filter((t) => t.parcs && t.parcs.name === parcName);
     let parsed;
-    try { parsed = stkApplyAliases(stkParseWorkbook(it.wb, { synonyms: R.synonyms, templates: tpls }), R.aliases); }
-    catch (e) { upd(it.id, { status: "erreur", err: "Lecture impossible : " + (e.message || e), parsed: null, preview: null }); return; }
+    try { parsed = stkApplyAliases(await stkParseBook(it.wb, { synonyms: R.synonyms, templates: tpls }, (p) => upd(it.id, { prog: p })), R.aliases); upd(it.id, { prog: null }); }
+    catch (e) { upd(it.id, { status: "erreur", err: "Lecture impossible : " + (e.message || e), parsed: null, preview: null, prog: null }); return; }
     if (!parsed.rows.length) { upd(it.id, { parsed, preview: null, status: "illisible", err: "" }); return; }
     if (!parcName) { upd(it.id, { parsed, preview: null, status: "sans_parc", err: "" }); return; }
     upd(it.id, { parsed, preview: null, status: "comparaison", err: "" });
@@ -147,13 +147,13 @@ function StkBulkImport() {
       while (k < fresh.length) {
         const it = fresh[k++];
         try {
-          const book = XLSX.read(await it.file.arrayBuffer(), { cellDates: true, type: "array" });
+          const book = await stkOpenWorkbook(it.file, (p) => upd(it.id, { prog: p }));
           const g = stkGuessParc(it.file.name, book, parcNames, R.templates);
           const gd = stkGuessFileDate(it.file.name, book);
           const cur = { ...it, wb: book, parc: g.parc, how: g.how, date: gd.date, dateSrc: gd.src };
           upd(it.id, { wb: book, parc: g.parc, how: g.how, date: gd.date, dateSrc: gd.src });
           await analyse(cur, g.parc, R);
-        } catch (e) { upd(it.id, { status: "erreur", err: "Fichier illisible : " + (e.message || e) }); }
+        } catch (e) { upd(it.id, { status: "erreur", err: "Fichier illisible : " + (e.message || e), prog: null }); }
       }
     };
     await Promise.all([worker(), worker(), worker()]);
@@ -164,7 +164,8 @@ function StkBulkImport() {
     const R = await loadRef();
     await analyse({ ...it, parc: parcName }, parcName, R);
   };
-  const remove = (id) => setItems((xs) => xs.filter((x) => x.id !== id));
+  const remove = (id) => setItems((xs) => { const x = xs.find((y) => y.id === id); if (x) stkCloseBook(x.wb); return xs.filter((y) => y.id !== id); });
+  useEffect(() => () => (itemsRef.current || []).forEach((x) => stkCloseBook(x.wb)), []);
 
   // Contrôles avant import
   const dOf = (x) => x.date || date;
@@ -255,6 +256,7 @@ function StkBulkImport() {
               {same && <div className="text-[11px] text-amber-800 mt-0.5">Un import existe déjà pour ce parc à cette date.</div>}
               {nIssues > 0 && x.status !== "ok" && <button className={`text-[11px] underline mt-0.5 ${nPending ? "text-amber-800 font-bold" : "text-slate-500"}`} data-testid="bulk-review" onClick={() => setReview(x.id)}>{nPending ? `${nPending} point(s) à vérifier : corriger ou accepter` : `${nIssues} point(s) vérifié(s) : revoir`}</button>}
               {x.err && <div className="text-[11px] text-rose-700 mt-0.5">{x.err}</div>}
+              {x.prog && <div className="mt-1 max-w-[260px]"><StkProgressBar p={x.prog} size={x.file.size} /></div>}
             </td>
             <td className="px-2 py-2"><select value={x.parc} disabled={running || x.status === "ok" || !x.wb} onChange={(e) => changeParc(x, e.target.value)} className={`${stkInput} py-1.5 ${!x.parc ? "border-amber-300 bg-amber-50" : ""}`} data-testid="bulk-parc">
               <option value="">— Choisir le parc —</option>{parcNames.map((n) => <option key={n} value={n}>{n}</option>)}
@@ -281,7 +283,7 @@ function StkBulkImport() {
         <div className="flex flex-wrap gap-2 items-center">
           <StkBtn kind="primary" disabled={running || analysing || !ready.length} onClick={importAll} data-testid="bulk-go"><StkIc.Check size={16} /> {running ? "Import en cours..." : `Importer ${ready.length} fichier(s)`}</StkBtn>
           {items.some((x) => x.status === "echec") && !running && <StkBtn onClick={retryFailed}><RefreshCw size={16} /> Relancer les échecs</StkBtn>}
-          {!running && <StkBtn kind="ghost" onClick={() => { setItems([]); setDone(false); }}>Tout effacer</StkBtn>}
+          {!running && <StkBtn kind="ghost" onClick={() => { items.forEach((x) => stkCloseBook(x.wb)); setItems([]); setDone(false); }}>Tout effacer</StkBtn>}
         </div>
       </div>
     </StkCard>}

@@ -634,6 +634,36 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return { parcs: Object.values(by), users };
   },
 
+  // ---- Couverture hebdomadaire (semaine du lundi au vendredi) et relances des parcs ----
+  async coverage() {
+    const since = new Date(Date.now() - 80 * 864e5).toISOString().slice(0, 10);
+    const [parcs, imps, rel] = await Promise.all([
+      sb.from("parcs").select("id,name,active,suivi_hebdo,contact_nom,contact_email,contact_tel").is("deleted_at", null).order("name"),
+      fetchAll(() => sb.from("imports").select("parc_id,stock_date,created_at").eq("status", "valide").gte("stock_date", since).order("id"), 100000),
+      sb.from("stock_relances").select("parc_id,semaine,niveau,canal,by_name,at").gte("semaine", since).order("at", { ascending: false }),
+    ]);
+    return { today: today(), parcs: must(parcs), imports: imps, relances: must(rel) };
+  },
+  async parc_contact_set(p, who) {
+    agentOnly(who);
+    const id = Number(p.parc_id);
+    if (!id) throw new ApiError("PARC_MANQUANT");
+    const cut = (x: unknown, n: number) => (x == null || String(x).trim() === "" ? null : String(x).trim().slice(0, n));
+    const patch: any = { contact_nom: cut(p.contact_nom, 200), contact_email: cut(p.contact_email, 500), contact_tel: cut(p.contact_tel, 100) };
+    if (typeof p.suivi_hebdo === "boolean") patch.suivi_hebdo = p.suivi_hebdo;
+    const r = must(await sb.from("parcs").update(patch).eq("id", id).select("name")) as any[];
+    await audit(who, "parametre", "parc", id, `Contact du parc ${r[0] ? r[0].name : id} : ${[patch.contact_nom, patch.contact_email, patch.contact_tel].filter(Boolean).join(" · ") || "(vide)"}${typeof p.suivi_hebdo === "boolean" ? (p.suivi_hebdo ? " — suivi hebdomadaire" : " — exclu de la couverture") : ""}`);
+    return { ok: true };
+  },
+  async relance_add(p, who) {
+    agentOnly(who);
+    const list = (Array.isArray(p.items) ? p.items : []).filter((x: any) => Number(x.parc_id) && /^\d{4}-\d{2}-\d{2}$/.test(String(x.semaine))).slice(0, 200);
+    if (!list.length) throw new ApiError("AUCUN_PARC");
+    must(await sb.from("stock_relances").insert(list.map((x: any) => ({ parc_id: Number(x.parc_id), semaine: x.semaine, niveau: Number(x.niveau) === 2 ? 2 : 1, canal: String(p.canal || "").slice(0, 20) || null, by_uid: who.uid, by_name: who.name }))));
+    await audit(who, "relance", "parcs", list.map((x: any) => x.parc_id).join(","), `Relance${list.length > 1 ? "s" : ""} envoyée${list.length > 1 ? "s" : ""} à ${list.length} parc(s) pour la semaine du ${list[0].semaine}`);
+    return { ok: true, n: list.length };
+  },
+
   // ---- Entrées et sorties saisies (une par une ou par fichier) ----
   async moves_preview(p, who) {
     agentOnly(who);

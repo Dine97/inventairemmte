@@ -130,7 +130,10 @@ function stkSplitMarqueModele(txt, wantYear) {
   else { const i = s.indexOf(" "); if (i > 0) { marque = s.slice(0, i); modele = s.slice(i + 1).trim(); } }
   return { marque, modele, annee };
 }
+// Avancement de la lecture (utilisé par la lecture en arrière-plan)
+let stkProgress = null;
 function stkSheetRows(ws) {
+  if (ws && ws.__rows) return ws.__rows; // lignes déjà extraites (lecture en arrière-plan)
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: null, blankrows: true });
   let off = 0;
   try { off = ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]).s.r : 0; } catch (e) {}
@@ -256,6 +259,7 @@ function stkReadSheet(rows, headerRow, map, sheetName) {
   const carry = {};
   const wantYear = map.annee == null;
   data.forEach((r, idx) => {
+    if (stkProgress && idx % 1000 === 0) stkProgress(idx, data.length, sheetName);
     if (!r) return;
     const line = off + headerRow + idx + 2;
     const rawC = r[map.chassis];

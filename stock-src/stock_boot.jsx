@@ -89,6 +89,7 @@ const STK_SECTIONS = [
   { key: "manifestes", label: "Vue par manifeste", Ic: (p) => <StkIc.Truck {...p} /> },
   { key: "import", label: "Importer un stock", Ic: (p) => <Upload {...p} /> },
   { key: "bulk", label: "Import groupé du lundi", Ic: (p) => <StkIc.Layers {...p} /> },
+  { key: "couverture", label: "Couverture hebdomadaire", Ic: (p) => <StkIc.Cal {...p} /> },
   { key: "saisie", label: "Saisir entrées / sorties", Ic: (p) => <StkIc.Edit {...p} /> },
   { key: "moves", label: "Entrées et sorties", Ic: (p) => <StkIc.Swap {...p} /> },
   { key: "justif", label: "Justification des sorties", Ic: (p) => <StkIc.Clip {...p} /> },
