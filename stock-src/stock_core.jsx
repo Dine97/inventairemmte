@@ -63,11 +63,9 @@ function stkExportXlsx(fileName, title, meta, columns, rows) {
   XLSX.writeFile(wb, fileName.replace(/[\\/:*?"<>|]+/g, "_") + ".xlsx");
 }
 function stkEsc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
-function stkPrintPdf(title, meta, columns, rows, landscape, cover) {
+function stkPrintPdf(title, meta, columns, rows, landscape) {
   const head = `<div class="sp-head"><img src="${LOGO_BC}" alt="Bénin Control"><div class="sp-t"><div class="sp-k">Bénin Control · MAD-MAE · Suivi des stocks MAD ROULANTS</div><h1>${stkEsc(title)}</h1>${meta.map((m) => `<div class="sp-m">${stkEsc(m)}</div>`).join("")}</div><img src="${LOGO_DOUANES}" alt="Douanes Béninoises"></div>`;
   const table = `<table><thead><tr><th>N°</th>${columns.map((c) => `<th>${stkEsc(c.h)}</th>`).join("")}</tr></thead><tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td>${columns.map((c) => `<td>${stkEsc(c.p ? c.p(r) : c.x ? c.x(r) : r[c.k])}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
-  // Page de couverture (rapport hebdomadaire) : photo noir et blanc, page A4 en portrait
-  const coverHtml = cover ? `<section class="sp-cover"><img src="${new URL("./lib/img/mad-roulants-nb.jpg", location.href).href}" alt=""><div class="sp-cv-shade"></div><div class="sp-cv-txt"><div class="sp-cv-k">BÉNIN CONTROL · MAD-MAE</div><div class="sp-cv-t">${stkEsc(cover.title)}</div><div class="sp-cv-s">Suivi des stocks MAD ROULANTS<br>${stkEsc(cover.sub || "")}</div></div></section>` : "";
   const foot = `<div class="sp-f">Édité le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} — ${rows.length} ligne(s)</div>`;
   const css = `#stk-print{font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif;color:#0F2A47;font-size:9pt}
 #stk-print .sp-head{display:flex;align-items:center;gap:16px;border-bottom:2px solid #123A66;padding-bottom:10px;margin-bottom:12px}
@@ -80,23 +78,16 @@ function stkPrintPdf(title, meta, columns, rows, landscape, cover) {
 #stk-print th{background:#123A66;color:#fff;text-align:left;padding:4px 5px;font-size:8.5pt}
 #stk-print td{border-bottom:1px solid #DCE6F1;padding:3px 5px;vertical-align:top}
 #stk-print tr:nth-child(even) td{background:#F4F8FC}
-#stk-print .sp-f{margin-top:10px;font-size:8pt;color:#5B6F86;text-align:right}
-#stk-print .sp-cover{page:cover;position:relative;width:186mm;height:273mm;overflow:hidden;break-after:page;background:#0B1F38;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-#stk-print .sp-cover img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-#stk-print .sp-cv-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,31,56,.2),rgba(11,31,56,.93) 70%)}
-#stk-print .sp-cv-txt{position:absolute;left:14mm;right:14mm;bottom:22mm;color:#fff}
-#stk-print .sp-cv-k{font-size:9pt;letter-spacing:.2em;color:#E8D3A2;font-weight:800}
-#stk-print .sp-cv-t{font-family:Sora,"Segoe UI",Arial,sans-serif;font-size:30pt;font-weight:600;line-height:1.12;margin-top:4mm}
-#stk-print .sp-cv-s{font-size:12pt;margin-top:4mm;opacity:.88;line-height:1.45}`;
+#stk-print .sp-f{margin-top:10px;font-size:8pt;color:#5B6F86;text-align:right}`;
   const old = document.getElementById("stk-print"); if (old) old.remove();
   const oldSt = document.getElementById("stk-print-style"); if (oldSt) oldSt.remove();
   const host = document.createElement("div");
   host.id = "stk-print";
-  host.innerHTML = `<style>${css}</style>${coverHtml}${head}${table}${foot}`;
+  host.innerHTML = `<style>${css}</style>${head}${table}${foot}`;
   document.body.appendChild(host);
   const st = document.createElement("style");
   st.id = "stk-print-style";
-  st.textContent = `#stk-print{display:none}@page{size:A4 ${landscape === false ? "portrait" : "landscape"};margin:12mm}@page cover{size:A4 portrait;margin:12mm}@media print{body.stk-printing #root{display:none!important}body.stk-printing #stk-print{display:block!important}}`;
+  st.textContent = `#stk-print{display:none}@page{size:A4 ${landscape === false ? "portrait" : "landscape"};margin:12mm}@media print{body.stk-printing #root{display:none!important}body.stk-printing #stk-print{display:block!important}}`;
   document.head.appendChild(st);
   document.body.classList.add("stk-printing");
   window.addEventListener("afterprint", () => { document.body.classList.remove("stk-printing"); host.remove(); st.remove(); }, { once: true });
