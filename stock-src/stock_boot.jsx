@@ -183,7 +183,7 @@ function StkAppChooser({ name, onChoose, canInventory }) {
     <div className="text-center"><h2 className="text-2xl md:text-3xl font-semibold text-[#0B1F38]">Quelle application voulez-vous ouvrir ?</h2></div>
     <div className="grid md:grid-cols-2 gap-5">
       <Card k="inventaire" title="Inventaire MMTE" Ic={(p) => <ScanLine {...p} />} tone="bg-gradient-to-br from-[#2E7DC1] to-[#123A66]" text="Inventaire physique des parcs : pointage des châssis par scan, liste MMTE, manquants, fiches et rapports." />
-      <Card k="stock" title="Suivi des stocks" Ic={(p) => <StkIc.Layers {...p} />} tone="bg-gradient-to-br from-[#C9A96A] to-[#8A6A2E]" text="Stock hebdomadaire de chaque parc : entrées, sorties, véhicules en dépôt, historique complet de chaque châssis et justification des sorties." />
+      <Card k="stock" title="Suivi des stocks MAD ROULANTS" Ic={(p) => <StkIc.Layers {...p} />} tone="bg-gradient-to-br from-[#C9A96A] to-[#8A6A2E]" text="Stock hebdomadaire de chaque parc : entrées, sorties, véhicules en dépôt, historique complet de chaque châssis et justification des sorties." />
     </div>
   </div>;
 }

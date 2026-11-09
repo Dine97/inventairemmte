@@ -134,7 +134,7 @@ function stkMailEmails(s) { return String(s || "").split(/[;,\s]+/).map((x) => x
 function stkRelanceText(r, L0, niveau, signer) {
   const sem = stkWeekLabel(L0);
   const lastTxt = r.last ? `Le dernier état reçu est daté du ${stkFmt(r.last)}${r.weeks > 1 ? `, soit ${r.weeks} semaines sans mise à jour` : ""}.` : "Nous n'avons encore reçu aucun état de stock de votre part.";
-  const sign = `\n\nCordialement,\n\n${signer || ""}\nBénin Control — Département MAD-MAE\nSuivi des stocks MMTE`;
+  const sign = `\n\nCordialement,\n\n${signer || ""}\nBénin Control — Département MAD-MAE\nSuivi des stocks MAD ROULANTS`;
   if (niveau === 2) return {
     subject: `RELANCE — État du stock du parc ${r.parc} non reçu (semaine ${sem})`,
     body: `Madame, Monsieur,\n\nMalgré nos précédentes demandes, nous n'avons toujours pas reçu l'état du stock des véhicules sous régime suspensif du parc ${r.parc} pour la semaine ${sem}.\n\n${lastTxt}\n\nCe document est indispensable au suivi des véhicules de votre parc. Nous vous prions de nous le transmettre dans les meilleurs délais, au format Excel, en utilisant le modèle joint (une ligne par véhicule présent dans le parc).${sign}`
@@ -272,7 +272,7 @@ function StkRelanceModal({ rows, L0, signer, onClose, onLogged }) {
   const withMail = rows.filter((r) => stkMailEmails(r.contact_email).length);
   const group = withMail.length > 1 ? {
     subject: `État du stock des véhicules — semaine ${stkWeekLabel(L0)}`,
-    body: `Madame, Monsieur,\n\nSauf erreur de notre part, nous n'avons pas encore reçu l'état du stock des véhicules sous régime suspensif de votre parc pour la semaine ${stkWeekLabel(L0)}.\n\nMerci de nous le transmettre dès que possible, au format Excel, en utilisant le modèle joint (une ligne par véhicule présent dans le parc). Pour la suite, l'état est attendu chaque lundi.\n\nCordialement,\n\n${signer || ""}\nBénin Control — Département MAD-MAE\nSuivi des stocks MMTE`
+    body: `Madame, Monsieur,\n\nSauf erreur de notre part, nous n'avons pas encore reçu l'état du stock des véhicules sous régime suspensif de votre parc pour la semaine ${stkWeekLabel(L0)}.\n\nMerci de nous le transmettre dès que possible, au format Excel, en utilisant le modèle joint (une ligne par véhicule présent dans le parc). Pour la suite, l'état est attendu chaque lundi.\n\nCordialement,\n\n${signer || ""}\nBénin Control — Département MAD-MAE\nSuivi des stocks MAD ROULANTS`
   } : null;
   return <StkModal wide title={`Relance des parcs — semaine ${stkWeekLabel(L0)}`} onClose={onClose} footer={<StkBtn onClick={onClose}>Fermer</StkBtn>}>
     <div className="space-y-4" data-testid="relance-modal">

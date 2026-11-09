@@ -134,7 +134,7 @@ function StkReport() {
       `Anomalies en cours : ${(a.multi_parcs || []).length} véhicule(s) dans deux parcs · ${(a.proches || []).length} faute(s) de frappe probable(s) · ${(a.reapparus || []).length} réapparition(s) · ${(a.sans_date || []).length} sans date · ${(a.ecarts_mmte || []).length} écart(s) avec MMTE`];
   };
   const totalRow = { parc: "TOTAL", ...tot, nb_imports: list.reduce((a, r) => a + +r.nb_imports, 0) };
-  const exp = (k) => k === "x" ? stkExportXlsx(`Rapport_stocks_${from}_${to}`, "Rapport hebdomadaire des stocks MMTE", meta(), cols, [...list, totalRow]) : stkPrintPdf("Rapport hebdomadaire des stocks MMTE", meta(), cols.filter((c) => c.h !== "Stock initial importé"), [...list, totalRow]);
+  const exp = (k) => k === "x" ? stkExportXlsx(`Rapport_stocks_${from}_${to}`, "Rapport hebdomadaire — Suivi des stocks MAD ROULANTS", meta(), cols, [...list, totalRow]) : stkPrintPdf("Rapport hebdomadaire — Suivi des stocks MAD ROULANTS", meta(), cols.filter((c) => c.h !== "Stock initial importé"), [...list, totalRow]);
   const T = (v, tone) => <span className={`font-plex-mono ${tone || ""}`}>{(+v || 0).toLocaleString("fr-FR")}</span>;
   const tcols = [
     { key: "parc", label: "Parc", render: (r) => <b className="text-[#0B1F38]">{r.parc}</b> },
@@ -402,7 +402,7 @@ async function stkBackup(setBusy) {
     const d = await stkCall("export_all", {});
     const wb = XLSX.utils.book_new();
     const add = (name, rows, map) => { const ws = XLSX.utils.json_to_sheet(rows.map(map || ((r) => r))); XLSX.utils.book_append_sheet(wb, ws, name); };
-    add("Lisez-moi", [{ Information: `Sauvegarde complète du suivi des stocks MMTE — ${new Date(d.at).toLocaleString("fr-FR")}` }, { Information: `${d.vehicles.length} véhicules, ${d.stays.length} mouvements, ${d.imports.length} imports, ${d.parcs.length} parcs` }, { Information: "À conserver en lieu sûr (serveur, clé USB, messagerie). Une sauvegarde par semaine est recommandée." }]);
+    add("Lisez-moi", [{ Information: `Sauvegarde complète du Suivi des stocks MAD ROULANTS — ${new Date(d.at).toLocaleString("fr-FR")}` }, { Information: `${d.vehicles.length} véhicules, ${d.stays.length} mouvements, ${d.imports.length} imports, ${d.parcs.length} parcs` }, { Information: "À conserver en lieu sûr (serveur, clé USB, messagerie). Une sauvegarde par semaine est recommandée." }]);
     add("Véhicules", d.vehicles, (v) => ({ ...v, data: JSON.stringify(v.data || {}), locked_fields: (v.locked_fields || []).join(", ") }));
     add("Mouvements", d.stays, (s) => ({ ...s, justif_files: (s.justif_files || []).map((f) => f.name).join(" ; ") }));
     add("Imports", d.imports, (i) => ({ ...i, parc: i.parcs && i.parcs.name, parcs: undefined }));

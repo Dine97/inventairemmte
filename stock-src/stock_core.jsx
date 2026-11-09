@@ -64,7 +64,7 @@ function stkExportXlsx(fileName, title, meta, columns, rows) {
 }
 function stkEsc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
 function stkPrintPdf(title, meta, columns, rows, landscape) {
-  const head = `<div class="sp-head"><img src="${LOGO_BC}" alt="Bénin Control"><div class="sp-t"><div class="sp-k">Bénin Control · MAD-MAE · Suivi des stocks MMTE</div><h1>${stkEsc(title)}</h1>${meta.map((m) => `<div class="sp-m">${stkEsc(m)}</div>`).join("")}</div><img src="${LOGO_DOUANES}" alt="Douanes Béninoises"></div>`;
+  const head = `<div class="sp-head"><img src="${LOGO_BC}" alt="Bénin Control"><div class="sp-t"><div class="sp-k">Bénin Control · MAD-MAE · Suivi des stocks MAD ROULANTS</div><h1>${stkEsc(title)}</h1>${meta.map((m) => `<div class="sp-m">${stkEsc(m)}</div>`).join("")}</div><img src="${LOGO_DOUANES}" alt="Douanes Béninoises"></div>`;
   const table = `<table><thead><tr><th>N°</th>${columns.map((c) => `<th>${stkEsc(c.h)}</th>`).join("")}</tr></thead><tbody>${rows.map((r, i) => `<tr><td>${i + 1}</td>${columns.map((c) => `<td>${stkEsc(c.p ? c.p(r) : c.x ? c.x(r) : r[c.k])}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   const foot = `<div class="sp-f">Édité le ${new Date().toLocaleDateString("fr-FR")} à ${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} — ${rows.length} ligne(s)</div>`;
   const css = `#stk-print{font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif;color:#0F2A47;font-size:9pt}

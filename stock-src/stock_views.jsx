@@ -34,7 +34,7 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   useEffect(() => { if (section !== "parc") setParcId((p) => p); window.scrollTo(0, 0); }, [section, parcId]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 4500); return () => clearTimeout(t); }, [toast]);
   if (err && !boot) return <div className="max-w-2xl mx-auto px-5 py-10 space-y-3"><StkMsg tone="err">{err}</StkMsg><StkBtn onClick={load}><RefreshCw size={16} /> Réessayer</StkBtn></div>;
-  if (!boot) return <StkLoading text="Chargement du suivi des stocks..." />;
+  if (!boot) return <StkLoading text="Chargement du Suivi des stocks MAD ROULANTS..." />;
   const cfg = stkSettings(boot.settings);
   const dash = boot.dashboard || [];
   const ctx = {
