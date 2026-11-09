@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>INVENTAIRE MMTE &amp; Suivi des stocks — Bénin Control</title>
+  <title>INVENTAIRE MMTE — Bénin Control</title>
   <link rel="manifest" href="./manifest.json">
   <meta name="theme-color" content="#123A66">
   <meta name="mobile-web-app-capable" content="yes">
@@ -13,16 +13,15 @@
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <link rel="icon" href="./icons/icon-192.png">
 
-  <!-- Styles et bibliothèques hébergés avec l'application (plus de dépendance aux CDN au démarrage) -->
-  <link rel="stylesheet" href="./lib/app.css?v=6.7.2">
-  <script src="./lib/react-18.3.1.production.min.js"></script>
-  <script src="./lib/react-dom-18.3.1.production.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
   <!-- Firebase (authentification + base de données partagée) -->
-  <script src="./lib/firebase-app-compat-10.14.1.js"></script>
-  <script src="./lib/firebase-auth-compat-10.14.1.js"></script>
-  <script src="./lib/firebase-firestore-compat-10.14.1.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 </head>
 <body class="bg-white text-slate-800 min-h-screen">
 
@@ -77,7 +76,7 @@ const Globe = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__P
 const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
 const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
 const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
-const APP_VERSION = "6.7.2";
+const APP_VERSION = "5.8.0";
 const firebaseConfig = {
   apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
   authDomain: "benin-control-mmte.firebaseapp.com",
@@ -650,22 +649,9 @@ function writeErrorMessage(err) {
   }
   return "Erreur d'enregistrement, réessayez.";
 }
-// Message d'erreur précis (au lieu d'un « Erreur de connexion » générique) + envoi au journal des erreurs
-function invErrMsg(err, action) {
-  try { stkReportError("inventaire", err, action); } catch (e) {}
-  const code = String((err && err.code) || "");
-  const msg = String((err && err.message) || "");
-  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
-  if (offline || /unavailable|deadline-exceeded/i.test(code) || (!code && /network|fetch|offline|timeout/i.test(msg))) return "Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.";
-  if (/permission-denied/i.test(code)) return `${action} : le serveur a refusé l'opération (droits insuffisants). Contactez l'administrateur.`;
-  if (/not-found/i.test(code)) return `${action} : inventaire introuvable (il a peut-être été supprimé).`;
-  if (/resource-exhausted/i.test(code)) return `${action} : quota du serveur dépassé pour aujourd'hui. Réessayez plus tard ou contactez l'administrateur.`;
-  return `${action} impossible (${(msg || code || "erreur inconnue").slice(0, 160)}). L'erreur a été transmise à l'administrateur.`;
-}
 async function writeMmteChunks(ref, entries) {
   for (let i = 0, idx = 0; i < entries.length; i += MMTE_CHUNK_SIZE, idx++) {
-    // Firestore refuse les champs « undefined » : ils sont retirés avant l'envoi
-    const items = entries.slice(i, i + MMTE_CHUNK_SIZE).map(([norm, info]) => JSON.parse(JSON.stringify({ norm, ...info })));
+    const items = entries.slice(i, i + MMTE_CHUNK_SIZE).map(([norm, info]) => ({ norm, ...info }));
     await ref.collection("mmteChunks").doc(String(idx).padStart(5, "0")).set({ idx, items });
   }
 }
@@ -792,6 +778,7 @@ const HELP_SECTIONS = [
     fr: { t: "2. Pointer les véhicules", p: [
       "Saisissez le châssis (ou une partie : marque, modèle) puis validez, ou scannez le code-barres / QR avec la caméra.",
       "Dans la caméra : la lampe torche (si l'appareil en a une) et le zoom aident dans les parcs sombres ou pour les châssis éloignés.",
+      "Trois modes de pointage dans la caméra : « Un par un » (elle se ferme après chaque châssis), « Continu automatique » (elle reste ouverte et pointe chaque code lu) et « Continu avec confirmation » (vous validez chaque lecture). Le bip et la vibration se règlent à côté ; un compteur de série et la liste des dernières lectures permettent d'annuler une erreur sans quitter la caméra ; « Terminer la série » ferme la caméra avec un résumé. Un véhicule absent de MMTE suspend la caméra pour l'enregistrer.",
       "La lecture automatique (OCR) permet de photographier la plaque du châssis ; vérifiez toujours le texte lu avant de valider.",
       "Résultat « Trouvé » : le véhicule est sur la liste MMTE. Résultat « Hors MMTE » : enregistrez-le avec marque, modèle, ancienneté et photo si besoin.",
       "Un châssis déjà pointé est refusé (pas de doublon). Une erreur se corrige en supprimant la ligne : elle peut être restaurée."
@@ -799,6 +786,7 @@ const HELP_SECTIONS = [
     en: { t: "2. Checking vehicles", p: [
       "Type the chassis number (or part of it: make, model) and confirm, or scan the barcode / QR code with the camera.",
       "In the camera view: the torch (if the device has one) and the zoom help in dark parks or for distant chassis plates.",
+      "Three checking modes in the camera: “One by one” (it closes after each chassis), “Continuous automatic” (it stays open and checks every code read) and “Continuous with confirmation” (you confirm each reading). Beep and vibration can be set next to it; a series counter and the list of latest readings let you cancel a mistake without leaving the camera; “End the series” closes the camera with a summary. A vehicle not on MMTE pauses the camera so you can register it.",
       "Automatic reading (OCR) lets you photograph the chassis plate; always check the text read before confirming.",
       "“Found” means the vehicle is on the MMTE list. “Not on MMTE” means you must register it with make, model, age and a photo if needed.",
       "A chassis already checked is refused (no duplicates). A mistake is fixed by deleting the line: it can be restored."
@@ -1037,7 +1025,6 @@ Object.assign(EN_DICT, {
   "Charger la liste collée": "Load the pasted list",
   "Collez la liste des châssis, un par ligne": "Paste the list of chassis numbers, one per line",
   "châssis chargés depuis MMTE": "chassis loaded from MMTE",
-  "châssis dans la liste de référence": "chassis in the reference list",
   "Synchronisé avec le serveur.": "Synchronised with the server.",
   "Nouveau parc": "New park",
   "Merci d'importer la liste des châssis MMTE avant de démarrer.": "Please import the MMTE chassis list before starting.",
@@ -1574,7 +1561,20 @@ Object.assign(EN_DICT, {
   "Lundi": "Monday",
   "Observation": "Remark",
   "Annexe": "Annex",
-  "· créé par": "· created by"
+  "· créé par": "· created by",
+  "Un par un": "One by one",
+  "Continu automatique": "Continuous automatic",
+  "Continu avec confirmation": "Continuous with confirmation",
+  "Bip": "Beep",
+  "Vibration": "Vibration",
+  "Châssis lu": "Chassis read",
+  "Ignorer": "Skip",
+  "Trouvé :": "Found: ",
+  "Déjà pointé :": "Already checked: ",
+  "Erreur :": "Error: ",
+  "Trouvé": "Found",
+  "Doublon": "Duplicate",
+  "Terminer la série": "End the series"
 });
 const EN_PATTERNS = [
   ["Supprimer le pointage du châssis {*} ?\n\nCette action reste tracée (auteur + heure) mais retire l'entrée des listes de l'inventaire.", "Delete the check of chassis {*}?\n\nThis action stays traced (author + time) but removes the entry from the inventory lists."],
@@ -1641,7 +1641,9 @@ const EN_PATTERNS = [
   ["{n} régularisés sur {n} · {n} encore manquant", "{n} settled out of {n} · {n} still missing"],
   ["{n} régularisés sur {n} · {n} encore manquants", "{n} settled out of {n} · {n} still missing"],
   ["par {*}", "by {*}"],
-  ["Clôturé le {*} par {*}", "Closed on {*} by {*}"]
+  ["Clôturé le {*} par {*}", "Closed on {*} by {*}"],
+  ["Série : {n} trouvé(s) · {n} hors MMTE · {n} doublon(s) ignoré(s)", "Series: {n} found · {n} not on MMTE · {n} duplicate(s) ignored"],
+  ["Série terminée : {n} trouvé(s), {n} hors MMTE, {n} doublon(s) ignoré(s).", "Series finished: {n} found, {n} not on MMTE, {n} duplicate(s) ignored."]
 ].map(([k, v]) => {
   const toks = [];
   const re = new RegExp("^" + k.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\{n\}|\{\*\}/g, (t) => {
@@ -2031,11 +2033,82 @@ function CamTools({ videoRef }) {
     await apply({ zoom: z });
   }, className: "flex-1" })));
 }
-function CameraScanner({ onDetect, onClose, knownMap }) {
+function CameraScanner({ onDetect, onClose, knownMap, onScanChassis, series, onUndo, onEndSeries }) {
   const videoRef = useRef(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState("code");
+  const lsGet = (k, d) => {
+    try {
+      const v = localStorage.getItem(k);
+      return v == null ? d : v;
+    } catch (e) {
+      return d;
+    }
+  };
+  const lsSet = (k, v) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch (e) {
+    }
+  };
+  const [scanMode, setScanMode] = useState(() => {
+    const v = lsGet("mmte-scanmode", "confirm");
+    return v === "single" || v === "auto" ? v : "confirm";
+  });
+  const [camSound, setCamSound] = useState(() => lsGet("mmte-cam-sound", "1") !== "0");
+  const [camVibe, setCamVibe] = useState(() => lsGet("mmte-cam-vibe", "1") !== "0");
+  const [banner, setBanner] = useState(null);
+  const [pending, setPending] = useState(null);
+  const modeRef = useRef(scanMode);
+  modeRef.current = scanMode;
+  const soundRef = useRef(camSound);
+  soundRef.current = camSound;
+  const vibeRef = useRef(camVibe);
+  vibeRef.current = camVibe;
+  const onScanRef = useRef(onScanChassis);
+  onScanRef.current = onScanChassis;
+  const onDetectRef = useRef(onDetect);
+  onDetectRef.current = onDetect;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const lastRef = useRef({ norm: "", t: 0 });
+  const busyRef = useRef(false);
+  const bannerTimer = useRef(null);
+  const runScan = async (chassis) => {
+    busyRef.current = true;
+    let out = "found";
+    try {
+      out = await onScanRef.current(chassis, { mute: !soundRef.current });
+    } catch (e) {
+      out = "error";
+    }
+    lastRef.current = { norm: normalize(chassis), t: Date.now() };
+    if (vibeRef.current && navigator.vibrate) {
+      try {
+        navigator.vibrate(out === "found" ? 70 : out === "duplicate" ? [40, 60, 40] : 220);
+      } catch (e) {
+      }
+    }
+    if (out === "notfound") {
+      busyRef.current = false;
+      onCloseRef.current();
+      return;
+    }
+    setBanner({ type: out, chassis });
+    if (bannerTimer.current) clearTimeout(bannerTimer.current);
+    bannerTimer.current = setTimeout(() => setBanner(null), 1600);
+    busyRef.current = false;
+  };
+  const changeMode = (m) => {
+    setScanMode(m);
+    lsSet("mmte-scanmode", m);
+    setPending(null);
+    busyRef.current = false;
+  };
+  useEffect(() => () => {
+    if (bannerTimer.current) clearTimeout(bannerTimer.current);
+  }, []);
   useEffect(() => {
     if (mode !== "code") return void 0;
     setErr("");
@@ -2046,9 +2119,26 @@ function CameraScanner({ onDetect, onClose, knownMap }) {
     let stopped = false;
     const finish = (raw) => {
       if (stopped) return;
-      stopped = true;
       const chassis = extractChassisFromScan(raw, knownMap);
-      if (chassis) onDetect(chassis);
+      if (!chassis) return;
+      if (modeRef.current === "single" || !onScanRef.current) {
+        stopped = true;
+        onDetectRef.current(chassis);
+        return;
+      }
+      if (busyRef.current) return;
+      const norm = normalize(chassis);
+      const l = lastRef.current;
+      if (l.norm === norm && Date.now() - l.t < 2500) {
+        l.t = Date.now();
+        return;
+      }
+      if (modeRef.current === "confirm") {
+        busyRef.current = true;
+        setPending({ chassis });
+        return;
+      }
+      runScan(chassis);
     };
     const constraints = { video: { facingMode: { ideal: "environment" } }, audio: false };
     (async () => {
@@ -2076,10 +2166,7 @@ function CameraScanner({ onDetect, onClose, knownMap }) {
           timer = setInterval(async () => {
             try {
               const codes = await detector.detect(v);
-              if (codes && codes.length && codes[0].rawValue) {
-                clearInterval(timer);
-                finish(codes[0].rawValue);
-              }
+              if (codes && codes.length && codes[0].rawValue) finish(codes[0].rawValue);
             } catch (e) {
             }
           }, 300);
@@ -2135,7 +2222,30 @@ function CameraScanner({ onDetect, onClose, knownMap }) {
     };
   }, [mode]);
   const tabCls = (m) => `flex-1 px-3 py-2 rounded-lg text-sm font-bold ${mode === m ? "bg-white" : "bg-white/15 text-white"}`;
-  return /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-start sm:justify-center p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 w-full max-w-md mb-3" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-code", onClick: () => setMode("code"), className: tabCls("code"), style: mode === "code" ? { color: BLUE_DEEP } : void 0 }, "Code-barres / QR"), /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-text", onClick: () => setMode("text"), className: tabCls("text"), style: mode === "text" ? { color: BLUE_DEEP } : void 0 }, "Texte du châssis")), mode === "text" ? /* @__PURE__ */ React.createElement(TextScanner, { knownMap, onDetect, onSwitchCode: () => setMode("code") }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1" }, "Visez le code-barres ou le QR code du châssis"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3" }, "Les deux types de codes sont lus automatiquement."), err ? /* @__PURE__ */ React.createElement("div", { className: "max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full max-w-md rounded-xl bg-black" }), loading && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2" }, "Démarrage de la caméra..."), !loading && /* @__PURE__ */ React.createElement(CamTools, { videoRef }))), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "mt-4 px-6 py-3 rounded-xl bg-white font-bold", style: { color: BLUE_DEEP } }, "Fermer"));
+  return /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-start sm:justify-center p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 w-full max-w-md mb-3" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-code", onClick: () => setMode("code"), className: tabCls("code"), style: mode === "code" ? { color: BLUE_DEEP } : void 0 }, "Code-barres / QR"), /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-text", onClick: () => setMode("text"), className: tabCls("text"), style: mode === "text" ? { color: BLUE_DEEP } : void 0 }, "Texte du châssis")), mode === "text" ? /* @__PURE__ */ React.createElement(TextScanner, { knownMap, onDetect, onSwitchCode: () => setMode("code") }) : /* @__PURE__ */ React.createElement(React.Fragment, null, onScanChassis && /* @__PURE__ */ React.createElement("div", { "data-testid": "scan-modes", className: "w-full max-w-md mb-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-1.5" }, [["single", "Un par un"], ["auto", "Continu automatique"], ["confirm", "Continu avec confirmation"]].map(([k, l]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: k,
+      "data-testid": "scan-m-" + k,
+      onClick: () => changeMode(k),
+      className: "flex-1 px-1.5 py-1.5 rounded-lg text-[11px] font-bold leading-tight " + (scanMode === k ? "bg-amber-300 text-slate-900" : "bg-white/15 text-white")
+    },
+    l
+  ))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-2 text-white/90 text-xs" }, /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement("input", { "data-testid": "cam-sound", type: "checkbox", checked: camSound, onChange: (e) => {
+    setCamSound(e.target.checked);
+    lsSet("mmte-cam-sound", e.target.checked ? "1" : "0");
+  } }), " Bip"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement("input", { "data-testid": "cam-vibe", type: "checkbox", checked: camVibe, onChange: (e) => {
+    setCamVibe(e.target.checked);
+    lsSet("mmte-cam-vibe", e.target.checked ? "1" : "0");
+  } }), " Vibration"))), /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1" }, "Visez le code-barres ou le QR code du châssis"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3" }, "Les deux types de codes sont lus automatiquement."), err ? /* @__PURE__ */ React.createElement("div", { className: "max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full max-w-md rounded-xl bg-black" }), loading && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2" }, "Démarrage de la caméra..."), !loading && /* @__PURE__ */ React.createElement(CamTools, { videoRef })), onScanChassis && scanMode !== "single" && /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-md mt-3 space-y-2" }, pending && /* @__PURE__ */ React.createElement("div", { "data-testid": "cam-confirm", className: "rounded-xl bg-white p-3 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500" }, "Châssis lu"), /* @__PURE__ */ React.createElement("div", { className: "font-plex-mono font-bold text-lg break-all" }, pending.chassis), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "cam-ok", onClick: () => {
+    const c = pending.chassis;
+    setPending(null);
+    runScan(c);
+  }, className: "flex-1 py-2.5 rounded-lg text-white font-bold", style: { background: "#0A8F44" } }, "Valider"), /* @__PURE__ */ React.createElement("button", { "data-testid": "cam-skip", onClick: () => {
+    lastRef.current = { norm: normalize(pending.chassis), t: Date.now() };
+    setPending(null);
+    busyRef.current = false;
+  }, className: "flex-1 py-2.5 rounded-lg font-bold border-2 border-slate-200 text-slate-600" }, "Ignorer"))), banner && /* @__PURE__ */ React.createElement("div", { "data-testid": "scan-banner", className: "rounded-xl px-3 py-2 text-center font-bold text-sm " + (banner.type === "found" ? "bg-emerald-500 text-white" : "bg-amber-300 text-slate-900") }, banner.type === "found" ? "Trouvé : " : banner.type === "duplicate" ? "Déjà pointé : " : "Erreur : ", /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono" }, banner.chassis)), series && /* @__PURE__ */ React.createElement("div", { "data-testid": "series-counter", className: "rounded-xl bg-white/10 text-white text-xs px-3 py-2 text-center font-semibold" }, `Série : ${series.found} trouvé(s) · ${series.hors} hors MMTE · ${series.dup} doublon(s) ignoré(s)`), series && series.recent.length > 0 && /* @__PURE__ */ React.createElement("div", { "data-testid": "series-recent", className: "rounded-xl bg-white p-2 space-y-1 max-h-40 overflow-y-auto" }, series.recent.slice(0, 6).map((r) => /* @__PURE__ */ React.createElement("div", { key: r.norm, className: "flex items-center justify-between gap-2 text-xs" }, /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono truncate" }, r.chassis), /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-slate-500" }, r.type === "found" ? "Trouvé" : r.type === "hors" ? "Hors MMTE" : "Doublon"), r.type === "found" && /* @__PURE__ */ React.createElement("button", { "data-testid": "cam-undo-" + r.norm, onClick: () => onUndo(r.norm), className: "font-bold text-rose-600 underline" }, "Annuler"))))), series && series.found + series.hors + series.dup > 0 && /* @__PURE__ */ React.createElement("button", { "data-testid": "series-end", onClick: onEndSeries, className: "w-full py-2.5 rounded-xl bg-white/90 font-bold text-sm", style: { color: BLUE_DEEP } }, "Terminer la série"))), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "mt-4 px-6 py-3 rounded-xl bg-white font-bold", style: { color: BLUE_DEEP } }, "Fermer"));
 }
 let ocrEnginePromise = null;
 function loadOcrEngine(onStage) {
@@ -2515,10 +2625,6 @@ function InventaireMMTEApp() {
   }, []);
   const [phase, setPhase] = useState("setup");
   const [showAdmin, setShowAdmin] = useState(false);
-  const [appModeRaw, setAppModeRaw] = useState(() => { try { return sessionStorage.getItem("mmte-app") || null; } catch (e) { return null; } });
-  const setAppMode = (m) => { setAppModeRaw(m); try { if (m) sessionStorage.setItem("mmte-app", m); else sessionStorage.removeItem("mmte-app"); } catch (e) {} };
-  const [stockSection, setStockSection] = useState("dash");
-  useEffect(() => { if (authUser === null) { setAppModeRaw(null); try { sessionStorage.removeItem("mmte-app"); } catch (e) {} } }, [authUser]);
   const [parcName, setParcName] = useState("");
   const [invDate, setInvDate] = useState(todayISO());
   const [importMode, setImportMode] = useState("file");
@@ -2754,7 +2860,7 @@ function InventaireMMTEApp() {
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (err) {
-      setImportError(invErrMsg(err, "Rejoindre l'inventaire"));
+      setImportError("Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.");
     } finally {
       setStarting(false);
     }
@@ -2820,7 +2926,7 @@ function InventaireMMTEApp() {
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (err) {
-      setImportError(invErrMsg(err, "Création de l'inventaire"));
+      setImportError("Erreur de connexion au serveur. Vérifiez votre connexion internet et réessayez.");
       try {
         await ref.delete();
       } catch (e) {
@@ -2854,7 +2960,7 @@ function InventaireMMTEApp() {
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (err) {
-      setImportError(invErrMsg(err, "Réouverture de l'inventaire"));
+      setImportError("Erreur de connexion au serveur. Réessayez.");
     } finally {
       setStarting(false);
     }
@@ -2891,7 +2997,7 @@ function InventaireMMTEApp() {
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (err) {
-      setImportError(invErrMsg(err, "Remplacement de l'inventaire"));
+      setImportError("Erreur de connexion au serveur. Réessayez.");
     } finally {
       setStarting(false);
     }
@@ -2921,21 +3027,44 @@ function InventaireMMTEApp() {
     if (stampTimeout.current) clearTimeout(stampTimeout.current);
     stampTimeout.current = setTimeout(() => setStampAnim(null), 650);
   };
-  const submitChassis = async (overrideValue) => {
+  const [series, setSeries] = useState({ found: 0, hors: 0, dup: 0, recent: [] });
+  const [seriesDone, setSeriesDone] = useState(null);
+  const camPendingRef = useRef("");
+  const scanContinuous = async (raw, opts) => {
+    const out = await submitChassis(raw, { noFocus: true, mute: opts && opts.mute });
+    const norm = normalize(raw);
+    if (out === "found") {
+      const nm = mmteMap.get(norm) && mmteMap.get(norm).chassis || raw;
+      setSeries((s) => ({ ...s, found: s.found + 1, recent: [{ norm, chassis: nm, type: "found" }, ...s.recent.filter((r) => r.norm !== norm)].slice(0, 8) }));
+    } else if (out === "duplicate") {
+      setSeries((s) => ({ ...s, dup: s.dup + 1, recent: s.recent.some((r) => r.norm === norm) ? s.recent : [{ norm, chassis: raw, type: "duplicate" }, ...s.recent].slice(0, 8) }));
+    } else if (out === "notfound") {
+      camPendingRef.current = norm;
+    }
+    return out;
+  };
+  const undoSeries = (norm) => {
+    softDelete(norm);
+    setSeries((s) => ({ ...s, found: Math.max(0, s.found - 1), recent: s.recent.filter((r) => r.norm !== norm) }));
+  };
+  const submitChassis = async (overrideValue, opts) => {
+    const quiet = !!(opts && opts.mute), noFocus = !!(opts && opts.noFocus);
+    let outcome = "found";
     const raw = (overrideValue !== void 0 ? overrideValue : inputVal).trim();
-    if (!raw || !invId) return;
+    if (!raw || !invId) return "none";
     const norm = normalize(raw);
     const ref = db.collection("inventories").doc(invId).collection("scans").doc(norm);
     if (mmteMap.has(norm)) {
       if (foundSet.has(norm)) {
+        outcome = "duplicate";
         setFeedback({ type: "duplicate", chassis: raw, message: "Déjà pointé comme trouvé sur MMTE." });
-        if (soundOn) playFeedbackSound("duplicate");
+        if (soundOn && !quiet) playFeedbackSound("duplicate");
       } else {
         const info = mmteMap.get(norm);
         const original = info.chassis;
         setFeedback({ type: "found", chassis: original, message: "Trouvé sur MMTE.", description: info.description });
         triggerStamp("found");
-        if (soundOn) playFeedbackSound("found");
+        if (soundOn && !quiet) playFeedbackSound("found");
         const prevDeleted = scans.find((x) => x.norm === norm && x.deleted);
         ref.set({
           norm,
@@ -2961,17 +3090,20 @@ function InventaireMMTEApp() {
       }
       setPendingNotFound(null);
     } else if (registeredSet.has(norm)) {
+      outcome = "duplicate";
       setFeedback({ type: "duplicate", chassis: raw, message: "Déjà enregistré comme présent sur le parc (hors MMTE)." });
-      if (soundOn) playFeedbackSound("duplicate");
+      if (soundOn && !quiet) playFeedbackSound("duplicate");
       setPendingNotFound(null);
     } else {
       setRegForm({ age: "", name: "", model: "", photo: "", busy: false, error: "" });
       setPendingNotFound({ norm, chassis: raw, suggestions: suggestChassis(norm, mmteMap, foundSet) });
+      outcome = "notfound";
       setFeedback({ type: "notfound", chassis: raw, message: "Introuvable sur la liste MMTE." });
-      if (soundOn) playFeedbackSound("notfound");
+      if (soundOn && !quiet) playFeedbackSound("notfound");
     }
     setInputVal("");
-    inputRef.current && inputRef.current.focus();
+    if (!noFocus) inputRef.current && inputRef.current.focus();
+    return outcome;
   };
   const confirmRegister = () => {
     if (!pendingNotFound || !invId) return;
@@ -3009,6 +3141,10 @@ function InventaireMMTEApp() {
     }
     batch.commit().catch((e) => setFeedback({ type: "notfound", chassis: p.chassis, message: writeErrorMessage(e) }));
     if (prevDeleted) logAuditFor(invId, "restore", { norm: p.norm, chassis: p.chassis });
+    if (camPendingRef.current === p.norm) {
+      camPendingRef.current = "";
+      setSeries((s) => ({ ...s, hors: s.hors + 1, recent: [{ norm: p.norm, chassis: p.chassis, type: "hors" }, ...s.recent.filter((r) => r.norm !== p.norm)].slice(0, 8) }));
+    }
     setPendingNotFound(null);
     inputRef.current && inputRef.current.focus();
   };
@@ -3085,8 +3221,6 @@ function InventaireMMTEApp() {
   const handlePasswordReset = (email) => auth.sendPasswordResetEmail(email);
   const handleLogout = async () => {
     setLocalDisplayName("");
-    setAppMode(null);
-    setStockSection("dash");
     if (authUser && isGuest) {
       try {
         await db.collection("guestSessions").doc(authUser.uid).delete();
@@ -3151,7 +3285,7 @@ function InventaireMMTEApp() {
       list.sort((a, b) => String(b.invDate || "").localeCompare(String(a.invDate || "")));
       setArchiveList(list);
     } catch (e) {
-      setArchiveError(invErrMsg(e, "Chargement des archives"));
+      setArchiveError("Impossible de charger les archives. Vérifiez votre connexion et réessayez.");
     } finally {
       setArchiveLoading(false);
     }
@@ -3217,7 +3351,7 @@ function InventaireMMTEApp() {
       setArchiveList((l) => l.map((x) => x.id === inv.id ? { ...x, ...patch, trashedAt: { toMillis: () => Date.now() } } : x));
       return true;
     } catch (e) {
-      setArchiveError(invErrMsg(e, "Mise à la corbeille"));
+      setArchiveError("Impossible de déplacer cet inventaire dans la corbeille (droits ou connexion).");
       return false;
     }
   };
@@ -3229,7 +3363,7 @@ function InventaireMMTEApp() {
       setArchiveList((l) => l.map((x) => x.id === inv.id ? { ...x, status: back } : x));
       return true;
     } catch (e) {
-      setArchiveError(invErrMsg(e, "Restauration de l'inventaire"));
+      setArchiveError("Impossible de restaurer cet inventaire.");
       return false;
     }
   };
@@ -3282,7 +3416,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       setPhase("inventory");
       setTimeout(() => inputRef.current && inputRef.current.focus(), 50);
     } catch (e) {
-      setArchiveError(invErrMsg(e, "Réouverture de l'inventaire"));
+      setArchiveError("Impossible de rouvrir cet inventaire. Réessayez.");
     } finally {
       setArchiveLoading(false);
     }
@@ -3311,7 +3445,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       setCompareData({ older, newer, onlyOld, onlyNew, both, countOld: ma.size, countNew: mb.size });
       setPhase("compare");
     } catch (e) {
-      setArchiveError(invErrMsg(e, "Comparaison des inventaires"));
+      setArchiveError("Impossible de comparer ces inventaires. Réessayez.");
     } finally {
       setArchiveLoading(false);
     }
@@ -3471,13 +3605,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
     duplicate: { bg: "bg-amber-50", border: "border-amber-300", text: "text-amber-800", Icon: AlertTriangle },
     notfound: { bg: "bg-rose-50", border: "border-rose-300", text: "text-rose-800", Icon: XCircle }
   };
-  const canInv = isGuest || isAdmin || !(userDoc && userDoc.inventoryAccess === false);
-  const appMode = isGuest ? "inventaire" : appModeRaw === "inventaire" && !canInv ? null : appModeRaw;
-  const appChoosing = !!(authUser && isApproved && currentAgent && !isGuest && !appMode);
-  const inStockApp = !!(authUser && isApproved && currentAgent && !isGuest && appMode === "stock");
-  const invVisible = !appChoosing && !inStockApp;
-  const appNav = !!(authUser && isApproved && currentAgent) && !appChoosing;
-  return /* @__PURE__ */ React.createElement(PhotoCtx.Provider, { value: loadPhoto }, /* @__PURE__ */ React.createElement("div", { className: "mmte-app min-h-screen w-full" + (appNav ? " mmte-has-side" : ""), style: { fontFamily: "'Manrope', 'IBM Plex Sans', system-ui, sans-serif" } }, /* @__PURE__ */ React.createElement("style", null, `
+  return /* @__PURE__ */ React.createElement(PhotoCtx.Provider, { value: loadPhoto }, /* @__PURE__ */ React.createElement("div", { className: "mmte-app min-h-screen w-full" + (authUser && isApproved && currentAgent ? " mmte-has-side" : ""), style: { fontFamily: "'Manrope', 'IBM Plex Sans', system-ui, sans-serif" } }, /* @__PURE__ */ React.createElement("style", null, `
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap');
         .font-plex-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
         @keyframes stampIn {
@@ -3506,13 +3634,9 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
         if (phase === "stockcompare" || phase === "archives" || phase === "compare" || phase === "docs" || phase === "help") setPhase("setup");
       },
       phase,
-      withNav: appNav,
-      appMode,
-      stockSection,
-      setStockSection: (k) => { setShowAdmin(false); setStockSection(k); },
-      onSwitchApp: !isGuest && canInv ? () => { setShowAdmin(false); setAppMode(appMode === "stock" ? "inventaire" : "stock"); } : null
+      withNav: !!(authUser && isApproved && currentAgent)
     }
-  ), appChoosing && /* @__PURE__ */ React.createElement(StkAppChooser, { canInventory: canInv, name: firstNameOf(localDisplayName || adminSetName || authUser.displayName || authUser.email), onChoose: (m) => { setShowAdmin(false); setAppMode(m); } }), inStockApp && /* @__PURE__ */ React.createElement(StkApp, { parcsList: PARCS_LIST, isAdmin, section: stockSection, setSection: setStockSection, userName: currentAgent && currentAgent.name }), authUser === void 0 && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Chargement..."), authUser === null && /* @__PURE__ */ React.createElement(
+  ), authUser === void 0 && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Chargement..."), authUser === null && /* @__PURE__ */ React.createElement(
     LoginScreen,
     {
       onLogin: handleEmailLogin,
@@ -3521,7 +3645,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       guestFailure,
       onReset: handlePasswordReset
     }
-  ), authUser && !isGuest && (userDoc === void 0 || !isApproved && !adminCheckDone) && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Chargement du profil..."), authUser && isGuest && guestOk === void 0 && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Vérification de l'accès invité..."), authUser && !isGuest && !isApproved && userDoc !== void 0 && adminCheckDone && /* @__PURE__ */ React.createElement(PendingApprovalScreen, { onLogout: handleLogout, status: userDoc && userDoc.status }), invVisible && authUser && isApproved && isAdmin && showAdmin && /* @__PURE__ */ React.createElement(
+  ), authUser && !isGuest && (userDoc === void 0 || !isApproved && !adminCheckDone) && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Chargement du profil..."), authUser && isGuest && guestOk === void 0 && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Vérification de l'accès invité..."), authUser && !isGuest && !isApproved && userDoc !== void 0 && adminCheckDone && /* @__PURE__ */ React.createElement(PendingApprovalScreen, { onLogout: handleLogout, status: userDoc && userDoc.status }), authUser && isApproved && isAdmin && showAdmin && /* @__PURE__ */ React.createElement(
     AdminPanel,
     {
       onClose: () => setShowAdmin(false),
@@ -3530,7 +3654,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       currentUid: authUser.uid,
       activeInvCount: activeInventories.length
     }
-  ), invVisible && authUser && isAdmin && isApproved && !showAdmin && /* @__PURE__ */ React.createElement(QuotaBanner, null), invVisible && authUser && isApproved && currentAgent && !(isAdmin && showAdmin) && phase === "setup" && /* @__PURE__ */ React.createElement(WelcomeBar, { uid: authUser.uid, name: firstNameOf(localDisplayName || adminSetName || authUser.displayName || authUser.email) }), invVisible && authUser && isApproved && !(isAdmin && showAdmin) && phase === "setup" && /* @__PURE__ */ React.createElement(
+  ), authUser && isAdmin && isApproved && !showAdmin && /* @__PURE__ */ React.createElement(QuotaBanner, null), authUser && isApproved && currentAgent && !(isAdmin && showAdmin) && phase === "setup" && /* @__PURE__ */ React.createElement(WelcomeBar, { uid: authUser.uid, name: firstNameOf(localDisplayName || adminSetName || authUser.displayName || authUser.email) }), authUser && isApproved && !(isAdmin && showAdmin) && phase === "setup" && /* @__PURE__ */ React.createElement(
     SetupScreen,
     {
       parcName,
@@ -3559,15 +3683,9 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       onCancelClosedInvChoice: () => setExistingClosedInv(null),
       onOpenStockCompare: openStockCompare,
       onOpenDocs: openDocs,
-      importDup,
-      onLoadParcStock: (map, mode, label) => {
-        setMmteMap(mode === "merge" ? stkMergeInventoryLists(mmteMap, map) : map);
-        setImportedFileName(label);
-        setImportError("");
-        setImportDup(null);
-      }
+      importDup
     }
-  ), invVisible && authUser && isApproved && !(isAdmin && showAdmin) && phase === "inventory" && /* @__PURE__ */ React.createElement(
+  ), authUser && isApproved && !(isAdmin && showAdmin) && phase === "inventory" && /* @__PURE__ */ React.createElement(
     InventoryScreen,
     {
       parcName,
@@ -3581,6 +3699,12 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       setInputVal,
       inputRef,
       submitChassis,
+      series,
+      setSeries,
+      seriesDone,
+      setSeriesDone,
+      scanContinuous,
+      undoSeries,
       feedback,
       feedbackStyle,
       pendingNotFound,
@@ -3607,7 +3731,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       isGuest,
       syncInfo: { online: isOnline, pending: pendingCount }
     }
-  ), invVisible && authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "archives" && /* @__PURE__ */ React.createElement(
+  ), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "archives" && /* @__PURE__ */ React.createElement(
     ArchiveScreen,
     {
       list: archiveList,
@@ -3626,9 +3750,9 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       onReopen: reopenArchived,
       onCompare: compareInventories
     }
-  ), invVisible && authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "stockcompare" && /* @__PURE__ */ React.createElement(StockCompareScreen, { onBack: () => setPhase("setup") }), invVisible && authUser && isApproved && !(isAdmin && showAdmin) && phase === "help" && /* @__PURE__ */ React.createElement(HelpScreen, { onBack: () => setPhase("setup") }), invVisible && authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "docs" && /* @__PURE__ */ React.createElement(DocsScreen, { parcsList: PARCS_LIST }), invVisible && authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "compare" && compareData && /* @__PURE__ */ React.createElement(CompareScreen, { data: compareData, onBack: () => {
+  ), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "stockcompare" && /* @__PURE__ */ React.createElement(StockCompareScreen, { onBack: () => setPhase("setup") }), authUser && isApproved && !(isAdmin && showAdmin) && phase === "help" && /* @__PURE__ */ React.createElement(HelpScreen, { onBack: () => setPhase("setup") }), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "docs" && /* @__PURE__ */ React.createElement(DocsScreen, { parcsList: PARCS_LIST }), authUser && isApproved && !isGuest && !(isAdmin && showAdmin) && phase === "compare" && compareData && /* @__PURE__ */ React.createElement(CompareScreen, { data: compareData, onBack: () => {
     setPhase("archives");
-  }, onExport: exportComparison }), invVisible && authUser && isApproved && !(isAdmin && showAdmin) && phase === "summary" && /* @__PURE__ */ React.createElement(
+  }, onExport: exportComparison }), authUser && isApproved && !(isAdmin && showAdmin) && phase === "summary" && /* @__PURE__ */ React.createElement(
     SummaryScreen,
     {
       followups,
@@ -3652,203 +3776,8 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       closeInventory,
       isGuest
     }
-  ), !inStockApp && /* @__PURE__ */ React.createElement(LangToggle, null), currentAgent && /* @__PURE__ */ React.createElement(SyncChip, { online: isOnline, pending: pendingCount }), /* @__PURE__ */ React.createElement(AppFooter, null)));
+  ), /* @__PURE__ */ React.createElement(LangToggle, null), currentAgent && /* @__PURE__ */ React.createElement(SyncChip, { online: isOnline, pending: pendingCount }), /* @__PURE__ */ React.createElement(AppFooter, null)));
 }
-/* STOCK-MODULE-DEBUT (généré depuis stock-src, ne pas modifier ici) */
-const STK_API = "https://hrxldrhfqyxyzsetlamc.supabase.co/functions/v1/stock-api";
-const STK_ERR = {
-  NON_CONNECTE: "Vous n'êtes pas connecté.",
-  SESSION_EXPIREE: "Votre session a expiré. Déconnectez-vous puis reconnectez-vous.",
-  INVITE_NON_AUTORISE: "L'accès invité ne permet pas d'utiliser le suivi des stocks.",
-  COMPTE_NON_APPROUVE: "Votre compte n'est pas encore approuvé.",
-  RESERVE_ADMIN: "Action réservée aux administrateurs.",
-  DEJA_VALIDEE: "Cette justification est déjà validée : seul un administrateur peut la modifier.",
-  MOTIF_OBLIGATOIRE: "Indiquez le motif.",
-  IMPORT_PAS_LE_DERNIER: "Seul le dernier import d'un parc peut être annulé. Annulez d'abord les imports plus récents.",
-  IMPORT_DEJA_ANNULE: "Cet import est déjà annulé.",
-  CHASSIS_OBLIGATOIRE: "Le châssis est obligatoire.",
-  FICHIER_TROP_GROS: "Fichier trop volumineux (8 Mo maximum).",
-  VEHICULE_INTROUVABLE: "Aucun véhicule ne correspond à ce châssis.",
-  RESEAU: "Connexion impossible au serveur des stocks. Vérifiez Internet puis réessayez.",
-  LENTEUR: "Le serveur des stocks ne répond pas assez vite (connexion lente). Réessayez dans un instant.",
-  DATE_STOCK_MANQUANTE: "Indiquez la date du stock.",
-  LECTURE_SEULE: "Votre accès au suivi des stocks est en consultation seule.",
-  ACCES_STOCK_REFUSE: "Vous n'avez pas accès au suivi des stocks. Demandez l'accès à un administrateur MAD-MAE.",
-  FUSION_IMPOSSIBLE: "Fusion impossible : les deux véhicules doivent être différents.",
-  IMPORT_NON_ANNULE: "Cet import n'est pas annulé.",
-  AUCUN_CHASSIS: "Ajoutez au moins un châssis.",
-  DATE_MOUVEMENT_MANQUANTE: "Indiquez la date du mouvement.",
-  TYPE_MOUVEMENT_INVALIDE: "Choisissez entrée ou sortie.",
-  PARC_MANQUANT: "Choisissez le parc."
-};
-function stkErrText(e) {
-  const m = String(e && e.message || e || "");
-  if (m.startsWith("IMPORT_ANTERIEUR")) return `Un import plus récent existe déjà pour ce parc (stock du ${stkFmt(m.split(":")[1])}). Choisissez une date de stock égale ou postérieure.`;
-  if (STK_ERR[m]) return STK_ERR[m];
-  if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return STK_ERR.RESEAU;
-  return "Erreur : " + m;
-}
-const STK_SLOW = { commit_import: 18e4, export_all: 18e4, stock_at: 9e4, mmte_sync: 12e4, merge: 9e4, cancel_import: 9e4, restore_import: 9e4, upload_file: 9e4 };
-async function stkCall(action, params, retried, timeoutMs) {
-  const u = auth.currentUser;
-  if (!u) throw new Error("NON_CONNECTE");
-  const token = await u.getIdToken(!!retried);
-  let r;
-  const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
-  const limit = timeoutMs || STK_SLOW[action] || 3e4;
-  const timer = ctl ? setTimeout(() => ctl.abort(), limit) : null;
-  try {
-    r = await fetch(STK_API, { method: "POST", headers: { "content-type": "text/plain;charset=UTF-8" }, body: JSON.stringify({ action, params: params || {}, token }), signal: ctl ? ctl.signal : void 0 });
-  } catch (e) {
-    throw new Error(e && e.name === "AbortError" ? "LENTEUR" : "RESEAU");
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-  let j = null;
-  try {
-    j = await r.json();
-  } catch (e) {
-    throw new Error("RESEAU");
-  }
-  if (!j.ok) {
-    if (j.error === "SESSION_EXPIREE" && !retried) return stkCall(action, params, true);
-    throw new Error(j.error || "ERREUR");
-  }
-  return j.data;
-}
-function stkFmt(iso) {
-  if (!iso) return "";
-  const s = String(iso).slice(0, 10).split("-");
-  return s.length === 3 ? `${s[2]}/${s[1]}/${s[0]}` : String(iso);
-}
-const StkIc = {
-  Grid: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "3", width: "7", height: "7", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "14", y: "3", width: "7", height: "7", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "3", y: "14", width: "7", height: "7", rx: "1.5" }), /* @__PURE__ */ React.createElement("rect", { x: "14", y: "14", width: "7", height: "7", rx: "1.5" })),
-  Layers: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "m12 2 9 5-9 5-9-5 9-5z" }), /* @__PURE__ */ React.createElement("path", { d: "m3 12 9 5 9-5" }), /* @__PURE__ */ React.createElement("path", { d: "m3 17 9 5 9-5" })),
-  Swap: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M7 4 3 8l4 4" }), /* @__PURE__ */ React.createElement("path", { d: "M3 8h14" }), /* @__PURE__ */ React.createElement("path", { d: "m17 20 4-4-4-4" }), /* @__PURE__ */ React.createElement("path", { d: "M21 16H7" })),
-  Clip: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "m21.4 11-8.5 8.5a5.5 5.5 0 0 1-7.8-7.8l8.5-8.5a3.7 3.7 0 0 1 5.2 5.2l-8.5 8.5a1.8 1.8 0 0 1-2.6-2.6l7.8-7.8" })),
-  Plus: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M12 5v14M5 12h14" })),
-  Edit: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M12 20h9" }), /* @__PURE__ */ React.createElement("path", { d: "M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" })),
-  Cal: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("rect", { x: "3", y: "4", width: "18", height: "18", rx: "2" }), /* @__PURE__ */ React.createElement("path", { d: "M16 2v4M8 2v4M3 10h18" })),
-  X: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M18 6 6 18M6 6l12 12" })),
-  Truck: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M1 3h15v13H1z" }), /* @__PURE__ */ React.createElement("path", { d: "M16 8h4l3 3v5h-7z" }), /* @__PURE__ */ React.createElement("circle", { cx: "5.5", cy: "18.5", r: "2.5" }), /* @__PURE__ */ React.createElement("circle", { cx: "18.5", cy: "18.5", r: "2.5" })),
-  Inbox: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M22 12h-6l-2 3h-4l-2-3H2" }), /* @__PURE__ */ React.createElement("path", { d: "M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" })),
-  Check: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M20 6 9 17l-5-5" })),
-  Chev: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "m9 18 6-6-6-6" })),
-  Gear: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }), /* @__PURE__ */ React.createElement("path", { d: "M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" })),
-  Apps: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "6", r: "2.2" }), /* @__PURE__ */ React.createElement("circle", { cx: "18", cy: "6", r: "2.2" }), /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "18", r: "2.2" }), /* @__PURE__ */ React.createElement("circle", { cx: "18", cy: "18", r: "2.2" }))
-};
-const STK_SECTIONS = [
-  { key: "dash", label: "Tableau de bord", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Grid, { ...p }) },
-  { key: "rapport", label: "Rapport hebdomadaire", Ic: (p) => /* @__PURE__ */ React.createElement(FileSpreadsheet, { ...p }) },
-  { key: "search", label: "Recherche avancée", Ic: (p) => /* @__PURE__ */ React.createElement(Search, { ...p }) },
-  { key: "liste", label: "Recherche par liste", Ic: (p) => /* @__PURE__ */ React.createElement(ClipboardPaste, { ...p }) },
-  { key: "manifestes", label: "Vue par manifeste", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Truck, { ...p }) },
-  { key: "import", label: "Importer un stock", Ic: (p) => /* @__PURE__ */ React.createElement(Upload, { ...p }) },
-  { key: "bulk", label: "Import groupé du lundi", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Layers, { ...p }) },
-  { key: "saisie", label: "Saisir entrées / sorties", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Edit, { ...p }) },
-  { key: "moves", label: "Entrées et sorties", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Swap, { ...p }) },
-  { key: "justif", label: "Justification des sorties", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Clip, { ...p }) },
-  { key: "anomalies", label: "Centre des anomalies", Ic: (p) => /* @__PURE__ */ React.createElement(AlertTriangle, { ...p }) },
-  { key: "mmte", label: "Contrôle avec MMTE", Ic: (p) => /* @__PURE__ */ React.createElement(ShieldCheck, { ...p }) },
-  { key: "imports", label: "Historique des imports", Ic: (p) => /* @__PURE__ */ React.createElement(Archive, { ...p }) },
-  { key: "miseenservice", label: "Mise en service", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Check, { ...p }), admin: true },
-  { key: "admin", label: "Administration stock", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Gear, { ...p }), admin: true }
-];
-let stkLoadPromise = null;
-function stkEnsureLoaded() {
-  if (window.STK) return Promise.resolve(window.STK);
-  if (!stkLoadPromise) {
-    stkLoadPromise = new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = "./lib/stock.js?v=" + (typeof APP_VERSION !== "undefined" ? APP_VERSION : "1");
-      s.async = true;
-      s.onload = () => window.STK ? resolve(window.STK) : reject(new Error("RESEAU"));
-      s.onerror = () => {
-        stkLoadPromise = null;
-        s.remove();
-        reject(new Error("RESEAU"));
-      };
-      document.head.appendChild(s);
-    });
-  }
-  return stkLoadPromise;
-}
-function stkLazy(name) {
-  return function StkLazy(props) {
-    const [, setReady] = useState(!!window.STK);
-    const [err, setErr] = useState("");
-    const retry = () => {
-      setErr("");
-      stkEnsureLoaded().then(() => setReady(true), (e) => setErr(stkErrText(e)));
-    };
-    useEffect(() => {
-      if (!window.STK) retry();
-    }, []);
-    if (window.STK) return React.createElement(window.STK[name], props);
-    if (err) return /* @__PURE__ */ React.createElement("div", { className: "max-w-xl mx-auto px-5 py-8 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border border-rose-200 bg-rose-50 text-rose-800 px-4 py-3 text-sm" }, err), /* @__PURE__ */ React.createElement("button", { onClick: retry, className: "px-4 py-2 rounded-xl bg-[#1B4F8C] text-white text-sm font-semibold" }, "Réessayer"));
-    return /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-center gap-3 py-12 text-slate-500 text-sm" }, /* @__PURE__ */ React.createElement("span", { className: "w-5 h-5 rounded-full border-2 border-slate-300 border-t-[#1B4F8C] animate-spin" }), " Ouverture du suivi des stocks...");
-  };
-}
-const StkApp = stkLazy("StkApp");
-const StkInvStockSource = stkLazy("StkInvStockSource");
-const StkAccountTools = stkLazy("StkAccountTools");
-function stkMergeInventoryLists(a, b) {
-  return window.STK.stkMergeInventoryLists(a, b);
-}
-const stkErrQueue = [];
-const stkErrSeen = /* @__PURE__ */ new Set();
-let stkErrTimer = null;
-function stkReportError(kind, err, extra) {
-  try {
-    const message = String(err && (err.message || err.reason) || err || "").slice(0, 1e3);
-    if (!message || stkErrSeen.has(message) || stkErrSeen.size > 30) return;
-    if (/ResizeObserver loop|Script error\.?$/i.test(message)) return;
-    stkErrSeen.add(message);
-    stkErrQueue.push({ kind, message: extra ? message + " — " + extra : message, stack: String(err && err.stack || "").slice(0, 4e3), url: location.pathname + location.hash, ua: navigator.userAgent, app_version: typeof APP_VERSION !== "undefined" ? APP_VERSION : "" });
-    if (!stkErrTimer) stkErrTimer = setTimeout(stkFlushErrors, 4e3);
-  } catch (e) {
-  }
-}
-function stkFlushErrors() {
-  stkErrTimer = null;
-  try {
-    const u = typeof auth !== "undefined" && auth.currentUser;
-    if (!stkErrQueue.length || !u || u.isAnonymous) return;
-    const errors = stkErrQueue.splice(0, 20);
-    stkCall("log_error", { errors }, false, 15e3).catch(() => {
-    });
-  } catch (e) {
-  }
-}
-window.addEventListener("error", (e) => stkReportError("erreur", e.error || e.message, e.filename ? String(e.filename).split("/").pop() + ":" + e.lineno : ""));
-window.addEventListener("unhandledrejection", (e) => stkReportError("promesse", e.reason));
-function StkAppChooser({ name, onChoose, canInventory }) {
-  const now = useNow();
-  const [stockOk, setStockOk] = useState(void 0);
-  useEffect(() => {
-    stkFlushErrors();
-    stkEnsureLoaded().catch(() => {
-    });
-    if (!canInventory) {
-      onChoose("stock");
-      return;
-    }
-    let live = true;
-    stkCall("me", {}, false, 12e3).then(() => live && setStockOk(true)).catch((e) => {
-      if (live) setStockOk(String(e.message) === "ACCES_STOCK_REFUSE" ? false : true);
-    });
-    return () => {
-      live = false;
-    };
-  }, []);
-  useEffect(() => {
-    if (stockOk === false && canInventory) onChoose("inventaire");
-  }, [stockOk]);
-  const Card = ({ k, title, text, Ic, tone }) => /* @__PURE__ */ React.createElement("button", { onClick: () => onChoose(k), "data-testid": "choose-" + k, className: "group text-left bg-white rounded-3xl border-2 border-slate-200 hover:border-[#1B4F8C] shadow-sm hover:shadow-xl transition p-6 md:p-8 flex flex-col gap-4" }, /* @__PURE__ */ React.createElement("div", { className: `w-14 h-14 rounded-2xl flex items-center justify-center text-white ${tone}` }, /* @__PURE__ */ React.createElement(Ic, { size: 28 })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-semibold text-2xl text-[#0B1F38]", style: { fontFamily: "'Sora',system-ui,sans-serif" } }, title), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-600 mt-2 leading-relaxed" }, text)), /* @__PURE__ */ React.createElement("div", { className: "mt-auto inline-flex items-center gap-1 text-sm font-bold text-[#1B4F8C]" }, "Ouvrir ", /* @__PURE__ */ React.createElement(StkIc.Chev, { size: 16 })));
-  return /* @__PURE__ */ React.createElement("div", { className: "max-w-4xl mx-auto px-5 py-8 md:py-14 space-y-8" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-hi" }, greetingWord(now), name ? `, ${name}` : ""), /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-date" }, formatDateFr(now)))), /* @__PURE__ */ React.createElement("div", { className: "text-center" }, /* @__PURE__ */ React.createElement("h2", { className: "text-2xl md:text-3xl font-semibold text-[#0B1F38]" }, "Quelle application voulez-vous ouvrir ?")), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-5" }, /* @__PURE__ */ React.createElement(Card, { k: "inventaire", title: "Inventaire MMTE", Ic: (p) => /* @__PURE__ */ React.createElement(ScanLine, { ...p }), tone: "bg-gradient-to-br from-[#2E7DC1] to-[#123A66]", text: "Inventaire physique des parcs : pointage des châssis par scan, liste MMTE, manquants, fiches et rapports." }), /* @__PURE__ */ React.createElement(Card, { k: "stock", title: "Suivi des stocks", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Layers, { ...p }), tone: "bg-gradient-to-br from-[#C9A96A] to-[#8A6A2E]", text: "Stock hebdomadaire de chaque parc : entrées, sorties, véhicules en dépôt, historique complet de chaque châssis et justification des sorties." })));
-}
-
-/* STOCK-MODULE-FIN */
 function InventaireMMTE() {
   return /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(InventaireMMTEApp, null));
 }
@@ -4072,16 +4001,14 @@ function WelcomeBar({ uid, name }) {
   if (!name) return null;
   return /* @__PURE__ */ React.createElement(React.Fragment, null, toast && /* @__PURE__ */ React.createElement("div", { className: "mmte-toast no-print", role: "status" }, "Bienvenue, ", name), /* @__PURE__ */ React.createElement("div", { className: "max-w-2xl mx-auto px-5 pt-6 no-print" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-hi" }, greetingWord(now), ", ", name), /* @__PURE__ */ React.createElement("div", { className: "mmte-welcome-date" }, formatDateFr(now))))));
 }
-function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin, onOpenArchives, onOpenStockCompare, onOpenDocs, onOpenHelp, onHome, phase, withNav, appMode, stockSection, setStockSection, onSwitchApp }) {
+function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setShowAdmin, onOpenArchives, onOpenStockCompare, onOpenDocs, onOpenHelp, onHome, phase, withNav }) {
   const now = useNow();
   const inArchives = phase === "archives" || phase === "compare";
   const inStock = phase === "stockcompare";
   const inDocs = phase === "docs";
   const inHelp = phase === "help";
   const nav = [];
-  if (currentAgent && withNav && appMode === "stock") {
-    STK_SECTIONS.filter((x) => !x.admin || isAdmin).forEach((x) => nav.push({ key: "stk-" + x.key, label: x.label, Icon: x.Ic, onClick: () => setStockSection(x.key), active: stockSection === x.key || x.key === "dash" && stockSection === "parc" }));
-  } else if (currentAgent && withNav) {
+  if (currentAgent && withNav) {
     nav.push({ key: "home", label: "Inventaire", Icon: Home, onClick: onHome, active: !showAdmin && !inArchives && !inStock && !inDocs && !inHelp });
     if (onOpenArchives) nav.push({ key: "arch", label: "Mes données / Archives", Icon: Archive, onClick: onOpenArchives, active: !showAdmin && inArchives });
     if (onOpenStockCompare) nav.push({ key: "cmp", label: "Comparer deux stocks", Icon: Columns, onClick: onOpenStockCompare, active: !showAdmin && inStock });
@@ -4089,10 +4016,9 @@ function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setSho
     if (onOpenHelp) nav.push({ key: "help", label: "Aide et guide d'utilisation", Icon: HelpCircle, onClick: onOpenHelp, active: !showAdmin && inHelp });
     if (isAdmin) nav.push({ key: "adm", label: showAdmin ? "Fermer le panneau admin" : "Panneau admin", Icon: ShieldCheck, onClick: () => setShowAdmin((x) => !x), active: showAdmin });
   }
-  if (currentAgent && withNav && onSwitchApp) nav.push({ key: "switch", label: appMode === "stock" ? "Passer à Inventaire MMTE" : "Passer au suivi des stocks", Icon: StkIc.Apps, onClick: onSwitchApp, active: false });
   const initial = currentAgent && currentAgent.name ? String(currentAgent.name).trim().charAt(0).toUpperCase() : "";
   const role = isAdmin ? "Administrateur" : isGuest ? "Invité" : "Agent";
-  return /* @__PURE__ */ React.createElement("header", { className: "mmte-head no-print" + (currentAgent && withNav ? " is-auth" : "") }, /* @__PURE__ */ React.createElement("div", { className: "mmte-brand" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-title" }, appMode === "stock" && withNav ? "Suivi des " : "Inventaire ", /* @__PURE__ */ React.createElement("span", null, appMode === "stock" && withNav ? "stocks" : "MMTE")), /* @__PURE__ */ React.createElement("div", { className: "mmte-gold" }), /* @__PURE__ */ React.createElement("div", { className: "mmte-sub" }, "Bénin Control / MAD-MAE" + (appMode === "stock" && withNav ? " · MMTE" : "")), currentAgent && withNav && /* @__PURE__ */ React.createElement("div", { className: "mmte-date" }, formatDateFr(now))), /* @__PURE__ */ React.createElement("div", { className: "mmte-logos" }, /* @__PURE__ */ React.createElement("img", { src: LOGO_BC, alt: "Bénin Control" }), /* @__PURE__ */ React.createElement("img", { src: LOGO_DOUANES, alt: "Douanes Béninoises" })), currentAgent && withNav && /* @__PURE__ */ React.createElement("nav", { className: "mmte-navs", "aria-label": "Navigation" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-nav-label" }, "Navigation"), nav.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: n.onClick, className: "mmte-nav" + (n.active ? " is-active" : "") }, /* @__PURE__ */ React.createElement(n.Icon, { size: 18 }), " ", n.label)), /* @__PURE__ */ React.createElement("button", { onClick: onLogout, className: "mmte-nav mmte-nav-out" }, /* @__PURE__ */ React.createElement(LogOut, { size: 18 }), " Déconnexion")), currentAgent && withNav && /* @__PURE__ */ React.createElement("div", { className: "mmte-user" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-avatar" }, initial), /* @__PURE__ */ React.createElement("div", { className: "mmte-user-txt" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-user-name" }, currentAgent.name), /* @__PURE__ */ React.createElement("div", { className: "mmte-user-role" + (isGuest ? " is-guest" : "") }, role))));
+  return /* @__PURE__ */ React.createElement("header", { className: "mmte-head no-print" + (currentAgent && withNav ? " is-auth" : "") }, /* @__PURE__ */ React.createElement("div", { className: "mmte-brand" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-title" }, "Inventaire ", /* @__PURE__ */ React.createElement("span", null, "MMTE")), /* @__PURE__ */ React.createElement("div", { className: "mmte-gold" }), /* @__PURE__ */ React.createElement("div", { className: "mmte-sub" }, "Bénin Control / MAD-MAE"), currentAgent && withNav && /* @__PURE__ */ React.createElement("div", { className: "mmte-date" }, formatDateFr(now))), /* @__PURE__ */ React.createElement("div", { className: "mmte-logos" }, /* @__PURE__ */ React.createElement("img", { src: LOGO_BC, alt: "Bénin Control" }), /* @__PURE__ */ React.createElement("img", { src: LOGO_DOUANES, alt: "Douanes Béninoises" })), currentAgent && withNav && /* @__PURE__ */ React.createElement("nav", { className: "mmte-navs", "aria-label": "Navigation" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-nav-label" }, "Navigation"), nav.map((n) => /* @__PURE__ */ React.createElement("button", { key: n.key, onClick: n.onClick, className: "mmte-nav" + (n.active ? " is-active" : "") }, /* @__PURE__ */ React.createElement(n.Icon, { size: 18 }), " ", n.label)), /* @__PURE__ */ React.createElement("button", { onClick: onLogout, className: "mmte-nav mmte-nav-out" }, /* @__PURE__ */ React.createElement(LogOut, { size: 18 }), " Déconnexion")), currentAgent && withNav && /* @__PURE__ */ React.createElement("div", { className: "mmte-user" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-avatar" }, initial), /* @__PURE__ */ React.createElement("div", { className: "mmte-user-txt" }, /* @__PURE__ */ React.createElement("div", { className: "mmte-user-name" }, currentAgent.name), /* @__PURE__ */ React.createElement("div", { className: "mmte-user-role" + (isGuest ? " is-guest" : "") }, role))));
 }
 function AppFooter() {
   return /* @__PURE__ */ React.createElement("footer", { className: "no-print max-w-3xl mx-auto px-5 py-3 mt-2" }, /* @__PURE__ */ React.createElement("div", { className: "text-center text-[10px] text-slate-300", "aria-hidden": "true" }, " "));
@@ -4408,7 +4334,7 @@ function AdminPanel({ onClose, parcsList, currentUserEmail, currentUid, activeIn
     },
     t.label,
     t.badge ? /* @__PURE__ */ React.createElement("span", { className: "ml-2 px-1.5 py-0.5 rounded-full bg-amber-400 text-amber-950 text-[11px]" }, t.badge) : null
-  ))), msg && /* @__PURE__ */ React.createElement("div", { className: `mb-4 rounded-xl px-4 py-3 text-sm font-semibold border-2 ${msg.kind === "err" ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-emerald-50 border-emerald-200 text-emerald-800"}`, role: "status" }, msg.text), tab === "accounts" && /* @__PURE__ */ React.createElement("div", { className: card + " space-y-3" }, /* @__PURE__ */ React.createElement(StkAccountTools, { users, adminEmails: (adminsDoc.emails || []).concat(FALLBACK_ADMIN_EMAILS) }), /* @__PURE__ */ React.createElement("div", { className: "flex flex-col sm:flex-row gap-2" }, /* @__PURE__ */ React.createElement("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: "Rechercher un nom ou un e-mail…", className: input }), /* @__PURE__ */ React.createElement("select", { value: statusFilter, onChange: (e) => setStatusFilter(e.target.value), className: input + " sm:w-48" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Tous les statuts"), /* @__PURE__ */ React.createElement("option", { value: "pending" }, "En attente"), /* @__PURE__ */ React.createElement("option", { value: "approved" }, "Actifs"), /* @__PURE__ */ React.createElement("option", { value: "disabled" }, "Désactivés"), /* @__PURE__ */ React.createElement("option", { value: "rejected" }, "Refusés")), /* @__PURE__ */ React.createElement("button", { onClick: exportUsers, className: btn + " border-2 border-[#1B4F8C] text-[#1B4F8C] bg-white whitespace-nowrap" }, "Exporter (Excel)")), users === null && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, "Chargement..."), users !== null && filteredUsers.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucun compte à afficher."), filteredUsers.map((u) => {
+  ))), msg && /* @__PURE__ */ React.createElement("div", { className: `mb-4 rounded-xl px-4 py-3 text-sm font-semibold border-2 ${msg.kind === "err" ? "bg-rose-50 border-rose-200 text-rose-700" : "bg-emerald-50 border-emerald-200 text-emerald-800"}`, role: "status" }, msg.text), tab === "accounts" && /* @__PURE__ */ React.createElement("div", { className: card + " space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex flex-col sm:flex-row gap-2" }, /* @__PURE__ */ React.createElement("input", { value: q, onChange: (e) => setQ(e.target.value), placeholder: "Rechercher un nom ou un e-mail…", className: input }), /* @__PURE__ */ React.createElement("select", { value: statusFilter, onChange: (e) => setStatusFilter(e.target.value), className: input + " sm:w-48" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "Tous les statuts"), /* @__PURE__ */ React.createElement("option", { value: "pending" }, "En attente"), /* @__PURE__ */ React.createElement("option", { value: "approved" }, "Actifs"), /* @__PURE__ */ React.createElement("option", { value: "disabled" }, "Désactivés"), /* @__PURE__ */ React.createElement("option", { value: "rejected" }, "Refusés")), /* @__PURE__ */ React.createElement("button", { onClick: exportUsers, className: btn + " border-2 border-[#1B4F8C] text-[#1B4F8C] bg-white whitespace-nowrap" }, "Exporter (Excel)")), users === null && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, "Chargement..."), users !== null && filteredUsers.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500" }, "Aucun compte à afficher."), filteredUsers.map((u) => {
     const email = String(u.email || "").toLowerCase();
     const isAdm = adminSet.has(email);
     const prot = isProtected(email);
@@ -4858,7 +4784,6 @@ function StatChip({ label, value, tone }) {
   return /* @__PURE__ */ React.createElement("div", { className: `rounded-xl px-4 py-3 min-w-[110px] ${tones[tone]}`, style }, /* @__PURE__ */ React.createElement("div", { className: "text-2xl font-bold font-plex-mono leading-none" }, value), /* @__PURE__ */ React.createElement("div", { className: "text-[11px] uppercase tracking-wide opacity-90 mt-1 font-semibold" }, label));
 }
 function SetupScreen({
-  onLoadParcStock,
   parcName,
   setParcName,
   invDate,
@@ -4940,7 +4865,7 @@ function SetupScreen({
     },
     /* @__PURE__ */ React.createElement(ClipboardPaste, { size: 16 }),
     " Coller"
-  ), !isGuest && /* @__PURE__ */ React.createElement("button", { onClick: () => setImportMode("stock"), className: `px-4 py-2 text-sm font-bold flex items-center gap-2 border-l-2 border-slate-200 ${importMode === "stock" ? "text-white" : "bg-white text-slate-600"}`, style: importMode === "stock" ? { background: BLUE_DEEP } : void 0 }, /* @__PURE__ */ React.createElement(StkIc.Layers, { size: 16 }), " Stock du parc")), importMode === "stock" ? /* @__PURE__ */ React.createElement(StkInvStockSource, { parcName, mmteSize, onLoaded: onLoadParcStock }) : importMode === "file" ? /* @__PURE__ */ React.createElement("div", { className: "rounded-lg border-2 border-dashed border-[#2E7DC1]/40 bg-blue-50/40 p-5 text-center" }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { className: "mx-auto text-[#2E7DC1] mb-2", size: 28 }), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mb-3" }, "Fichier CSV ou Excel (.csv, .xlsx, .xls)"), /* @__PURE__ */ React.createElement("label", { className: "inline-block px-4 py-2 rounded-lg text-white font-bold text-sm cursor-pointer", style: { background: BLUE_DEEP } }, "Choisir un fichier", /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.xlsx,.xls", className: "hidden", onChange: handleFileChange })), importedFileName && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mt-2" }, "Fichier chargé : ", importedFileName)) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
+  )), importMode === "file" ? /* @__PURE__ */ React.createElement("div", { className: "rounded-lg border-2 border-dashed border-[#2E7DC1]/40 bg-blue-50/40 p-5 text-center" }, /* @__PURE__ */ React.createElement(FileSpreadsheet, { className: "mx-auto text-[#2E7DC1] mb-2", size: 28 }), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-600 mb-3" }, "Fichier CSV ou Excel (.csv, .xlsx, .xls)"), /* @__PURE__ */ React.createElement("label", { className: "inline-block px-4 py-2 rounded-lg text-white font-bold text-sm cursor-pointer", style: { background: BLUE_DEEP } }, "Choisir un fichier", /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".csv,.xlsx,.xls", className: "hidden", onChange: handleFileChange })), importedFileName && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500 mt-2" }, "Fichier chargé : ", importedFileName)) : /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(
     "textarea",
     {
       value: pasteText,
@@ -4949,7 +4874,7 @@ function SetupScreen({
       rows: 6,
       className: "w-full rounded-lg border-2 border-slate-200 px-3 py-3 text-sm font-plex-mono focus:outline-none focus:ring-2 focus:border-[#1B4F8C]"
     }
-  ), /* @__PURE__ */ React.createElement("button", { onClick: handleLoadPaste, className: "mt-2 px-4 py-2 rounded-lg text-white font-bold text-sm", style: { background: BLUE_DEEP } }, "Charger la liste collée")), importError && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-600 mt-2 font-semibold" }, importError), mmteSize > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-3 inline-flex items-center gap-2 text-emerald-700 bg-emerald-50 border-2 border-emerald-200 rounded-lg px-3 py-2 text-sm font-bold" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16 }), " ", mmteSize, importMode === "stock" ? " châssis dans la liste de référence" : " châssis chargés depuis MMTE"), importDup && /* @__PURE__ */ React.createElement(DuplicatesNotice, { items: importDup.items, sourceName: importDup.name })), existingClosedInv ? /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-amber-300 bg-amber-50 p-4 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-amber-900" }, "Un inventaire clôturé existe déjà pour ce parc à cette date"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-amber-800" }, "Clôturé ", existingClosedInv.meta.completedAt ? "le " + formatTimestamp(existingClosedInv.meta.completedAt) : "", existingClosedInv.meta.completedByName ? " par " + existingClosedInv.meta.completedByName : "", ". Que voulez-vous faire ?"), /* @__PURE__ */ React.createElement(
+  ), /* @__PURE__ */ React.createElement("button", { onClick: handleLoadPaste, className: "mt-2 px-4 py-2 rounded-lg text-white font-bold text-sm", style: { background: BLUE_DEEP } }, "Charger la liste collée")), importError && /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-600 mt-2 font-semibold" }, importError), mmteSize > 0 && /* @__PURE__ */ React.createElement("div", { className: "mt-3 inline-flex items-center gap-2 text-emerald-700 bg-emerald-50 border-2 border-emerald-200 rounded-lg px-3 py-2 text-sm font-bold" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16 }), " ", mmteSize, " châssis chargés depuis MMTE"), importDup && /* @__PURE__ */ React.createElement(DuplicatesNotice, { items: importDup.items, sourceName: importDup.name })), existingClosedInv ? /* @__PURE__ */ React.createElement("div", { className: "rounded-xl border-2 border-amber-300 bg-amber-50 p-4 space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-amber-900" }, "Un inventaire clôturé existe déjà pour ce parc à cette date"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-amber-800" }, "Clôturé ", existingClosedInv.meta.completedAt ? "le " + formatTimestamp(existingClosedInv.meta.completedAt) : "", existingClosedInv.meta.completedByName ? " par " + existingClosedInv.meta.completedByName : "", ". Que voulez-vous faire ?"), /* @__PURE__ */ React.createElement(
     "button",
     {
       onClick: reopenClosedInventory,
@@ -5011,6 +4936,12 @@ function InventoryScreen(props) {
     setInputVal,
     inputRef,
     submitChassis,
+    series,
+    setSeries,
+    seriesDone,
+    setSeriesDone,
+    scanContinuous,
+    undoSeries,
     feedback,
     feedbackStyle,
     pendingNotFound,
@@ -5038,6 +4969,11 @@ function InventoryScreen(props) {
     syncInfo
   } = props;
   const [showCamera, setShowCamera] = useState(false);
+  const endSeries = () => {
+    setShowCamera(false);
+    if (series.found + series.hors + series.dup > 0) setSeriesDone(series);
+    setSeries({ found: 0, hors: 0, dup: 0, recent: [] });
+  };
   const tabs = [
     { key: "total", label: `Total (${totalList.length})` },
     { key: "found", label: `Trouvés MMTE (${foundList.length})` },
@@ -5055,6 +4991,10 @@ function InventoryScreen(props) {
     CameraScanner,
     {
       knownMap,
+      onScanChassis: scanContinuous,
+      series,
+      onUndo: undoSeries,
+      onEndSeries: endSeries,
       onClose: () => setShowCamera(false),
       onDetect: (v) => {
         setShowCamera(false);
@@ -5062,7 +5002,7 @@ function InventoryScreen(props) {
         submitChassis(v);
       }
     }
-  ), restoredBanner && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-4 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-2.5 flex items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 text-emerald-800 text-sm font-semibold" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16, className: "shrink-0" }), "Inventaire partagé rejoint — vous voyez les pointages de toute l'équipe en temps réel."), /* @__PURE__ */ React.createElement("button", { onClick: () => setRestoredBanner(false), className: "text-emerald-700 font-bold text-lg leading-none px-1", "aria-label": "Fermer" }, "×")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wide text-slate-500 font-semibold" }, invDate), /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-extrabold", style: { color: BLUE_DEEP } }, parcName)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSoundOn((s) => !s), title: soundOn ? "Couper le son" : "Activer le son", className: "text-slate-400 hover:text-[#1B4F8C] p-1.5" }, soundOn ? /* @__PURE__ */ React.createElement(Volume2, { size: 18 }) : /* @__PURE__ */ React.createElement(VolumeX, { size: 18 })), !isGuest && /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmNewParc(true), className: "text-sm font-bold text-slate-500 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 16 }), " Nouveau parc"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 text-xs text-slate-400 font-semibold mb-4" }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), " Durée de session : ", elapsed), confirmNewParc && /* @__PURE__ */ React.createElement("div", { className: "mb-4 rounded-xl border-2 border-rose-300 bg-rose-50 p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-rose-900" }, "Quitter cet inventaire et repartir sur un nouveau parc ?"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-700 mt-1" }, "Les données déjà enregistrées restent sauvegardées dans le système partagé."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-3" }, /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm" }, "Oui, changer de parc"), /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmNewParc(false), className: "px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm" }, "Annuler"))), /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between text-xs font-bold text-slate-500 mb-1" }, /* @__PURE__ */ React.createElement("span", null, "Progression MMTE"), /* @__PURE__ */ React.createElement("span", null, progressPct, "%")), /* @__PURE__ */ React.createElement("div", { className: "w-full h-2.5 rounded-full bg-slate-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full transition-all duration-500", style: { width: `${progressPct}%`, background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 overflow-x-auto pb-1 mb-5" }, /* @__PURE__ */ React.createElement(StatChip, { label: "Attendus MMTE", value: mmteSize, tone: "navy" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Trouvés MMTE", value: foundList.length, tone: "emerald" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Enregistrés", value: registeredList.length, tone: "sky" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Total présent", value: totalList.length, tone: "navy" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Manquants", value: missingList.length, tone: "rose" })), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-4 relative", style: { overflow: "visible" } }, stampAnim && /* @__PURE__ */ React.createElement("div", { className: "pointer-events-none absolute inset-0 flex items-center justify-center z-10" }, /* @__PURE__ */ React.createElement("div", { className: `stamp-anim border-4 rounded-full px-6 py-3 font-black uppercase tracking-widest text-lg ${stampAnim === "found" ? "border-emerald-600 text-emerald-600" : "border-[#2E7DC1] text-[#2E7DC1]"}` }, stampAnim === "found" ? "Trouvé MMTE" : "Enregistré")), /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-2" }, "Numéro de châssis"), /* @__PURE__ */ React.createElement(
+  ), seriesDone && /* @__PURE__ */ React.createElement("div", { "data-testid": "series-summary", className: "no-print mb-4 rounded-xl border-2 border-sky-200 bg-sky-50 px-4 py-2.5 flex items-center justify-between gap-3 text-sm font-semibold text-sky-900" }, /* @__PURE__ */ React.createElement("span", null, `Série terminée : ${seriesDone.found} trouvé(s), ${seriesDone.hors} hors MMTE, ${seriesDone.dup} doublon(s) ignoré(s).`), /* @__PURE__ */ React.createElement("button", { onClick: () => setSeriesDone(null), className: "font-bold text-lg leading-none px-1", "aria-label": "Fermer" }, "×")), restoredBanner && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-4 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-2.5 flex items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 text-emerald-800 text-sm font-semibold" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16, className: "shrink-0" }), "Inventaire partagé rejoint — vous voyez les pointages de toute l'équipe en temps réel."), /* @__PURE__ */ React.createElement("button", { onClick: () => setRestoredBanner(false), className: "text-emerald-700 font-bold text-lg leading-none px-1", "aria-label": "Fermer" }, "×")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wide text-slate-500 font-semibold" }, invDate), /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-extrabold", style: { color: BLUE_DEEP } }, parcName)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSoundOn((s) => !s), title: soundOn ? "Couper le son" : "Activer le son", className: "text-slate-400 hover:text-[#1B4F8C] p-1.5" }, soundOn ? /* @__PURE__ */ React.createElement(Volume2, { size: 18 }) : /* @__PURE__ */ React.createElement(VolumeX, { size: 18 })), !isGuest && /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmNewParc(true), className: "text-sm font-bold text-slate-500 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 16 }), " Nouveau parc"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 text-xs text-slate-400 font-semibold mb-4" }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), " Durée de session : ", elapsed), confirmNewParc && /* @__PURE__ */ React.createElement("div", { className: "mb-4 rounded-xl border-2 border-rose-300 bg-rose-50 p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-rose-900" }, "Quitter cet inventaire et repartir sur un nouveau parc ?"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-700 mt-1" }, "Les données déjà enregistrées restent sauvegardées dans le système partagé."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-3" }, /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm" }, "Oui, changer de parc"), /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmNewParc(false), className: "px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm" }, "Annuler"))), /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between text-xs font-bold text-slate-500 mb-1" }, /* @__PURE__ */ React.createElement("span", null, "Progression MMTE"), /* @__PURE__ */ React.createElement("span", null, progressPct, "%")), /* @__PURE__ */ React.createElement("div", { className: "w-full h-2.5 rounded-full bg-slate-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full transition-all duration-500", style: { width: `${progressPct}%`, background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 overflow-x-auto pb-1 mb-5" }, /* @__PURE__ */ React.createElement(StatChip, { label: "Attendus MMTE", value: mmteSize, tone: "navy" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Trouvés MMTE", value: foundList.length, tone: "emerald" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Enregistrés", value: registeredList.length, tone: "sky" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Total présent", value: totalList.length, tone: "navy" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Manquants", value: missingList.length, tone: "rose" })), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-4 relative", style: { overflow: "visible" } }, stampAnim && /* @__PURE__ */ React.createElement("div", { className: "pointer-events-none absolute inset-0 flex items-center justify-center z-10" }, /* @__PURE__ */ React.createElement("div", { className: `stamp-anim border-4 rounded-full px-6 py-3 font-black uppercase tracking-widest text-lg ${stampAnim === "found" ? "border-emerald-600 text-emerald-600" : "border-[#2E7DC1] text-[#2E7DC1]"}` }, stampAnim === "found" ? "Trouvé MMTE" : "Enregistré")), /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-2" }, "Numéro de châssis"), /* @__PURE__ */ React.createElement(
     ChassisAutocomplete,
     {
       value: inputVal,
