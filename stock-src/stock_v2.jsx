@@ -124,7 +124,7 @@ function StkReport() {
   const missing = list.filter((r) => !+r.nb_imports);
   const cols = [
     { h: "Parc", k: "parc", w: 22 }, { h: "Stock début", k: "stock_debut", w: 10 }, { h: "Stock initial importé", k: "stock_initial", w: 10 }, { h: "Entrées", k: "entrees", w: 9 }, { h: "Sorties", k: "sorties", w: 9 }, { h: "Transferts sortants", k: "transferts", w: 10 },
-    { h: "Stock fin", k: "stock_fin", w: 10 }, { h: "Disponibles", k: "disponibles", w: 10 }, { h: `Dépôt < ${cfg.seuil} j`, k: "bientot", w: 10 }, { h: "En dépôt", k: "depot", w: 10 }, { h: "Sans date", k: "sans_date", w: 9 },
+    { h: "Stock fin", k: "stock_fin", w: 10 }, { h: "En délai légal", k: "disponibles", w: 12 }, { h: "Bientôt en dépôt", k: "bientot", w: 12 }, { h: "En dépôt", k: "depot", w: 10 }, { h: "Sans date", k: "sans_date", w: 9 },
     { h: "Imports reçus", k: "nb_imports", w: 9 }, { h: "Dernier import", x: (r) => stkFmt(r.dernier_import), w: 12 }, { h: "Sorties non justifiées", k: "non_justifiees", w: 10 }
   ];
   const meta = () => {
@@ -143,8 +143,8 @@ function StkReport() {
     { key: "sorties", label: "Sorties", sort: (r) => +r.sorties, render: (r) => T(r.sorties, "text-rose-700") },
     { key: "transferts", label: "Transf.", sort: (r) => +r.transferts, render: (r) => T(r.transferts, "text-sky-700") },
     { key: "stock_fin", label: "Fin", sort: (r) => +r.stock_fin, render: (r) => <b>{T(r.stock_fin)}</b> },
-    { key: "depot", label: "Dépôt", sort: (r) => +r.depot, render: (r) => T(r.depot, "text-rose-700") },
-    { key: "bientot", label: `< ${cfg.seuil} j`, sort: (r) => +r.bientot, render: (r) => T(r.bientot, "text-amber-700") },
+    { key: "depot", label: "En dépôt", sort: (r) => +r.depot, render: (r) => T(r.depot, "text-rose-700") },
+    { key: "bientot", label: "Bientôt en dépôt", sort: (r) => +r.bientot, render: (r) => T(r.bientot, "text-amber-700") },
     { key: "nb_imports", label: "Fichiers", sort: (r) => +r.nb_imports, render: (r) => +r.nb_imports ? T(r.nb_imports) : <StkBadge tone="bg-amber-50 text-amber-900 border-amber-300">Aucun</StkBadge> },
     { key: "dernier_import", label: "Dernier import", render: (r) => stkFmt(r.dernier_import) || "—" },
     { key: "non_justifiees", label: "Non justif.", sort: (r) => +r.non_justifiees, render: (r) => T(r.non_justifiees) }

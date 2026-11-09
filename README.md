@@ -214,5 +214,6 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
 - **Nom** (6.10.1) : le module s'appelle désormais « Suivi des stocks MAD ROULANTS ».
 - **Photo** (6.10.2) : photo d'un parc retouchée (`lib/img/`) sur la carte de l'écran de choix, en bandeau du tableau de bord, sur la page de connexion. Pas de photo dans les rapports (6.10.3).
 - **À régulariser** (6.11.0) : onglet de chaque parc regroupant dépôt dépassé, double présence, transferts à confirmer, véhicules revenus après sortie, fautes de frappe probables, dates d'arrivée manquantes et châssis atypiques (migration 014, lecture seule).
+- **Vocabulaire et extraction** (6.12.0) : Stock total / En délai légal / Bientôt en dépôt / En dépôt (« En dépôt depuis N j ») ; les dépôts ne figurent plus dans « À régulariser » (migration 015) ; bouton « Extraction des données » (parc, tous ou sélection ; à une date ou sur une période ; stock, entrées, sorties, transferts, passés en dépôt ; Excel multi-onglets ou PDF).
 - **À faire** sur le tableau de bord : fichiers attendus, sorties non justifiées, dépôts proches, véhicules sans date.
 

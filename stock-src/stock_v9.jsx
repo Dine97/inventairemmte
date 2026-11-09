@@ -348,7 +348,7 @@ function StkHeroBanner({ tot }) {
       <div className="mt-2 text-2xl md:text-[28px] font-semibold" style={{ fontFamily: "'Sora',system-ui,sans-serif" }}>{hello}{name ? `, ${name}` : ""}</div>
       <div className="text-sm text-white/80">{dateTxt} · semaine {stkIsoWeek(mon)}</div>
       <div className="flex flex-wrap gap-x-8 gap-y-4 mt-5">
-        <K v={(+tot.presents || 0).toLocaleString("fr-FR")} l="véhicules en parc" />
+        <K v={(+tot.presents || 0).toLocaleString("fr-FR")} l="stock total" />
         <K v={`${ok} / ${act.length}`} l="parcs à jour" on={() => go("couverture")} />
         <K v={(+tot.nj || 0).toLocaleString("fr-FR")} l="sorties à justifier" on={() => go("justif")} />
       </div>

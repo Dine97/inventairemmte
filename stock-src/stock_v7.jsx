@@ -7,7 +7,7 @@ function stkLookupSituation(r, cfg) {
   if (!r.trouve) return { code: "introuvable", label: "Introuvable", tone: "bg-slate-100 text-slate-600 border-slate-300" };
   if (r.parc) {
     const s = stkSit(r, stkToday(), cfg);
-    return { code: s.code, label: `${r.parc} · ${s.code === "depot" ? "en dépôt" : s.code === "bientot" ? `dépôt dans ${s.restant} j` : s.code === "disponible" ? "disponible" : "sans date d'arrivée"}`, tone: STK_SIT_TONE[s.code], depot: s.depot };
+    return { code: s.code, label: `${r.parc} · ${s.code === "depot" ? "en dépôt" : s.code === "bientot" ? `dépôt dans ${s.restant} j` : s.code === "disponible" ? "en délai légal" : "sans date d'arrivée"}`, tone: STK_SIT_TONE[s.code], depot: s.depot };
   }
   if (r.sortie) return { code: "sorti", label: `Sorti de ${r.sortie.parc} le ${stkFmt(r.sortie.date)}${r.sortie.kind === "transfert" && r.sortie.to_parc ? " (transfert vers " + r.sortie.to_parc + ")" : ""}`, tone: STK_SIT_TONE.sorti };
   return { code: "inconnu", label: "Connu, sans séjour en parc", tone: "bg-slate-100 text-slate-600 border-slate-300" };
@@ -120,7 +120,7 @@ function StkManifests() {
   const exportAll = () => stkExportXlsx(`Manifestes_${stkToday()}`, "Véhicules en parc par manifeste", [`Au ${stkFmt(stkToday())}`], [
     { h: "Manifeste", k: "manifeste", w: 18 }, { h: "Navire", x: (r) => (r.navires || []).join(", "), w: 26 }, { h: "En parc", k: "presents" }, { h: "BL", k: "nb_bl" },
     { h: "Parcs", x: (r) => (r.parcs || []).join(", "), w: 40 }, { h: "Arrivée", x: arr, w: 24 }, { h: "Premier dépôt", x: (r) => stkFmt(r.depot_min) },
-    { h: "En dépôt", k: "depot" }, { h: `Dépôt < ${cfg.seuil} j`, k: "bientot" }, { h: "Sans date", k: "sans_date" }
+    { h: "En dépôt", k: "depot" }, { h: "Bientôt en dépôt", k: "bientot" }, { h: "Sans date", k: "sans_date" }
   ], list);
   const exportDetail = () => detail && stkExportXlsx(`Manifeste_${open}_${stkToday()}`, `Manifeste ${open} — véhicules en parc`, [`Au ${stkFmt(stkToday())}`, `${detail.length} véhicule(s)`], [{ h: "Parc", k: "parc" }].concat(stkExportCols(cfg, stkToday())), detail);
   return <>

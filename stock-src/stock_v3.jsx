@@ -84,7 +84,7 @@ function StkExportAtDateModal({ onClose, parcId }) {
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [count, setCount] = useState(null);
-  const CAT = { tous: "Tout le stock", disponible: "Disponibles", bientot: `Bientôt en dépôt (< ${cfg.seuil} j)`, depot: "En dépôt", sans_date: "Sans date d'arrivée" };
+  const CAT = { tous: "Stock total", disponible: "En délai légal", bientot: `Bientôt en dépôt (< ${cfg.seuil} j)`, depot: "En dépôt", sans_date: "Sans date d'arrivée" };
   const run = async (kind) => {
     setBusy("Calcul du stock..."); setErr("");
     try {
@@ -106,7 +106,7 @@ function StkExportAtDateModal({ onClose, parcId }) {
       <StkField label="Date du stock"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={stkInput} /></StkField>
       <StkField label="Parc"><select value={parc} onChange={(e) => setParc(e.target.value)} className={stkInput}><option value="">Tous les parcs</option>{dash.map((d) => <option key={d.parc_id} value={d.parc_id}>{d.parc}</option>)}</select></StkField>
       <StkField label="Véhicules à exporter"><select value={cat} onChange={(e) => setCat(e.target.value)} className={stkInput}>{Object.entries(CAT).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></StkField>
-      <StkMsg tone="info">Le stock à une date reprend les véhicules présents d'après les fichiers importés jusqu'à cette date ; la situation (disponible, dépôt) est calculée à la date choisie.</StkMsg>
+      <StkMsg tone="info">Le stock à une date reprend les véhicules présents d'après les fichiers importés jusqu'à cette date ; la situation (en délai légal, bientôt en dépôt, en dépôt) est calculée à la date choisie.</StkMsg>
       {err && <StkMsg tone="err">{err}</StkMsg>}
       {count != null && !busy && <div className="text-sm font-semibold text-emerald-800">{count} véhicule(s) exporté(s).</div>}
       <div className="flex flex-wrap gap-2">

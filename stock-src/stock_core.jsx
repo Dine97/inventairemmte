@@ -41,9 +41,9 @@ function stkSit(row, ref, cfg) {
   const depot = useM ? String(row.mmte_depot_date).slice(0, 10) : stkAddDays(row.date_arrivee, cfg.duree);
   const restant = stkDiff(ref, depot);
   const sejour = row.date_arrivee ? stkDiff(row.date_arrivee, ref) : null;
-  if (restant <= 0) return { code: "depot", label: "Dépôt", depot, restant, sejour };
+  if (restant <= 0) return { code: "depot", label: "En dépôt", depot, restant, sejour };
   if (restant <= cfg.seuil) return { code: "bientot", label: "Bientôt en dépôt", depot, restant, sejour };
-  return { code: "disponible", label: "Disponible", depot, restant, sejour };
+  return { code: "disponible", label: "En délai légal", depot, restant, sejour };
 }
 const STK_SIT_TONE = { disponible: "bg-emerald-50 text-emerald-800 border-emerald-200", bientot: "bg-amber-50 text-amber-900 border-amber-300", depot: "bg-rose-50 text-rose-800 border-rose-200", sans_date: "bg-slate-100 text-slate-600 border-slate-200", sorti: "bg-slate-100 text-slate-700 border-slate-300" };
 const STK_JUSTIF = { non_justifiee: { label: "Non justifiée", tone: "bg-slate-100 text-slate-600 border-slate-200" }, justifiee: { label: "Justifiée", tone: "bg-sky-50 text-sky-800 border-sky-200" }, validee: { label: "Validée", tone: "bg-emerald-50 text-emerald-800 border-emerald-200" } };
@@ -109,7 +109,8 @@ function stkExportCols(cfg, ref, extra) {
   cols.push({ h: "Date de dépôt", x: (r) => stkFmt(stkSit(r, ref, cfg).depot), w: 12 });
   if (cfg.mmte) cols.push({ h: "Dépôt MMTE", x: (r) => stkFmt(r.mmte_depot_date), w: 12 });
   cols.push({ h: "Situation", x: (r) => r.exit_date && extra !== "sorties" ? "Sorti" : stkSit(r, ref, cfg).label, w: 16 });
-  cols.push({ h: "Jours restants", x: (r) => { const s = stkSit(r, ref, cfg); return s.restant == null ? "" : s.restant; }, w: 9 });
+  cols.push({ h: "Jours restants", x: (r) => { const s = stkSit(r, ref, cfg); return s.restant == null || s.restant <= 0 ? "" : s.restant; }, w: 9 });
+  cols.push({ h: "Jours en dépôt", x: (r) => { const s = stkSit(r, ref, cfg); return s.restant == null || s.restant > 0 ? "" : -s.restant; }, w: 9 });
   (extra || []).forEach && (extra || []).forEach((c) => cols.push(c));
   return cols;
 }
@@ -122,7 +123,7 @@ function StkBadge({ tone, children, className }) {
 function StkSitBadge({ row, refDate }) {
   const { cfg } = React.useContext(StkCtx);
   const s = stkSit(row, refDate || stkToday(), cfg);
-  return <StkBadge tone={STK_SIT_TONE[s.code]}>{s.code === "depot" ? `Dépôt (+${-s.restant} j)` : s.code === "bientot" ? `Dépôt dans ${s.restant} j` : s.code === "disponible" ? `${s.restant} j restants` : "Sans date"}</StkBadge>;
+  return <StkBadge tone={STK_SIT_TONE[s.code]}>{s.code === "depot" ? `En dépôt depuis ${-s.restant} j` : s.code === "bientot" ? `Dépôt dans ${s.restant} j` : s.code === "disponible" ? `${s.restant} j restants` : "Sans date"}</StkBadge>;
 }
 function StkCard({ children, className, ...rest }) {
   return <div className={`bg-white rounded-2xl border border-slate-200 shadow-sm ${className || ""}`} {...rest}>{children}</div>;

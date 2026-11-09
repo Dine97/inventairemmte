@@ -122,13 +122,13 @@ function StkDashboard({ lastImports }) {
   list = [...list].sort((a, b) => sort === "name" ? a.parc.localeCompare(b.parc) : sort === "depot" ? b.depot - a.depot : sort === "import" ? String(b.last_import || "").localeCompare(String(a.last_import || "")) : (b.presents - a.presents) || a.parc.localeCompare(b.parc));
   return <>
     <StkHeroBanner tot={tot} />
-    <StkPageHead title="Tableau de bord des stocks" sub={`Situation au ${stkFmt(today)} · séjour de ${cfg.duree} jours à compter de la date d'arrivée du navire`} right={<><StkBtn small onClick={() => setExpAt(true)}><Download size={15} /> Exporter le stock à une date</StkBtn><StkBtn small onClick={reloadDash}><RefreshCw size={15} /> Actualiser</StkBtn></>} />
-    {expAt && <StkExportAtDateModal onClose={() => setExpAt(false)} />}
+    <StkPageHead title="Tableau de bord des stocks" sub={`Situation au ${stkFmt(today)} · séjour de ${cfg.duree} jours à compter de la date d'arrivée du navire`} right={<><StkBtn small onClick={() => setExpAt(true)} data-testid="btn-extraction"><Download size={15} /> Extraction des données</StkBtn><StkBtn small onClick={reloadDash}><RefreshCw size={15} /> Actualiser</StkBtn></>} />
+    {expAt && <StkExtractionModal onClose={() => setExpAt(false)} />}
     <StkCard className="p-4"><StkQuickSearch big /></StkCard>
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-      <StkKpi label="Véhicules en stock" value={tot.presents} sub={`${withImport.length} parc(s) importé(s)`} />
-      <StkKpi label="Disponibles" value={tot.disponibles} tone="green" />
-      <StkKpi label={`Dépôt < ${cfg.seuil} j`} value={tot.bientot} tone="amber" />
+      <StkKpi label="Stock total" value={tot.presents} sub={`${withImport.length} parc(s) importé(s)`} />
+      <StkKpi label="En délai légal" value={tot.disponibles} tone="green" />
+      <StkKpi label="Bientôt en dépôt" value={tot.bientot} tone="amber" sub={`moins de ${cfg.seuil} j`} />
       <StkKpi label="En dépôt" value={tot.depot} tone="rose" sub={tot.sans ? `${tot.sans} sans date` : ""} />
       <StkKpi label="Sorties non justifiées" value={tot.nj} tone="slate" onClick={() => go("justif")} />
       <StkKpi label="Imports en retard" value={late.length} tone={late.length ? "amber" : "green"} sub="Dernier import > 7 jours" />
@@ -159,7 +159,7 @@ function StkDashboard({ lastImports }) {
               <div style={{ width: pc(d.disponibles) + "%" }} className="bg-emerald-500" /><div style={{ width: pc(d.bientot) + "%" }} className="bg-amber-400" /><div style={{ width: pc(d.depot) + "%" }} className="bg-rose-500" />
             </div>}
             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11.5px] font-semibold">
-              <span className="text-emerald-700">{d.disponibles} disp.</span><span className="text-amber-700">{d.bientot} bientôt</span><span className="text-rose-700">{d.depot} dépôt</span>
+              <span className="text-emerald-700">{d.disponibles} en délai</span><span className="text-amber-700">{d.bientot} bientôt</span><span className="text-rose-700">{d.depot} en dépôt</span>
               {d.last_import_id && <span className="text-slate-500">+{d.last_entrees || 0} / −{(d.last_sorties || 0) + (d.last_transferts || 0)}</span>}
             </div>
             <div className="flex flex-wrap gap-1.5 mt-2">
@@ -193,7 +193,7 @@ function StkParc({ parcId }) {
   const info = dash.find((d) => d.parc_id === parcId) || {};
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
-  const [tab, setTab] = useState("disponible");
+  const [tab, setTab] = useState("tous");
   const [q, setQ] = useState("");
   const [atDate, setAtDate] = useState(null); // { date, rows, lastImport }
   const [askDate, setAskDate] = useState(false);
@@ -205,7 +205,7 @@ function StkParc({ parcId }) {
   };
   useEffect(() => { load(); }, [parcId]);
   const [regN, setRegN] = useState(null);
-  const loadReg = () => stkCall("regulariser", { parc_id: parcId }).then((r) => setRegN(new Set(r.map((x) => x.vehicle_id)).size)).catch(() => setRegN(null));
+  const loadReg = () => stkCall("regulariser", { parc_id: parcId }).then((r) => setRegN(new Set(r.filter((x) => STK_REG[x.motif]).map((x) => x.vehicle_id)).size)).catch(() => setRegN(null));
   useEffect(() => { loadReg(); }, [parcId]);
   const ref = atDate ? atDate.date : today;
   const rows = atDate ? atDate.rows : (data ? data.rows : []);
@@ -215,10 +215,10 @@ function StkParc({ parcId }) {
     return g;
   }, [rows, ref]);
   const tabs = [
-    { key: "tous", label: "Tous", count: rows.length },
-    { key: "disponible", label: "Disponibles", count: groups.disponible.length },
+    { key: "tous", label: "Stock total", count: rows.length },
+    { key: "disponible", label: "En délai légal", count: groups.disponible.length },
     { key: "bientot", label: "Bientôt en dépôt", count: groups.bientot.length },
-    { key: "depot", label: "Dépôt", count: groups.depot.length }
+    { key: "depot", label: "En dépôt", count: groups.depot.length }
   ];
   if (groups.sans_date.length) tabs.push({ key: "sans_date", label: "Sans date", count: groups.sans_date.length });
   if (!atDate) tabs.push({ key: "regulariser", label: "À régulariser", count: regN, warn: !!regN });
@@ -239,15 +239,14 @@ function StkParc({ parcId }) {
       right={<>
         {stkCanEdit(C) && <StkBtn onClick={() => go("saisie", { parc: info.parc })}><StkIc.Edit size={16} /> Saisie manuelle</StkBtn>}
         {stkCanEdit(C) && <StkBtn kind="primary" onClick={() => go("import", { parc: info.parc })}><Upload size={16} /> Importer le stock</StkBtn>}
-        <StkBtn onClick={() => setAskDate(true)}><StkIc.Cal size={16} /> Stock à une date</StkBtn>
-        <StkBtn onClick={() => setExpAt(true)}><Download size={16} /> Exporter à une date</StkBtn>
+        <StkBtn onClick={() => setExpAt(true)} data-testid="btn-extraction"><Download size={16} /> Extraction des données</StkBtn>
         {isAdmin && <StkBtn onClick={() => setAdding(true)}><StkIc.Plus size={16} /> Ajouter un véhicule</StkBtn>}
       </>} />
     {err && <StkMsg tone="err">{err}</StkMsg>}
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <StkKpi label="En stock" value={rows.length} onClick={() => setTab("tous")} />
-      <StkKpi label="Disponibles" value={groups.disponible.length} tone="green" onClick={() => setTab("disponible")} />
-      <StkKpi label={`Dépôt < ${cfg.seuil} j`} value={groups.bientot.length} tone="amber" onClick={() => setTab("bientot")} />
+      <StkKpi label="Stock total" value={rows.length} onClick={() => setTab("tous")} />
+      <StkKpi label="En délai légal" value={groups.disponible.length} tone="green" onClick={() => setTab("disponible")} />
+      <StkKpi label="Bientôt en dépôt" sub={`moins de ${cfg.seuil} j`} value={groups.bientot.length} tone="amber" onClick={() => setTab("bientot")} />
       <StkKpi label="En dépôt" value={groups.depot.length} tone="rose" onClick={() => setTab("depot")} />
     </div>
     <StkTabs tabs={tabs} value={tab} onChange={setTab} />
@@ -260,7 +259,7 @@ function StkParc({ parcId }) {
         {!data && !atDate ? <StkLoading /> : <StkTable columns={stkCols(cfg, ref, { entree: true })} rows={filtered} onRow={(r) => openVehicle({ id: r.vehicle_id })} empty={rows.length ? "Aucun véhicule dans cette catégorie." : "Aucun véhicule : importez le premier fichier de stock de ce parc."} />}
       </StkCard>}
     {askDate && <StkAtDateModal parcId={parcId} lastImport={data && data.lastImport} onClose={() => setAskDate(false)} onImport={() => { setAskDate(false); go("import", { parc: info.parc }); }} onResult={(r) => { setAskDate(false); setAtDate(r); setTab("tous"); }} />}
-    {expAt && <StkExportAtDateModal parcId={parcId} onClose={() => setExpAt(false)} />}
+    {expAt && <StkExtractionModal parcId={parcId} onClose={() => setExpAt(false)} onShowAtDate={(d) => { setExpAt(false); stkCall("parc_stock", { parc_id: parcId, date: d }).then((r) => { setAtDate({ date: d, rows: r.rows, lastImport: r.lastImport }); setTab("tous"); }).catch((e) => setErr(stkErrText(e))); }} />}
     {adding && <StkVehicleForm parcId={parcId} onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load(); C.reloadDash(); }} />}
   </>;
 }
@@ -413,7 +412,7 @@ function StkSearch({ preset }) {
           <StkField label="Chercher dans"><select value={f.field} onChange={set("field")} className={stkInput}><option value="">Tous les champs</option><option value="chassis">Châssis uniquement</option></select></StkField>
           <StkField label="Parc actuel"><select value={f.parc_id} onChange={set("parc_id")} className={stkInput}><option value="">Tous les parcs</option>{dash.map((d) => <option key={d.parc_id} value={d.parc_id}>{d.parc}</option>)}</select></StkField>
           <StkField label="Statut"><select value={f.statut} onChange={set("statut")} className={stkInput}><option value="">Présents et sortis</option><option value="present">Présents en parc</option><option value="sorti">Sortis</option></select></StkField>
-          <StkField label="Situation (séjour)"><select value={f.situation} onChange={set("situation")} className={stkInput}><option value="">Toutes</option><option value="disponible">Disponibles</option><option value="bientot">Bientôt en dépôt</option><option value="depot">En dépôt</option></select></StkField>
+          <StkField label="Situation (séjour)"><select value={f.situation} onChange={set("situation")} className={stkInput}><option value="">Toutes</option><option value="disponible">En délai légal</option><option value="bientot">Bientôt en dépôt</option><option value="depot">En dépôt</option></select></StkField>
           <StkField label="Navire"><input value={f.navire} onChange={set("navire")} className={stkInput} /></StkField>
           <StkField label="Marque"><input value={f.marque} onChange={set("marque")} className={stkInput} /></StkField>
           <StkField label="Arrivée du"><input type="date" value={f.arr_from} onChange={set("arr_from")} className={stkInput} /></StkField>
