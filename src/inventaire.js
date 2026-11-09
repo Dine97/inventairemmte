@@ -46,7 +46,7 @@ const Globe = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__P
 const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
 const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
 const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
-const APP_VERSION = "6.7.2";
+const APP_VERSION = "6.8.0";
 const firebaseConfig = {
   apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
   authDomain: "benin-control-mmte.firebaseapp.com",
@@ -761,6 +761,7 @@ const HELP_SECTIONS = [
     fr: { t: "2. Pointer les véhicules", p: [
       "Saisissez le châssis (ou une partie : marque, modèle) puis validez, ou scannez le code-barres / QR avec la caméra.",
       "Dans la caméra : la lampe torche (si l'appareil en a une) et le zoom aident dans les parcs sombres ou pour les châssis éloignés.",
+      "Trois modes de pointage dans la caméra : « Un par un » (elle se ferme après chaque châssis), « Continu automatique » (elle reste ouverte et pointe chaque code lu) et « Continu avec confirmation » (vous validez chaque lecture). Le bip et la vibration se règlent à côté ; un compteur de série et la liste des dernières lectures permettent d'annuler une erreur sans quitter la caméra ; « Terminer la série » ferme la caméra avec un résumé. Un véhicule absent de MMTE suspend la caméra pour l'enregistrer.",
       "La lecture automatique (OCR) permet de photographier la plaque du châssis ; vérifiez toujours le texte lu avant de valider.",
       "Résultat « Trouvé » : le véhicule est sur la liste MMTE. Résultat « Hors MMTE » : enregistrez-le avec marque, modèle, ancienneté et photo si besoin.",
       "Un châssis déjà pointé est refusé (pas de doublon). Une erreur se corrige en supprimant la ligne : elle peut être restaurée."
@@ -768,6 +769,7 @@ const HELP_SECTIONS = [
     en: { t: "2. Checking vehicles", p: [
       "Type the chassis number (or part of it: make, model) and confirm, or scan the barcode / QR code with the camera.",
       "In the camera view: the torch (if the device has one) and the zoom help in dark parks or for distant chassis plates.",
+      "Three checking modes in the camera: “One by one” (it closes after each chassis), “Continuous automatic” (it stays open and checks every code read) and “Continuous with confirmation” (you confirm each reading). Beep and vibration can be set next to it; a series counter and the list of latest readings let you cancel a mistake without leaving the camera; “End the series” closes the camera with a summary. A vehicle not on MMTE pauses the camera so you can register it.",
       "Automatic reading (OCR) lets you photograph the chassis plate; always check the text read before confirming.",
       "“Found” means the vehicle is on the MMTE list. “Not on MMTE” means you must register it with make, model, age and a photo if needed.",
       "A chassis already checked is refused (no duplicates). A mistake is fixed by deleting the line: it can be restored."
@@ -1543,7 +1545,20 @@ Object.assign(EN_DICT, {
   "Lundi": "Monday",
   "Observation": "Remark",
   "Annexe": "Annex",
-  "· créé par": "· created by"
+  "· créé par": "· created by",
+  "Un par un": "One by one",
+  "Continu automatique": "Continuous automatic",
+  "Continu avec confirmation": "Continuous with confirmation",
+  "Bip": "Beep",
+  "Vibration": "Vibration",
+  "Châssis lu": "Chassis read",
+  "Ignorer": "Skip",
+  "Trouvé :": "Found: ",
+  "Déjà pointé :": "Already checked: ",
+  "Erreur :": "Error: ",
+  "Trouvé": "Found",
+  "Doublon": "Duplicate",
+  "Terminer la série": "End the series"
 });
 const EN_PATTERNS = [
   ["Supprimer le pointage du châssis {*} ?\n\nCette action reste tracée (auteur + heure) mais retire l'entrée des listes de l'inventaire.", "Delete the check of chassis {*}?\n\nThis action stays traced (author + time) but removes the entry from the inventory lists."],
@@ -1610,7 +1625,9 @@ const EN_PATTERNS = [
   ["{n} régularisés sur {n} · {n} encore manquant", "{n} settled out of {n} · {n} still missing"],
   ["{n} régularisés sur {n} · {n} encore manquants", "{n} settled out of {n} · {n} still missing"],
   ["par {*}", "by {*}"],
-  ["Clôturé le {*} par {*}", "Closed on {*} by {*}"]
+  ["Clôturé le {*} par {*}", "Closed on {*} by {*}"],
+  ["Série : {n} trouvé(s) · {n} hors MMTE · {n} doublon(s) ignoré(s)", "Series: {n} found · {n} not on MMTE · {n} duplicate(s) ignored"],
+  ["Série terminée : {n} trouvé(s), {n} hors MMTE, {n} doublon(s) ignoré(s).", "Series finished: {n} found, {n} not on MMTE, {n} duplicate(s) ignored."]
 ].map(([k, v]) => {
   const toks = [];
   const re = new RegExp("^" + k.replace(/[.*+?^$()|[\]\\]/g, "\\$&").replace(/\{n\}|\{\*\}/g, (t) => {
@@ -2000,11 +2017,82 @@ function CamTools({ videoRef }) {
     await apply({ zoom: z });
   }, className: "flex-1" })));
 }
-function CameraScanner({ onDetect, onClose, knownMap }) {
+function CameraScanner({ onDetect, onClose, knownMap, onScanChassis, series, onUndo, onEndSeries }) {
   const videoRef = useRef(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState("code");
+  const lsGet = (k, d) => {
+    try {
+      const v = localStorage.getItem(k);
+      return v == null ? d : v;
+    } catch (e) {
+      return d;
+    }
+  };
+  const lsSet = (k, v) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch (e) {
+    }
+  };
+  const [scanMode, setScanMode] = useState(() => {
+    const v = lsGet("mmte-scanmode", "confirm");
+    return v === "single" || v === "auto" ? v : "confirm";
+  });
+  const [camSound, setCamSound] = useState(() => lsGet("mmte-cam-sound", "1") !== "0");
+  const [camVibe, setCamVibe] = useState(() => lsGet("mmte-cam-vibe", "1") !== "0");
+  const [banner, setBanner] = useState(null);
+  const [pending, setPending] = useState(null);
+  const modeRef = useRef(scanMode);
+  modeRef.current = scanMode;
+  const soundRef = useRef(camSound);
+  soundRef.current = camSound;
+  const vibeRef = useRef(camVibe);
+  vibeRef.current = camVibe;
+  const onScanRef = useRef(onScanChassis);
+  onScanRef.current = onScanChassis;
+  const onDetectRef = useRef(onDetect);
+  onDetectRef.current = onDetect;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const lastRef = useRef({ norm: "", t: 0 });
+  const busyRef = useRef(false);
+  const bannerTimer = useRef(null);
+  const runScan = async (chassis) => {
+    busyRef.current = true;
+    let out = "found";
+    try {
+      out = await onScanRef.current(chassis, { mute: !soundRef.current });
+    } catch (e) {
+      out = "error";
+    }
+    lastRef.current = { norm: normalize(chassis), t: Date.now() };
+    if (vibeRef.current && navigator.vibrate) {
+      try {
+        navigator.vibrate(out === "found" ? 70 : out === "duplicate" ? [40, 60, 40] : 220);
+      } catch (e) {
+      }
+    }
+    if (out === "notfound") {
+      busyRef.current = false;
+      onCloseRef.current();
+      return;
+    }
+    setBanner({ type: out, chassis });
+    if (bannerTimer.current) clearTimeout(bannerTimer.current);
+    bannerTimer.current = setTimeout(() => setBanner(null), 1600);
+    busyRef.current = false;
+  };
+  const changeMode = (m) => {
+    setScanMode(m);
+    lsSet("mmte-scanmode", m);
+    setPending(null);
+    busyRef.current = false;
+  };
+  useEffect(() => () => {
+    if (bannerTimer.current) clearTimeout(bannerTimer.current);
+  }, []);
   useEffect(() => {
     if (mode !== "code") return void 0;
     setErr("");
@@ -2015,9 +2103,26 @@ function CameraScanner({ onDetect, onClose, knownMap }) {
     let stopped = false;
     const finish = (raw) => {
       if (stopped) return;
-      stopped = true;
       const chassis = extractChassisFromScan(raw, knownMap);
-      if (chassis) onDetect(chassis);
+      if (!chassis) return;
+      if (modeRef.current === "single" || !onScanRef.current) {
+        stopped = true;
+        onDetectRef.current(chassis);
+        return;
+      }
+      if (busyRef.current) return;
+      const norm = normalize(chassis);
+      const l = lastRef.current;
+      if (l.norm === norm && Date.now() - l.t < 2500) {
+        l.t = Date.now();
+        return;
+      }
+      if (modeRef.current === "confirm") {
+        busyRef.current = true;
+        setPending({ chassis });
+        return;
+      }
+      runScan(chassis);
     };
     const constraints = { video: { facingMode: { ideal: "environment" } }, audio: false };
     (async () => {
@@ -2045,10 +2150,7 @@ function CameraScanner({ onDetect, onClose, knownMap }) {
           timer = setInterval(async () => {
             try {
               const codes = await detector.detect(v);
-              if (codes && codes.length && codes[0].rawValue) {
-                clearInterval(timer);
-                finish(codes[0].rawValue);
-              }
+              if (codes && codes.length && codes[0].rawValue) finish(codes[0].rawValue);
             } catch (e) {
             }
           }, 300);
@@ -2104,7 +2206,30 @@ function CameraScanner({ onDetect, onClose, knownMap }) {
     };
   }, [mode]);
   const tabCls = (m) => `flex-1 px-3 py-2 rounded-lg text-sm font-bold ${mode === m ? "bg-white" : "bg-white/15 text-white"}`;
-  return /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-start sm:justify-center p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 w-full max-w-md mb-3" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-code", onClick: () => setMode("code"), className: tabCls("code"), style: mode === "code" ? { color: BLUE_DEEP } : void 0 }, "Code-barres / QR"), /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-text", onClick: () => setMode("text"), className: tabCls("text"), style: mode === "text" ? { color: BLUE_DEEP } : void 0 }, "Texte du châssis")), mode === "text" ? /* @__PURE__ */ React.createElement(TextScanner, { knownMap, onDetect, onSwitchCode: () => setMode("code") }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1" }, "Visez le code-barres ou le QR code du châssis"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3" }, "Les deux types de codes sont lus automatiquement."), err ? /* @__PURE__ */ React.createElement("div", { className: "max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full max-w-md rounded-xl bg-black" }), loading && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2" }, "Démarrage de la caméra..."), !loading && /* @__PURE__ */ React.createElement(CamTools, { videoRef }))), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "mt-4 px-6 py-3 rounded-xl bg-white font-bold", style: { color: BLUE_DEEP } }, "Fermer"));
+  return /* @__PURE__ */ React.createElement("div", { className: "no-print fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-start sm:justify-center p-4 overflow-y-auto" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 w-full max-w-md mb-3" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-code", onClick: () => setMode("code"), className: tabCls("code"), style: mode === "code" ? { color: BLUE_DEEP } : void 0 }, "Code-barres / QR"), /* @__PURE__ */ React.createElement("button", { "data-testid": "scan-mode-text", onClick: () => setMode("text"), className: tabCls("text"), style: mode === "text" ? { color: BLUE_DEEP } : void 0 }, "Texte du châssis")), mode === "text" ? /* @__PURE__ */ React.createElement(TextScanner, { knownMap, onDetect, onSwitchCode: () => setMode("code") }) : /* @__PURE__ */ React.createElement(React.Fragment, null, onScanChassis && /* @__PURE__ */ React.createElement("div", { "data-testid": "scan-modes", className: "w-full max-w-md mb-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-1.5" }, [["single", "Un par un"], ["auto", "Continu automatique"], ["confirm", "Continu avec confirmation"]].map(([k, l]) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: k,
+      "data-testid": "scan-m-" + k,
+      onClick: () => changeMode(k),
+      className: "flex-1 px-1.5 py-1.5 rounded-lg text-[11px] font-bold leading-tight " + (scanMode === k ? "bg-amber-300 text-slate-900" : "bg-white/15 text-white")
+    },
+    l
+  ))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-2 text-white/90 text-xs" }, /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement("input", { "data-testid": "cam-sound", type: "checkbox", checked: camSound, onChange: (e) => {
+    setCamSound(e.target.checked);
+    lsSet("mmte-cam-sound", e.target.checked ? "1" : "0");
+  } }), " Bip"), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-1" }, /* @__PURE__ */ React.createElement("input", { "data-testid": "cam-vibe", type: "checkbox", checked: camVibe, onChange: (e) => {
+    setCamVibe(e.target.checked);
+    lsSet("mmte-cam-vibe", e.target.checked ? "1" : "0");
+  } }), " Vibration"))), /* @__PURE__ */ React.createElement("div", { className: "text-white font-bold mb-1" }, "Visez le code-barres ou le QR code du châssis"), /* @__PURE__ */ React.createElement("div", { className: "text-white/70 text-xs mb-3" }, "Les deux types de codes sont lus automatiquement."), err ? /* @__PURE__ */ React.createElement("div", { className: "max-w-sm rounded-xl bg-white p-4 text-sm text-slate-700 text-center" }, err) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("video", { ref: videoRef, playsInline: true, muted: true, className: "w-full max-w-md rounded-xl bg-black" }), loading && /* @__PURE__ */ React.createElement("div", { className: "text-white/80 text-sm mt-2" }, "Démarrage de la caméra..."), !loading && /* @__PURE__ */ React.createElement(CamTools, { videoRef })), onScanChassis && scanMode !== "single" && /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-md mt-3 space-y-2" }, pending && /* @__PURE__ */ React.createElement("div", { "data-testid": "cam-confirm", className: "rounded-xl bg-white p-3 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-500" }, "Châssis lu"), /* @__PURE__ */ React.createElement("div", { className: "font-plex-mono font-bold text-lg break-all" }, pending.chassis), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 mt-2" }, /* @__PURE__ */ React.createElement("button", { "data-testid": "cam-ok", onClick: () => {
+    const c = pending.chassis;
+    setPending(null);
+    runScan(c);
+  }, className: "flex-1 py-2.5 rounded-lg text-white font-bold", style: { background: "#0A8F44" } }, "Valider"), /* @__PURE__ */ React.createElement("button", { "data-testid": "cam-skip", onClick: () => {
+    lastRef.current = { norm: normalize(pending.chassis), t: Date.now() };
+    setPending(null);
+    busyRef.current = false;
+  }, className: "flex-1 py-2.5 rounded-lg font-bold border-2 border-slate-200 text-slate-600" }, "Ignorer"))), banner && /* @__PURE__ */ React.createElement("div", { "data-testid": "scan-banner", className: "rounded-xl px-3 py-2 text-center font-bold text-sm " + (banner.type === "found" ? "bg-emerald-500 text-white" : "bg-amber-300 text-slate-900") }, banner.type === "found" ? "Trouvé : " : banner.type === "duplicate" ? "Déjà pointé : " : "Erreur : ", /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono" }, banner.chassis)), series && /* @__PURE__ */ React.createElement("div", { "data-testid": "series-counter", className: "rounded-xl bg-white/10 text-white text-xs px-3 py-2 text-center font-semibold" }, `Série : ${series.found} trouvé(s) · ${series.hors} hors MMTE · ${series.dup} doublon(s) ignoré(s)`), series && series.recent.length > 0 && /* @__PURE__ */ React.createElement("div", { "data-testid": "series-recent", className: "rounded-xl bg-white p-2 space-y-1 max-h-40 overflow-y-auto" }, series.recent.slice(0, 6).map((r) => /* @__PURE__ */ React.createElement("div", { key: r.norm, className: "flex items-center justify-between gap-2 text-xs" }, /* @__PURE__ */ React.createElement("span", { className: "font-plex-mono truncate" }, r.chassis), /* @__PURE__ */ React.createElement("span", { className: "flex items-center gap-2 shrink-0" }, /* @__PURE__ */ React.createElement("span", { className: "font-bold text-slate-500" }, r.type === "found" ? "Trouvé" : r.type === "hors" ? "Hors MMTE" : "Doublon"), r.type === "found" && /* @__PURE__ */ React.createElement("button", { "data-testid": "cam-undo-" + r.norm, onClick: () => onUndo(r.norm), className: "font-bold text-rose-600 underline" }, "Annuler"))))), series && series.found + series.hors + series.dup > 0 && /* @__PURE__ */ React.createElement("button", { "data-testid": "series-end", onClick: onEndSeries, className: "w-full py-2.5 rounded-xl bg-white/90 font-bold text-sm", style: { color: BLUE_DEEP } }, "Terminer la série"))), /* @__PURE__ */ React.createElement("button", { onClick: onClose, className: "mt-4 px-6 py-3 rounded-xl bg-white font-bold", style: { color: BLUE_DEEP } }, "Fermer"));
 }
 let ocrEnginePromise = null;
 function loadOcrEngine(onStage) {
@@ -2890,21 +3015,44 @@ function InventaireMMTEApp() {
     if (stampTimeout.current) clearTimeout(stampTimeout.current);
     stampTimeout.current = setTimeout(() => setStampAnim(null), 650);
   };
-  const submitChassis = async (overrideValue) => {
+  const [series, setSeries] = useState({ found: 0, hors: 0, dup: 0, recent: [] });
+  const [seriesDone, setSeriesDone] = useState(null);
+  const camPendingRef = useRef("");
+  const scanContinuous = async (raw, opts) => {
+    const out = await submitChassis(raw, { noFocus: true, mute: opts && opts.mute });
+    const norm = normalize(raw);
+    if (out === "found") {
+      const nm = mmteMap.get(norm) && mmteMap.get(norm).chassis || raw;
+      setSeries((s) => ({ ...s, found: s.found + 1, recent: [{ norm, chassis: nm, type: "found" }, ...s.recent.filter((r) => r.norm !== norm)].slice(0, 8) }));
+    } else if (out === "duplicate") {
+      setSeries((s) => ({ ...s, dup: s.dup + 1, recent: s.recent.some((r) => r.norm === norm) ? s.recent : [{ norm, chassis: raw, type: "duplicate" }, ...s.recent].slice(0, 8) }));
+    } else if (out === "notfound") {
+      camPendingRef.current = norm;
+    }
+    return out;
+  };
+  const undoSeries = (norm) => {
+    softDelete(norm);
+    setSeries((s) => ({ ...s, found: Math.max(0, s.found - 1), recent: s.recent.filter((r) => r.norm !== norm) }));
+  };
+  const submitChassis = async (overrideValue, opts) => {
+    const quiet = !!(opts && opts.mute), noFocus = !!(opts && opts.noFocus);
+    let outcome = "found";
     const raw = (overrideValue !== void 0 ? overrideValue : inputVal).trim();
-    if (!raw || !invId) return;
+    if (!raw || !invId) return "none";
     const norm = normalize(raw);
     const ref = db.collection("inventories").doc(invId).collection("scans").doc(norm);
     if (mmteMap.has(norm)) {
       if (foundSet.has(norm)) {
+        outcome = "duplicate";
         setFeedback({ type: "duplicate", chassis: raw, message: "Déjà pointé comme trouvé sur MMTE." });
-        if (soundOn) playFeedbackSound("duplicate");
+        if (soundOn && !quiet) playFeedbackSound("duplicate");
       } else {
         const info = mmteMap.get(norm);
         const original = info.chassis;
         setFeedback({ type: "found", chassis: original, message: "Trouvé sur MMTE.", description: info.description });
         triggerStamp("found");
-        if (soundOn) playFeedbackSound("found");
+        if (soundOn && !quiet) playFeedbackSound("found");
         const prevDeleted = scans.find((x) => x.norm === norm && x.deleted);
         ref.set({
           norm,
@@ -2930,17 +3078,20 @@ function InventaireMMTEApp() {
       }
       setPendingNotFound(null);
     } else if (registeredSet.has(norm)) {
+      outcome = "duplicate";
       setFeedback({ type: "duplicate", chassis: raw, message: "Déjà enregistré comme présent sur le parc (hors MMTE)." });
-      if (soundOn) playFeedbackSound("duplicate");
+      if (soundOn && !quiet) playFeedbackSound("duplicate");
       setPendingNotFound(null);
     } else {
       setRegForm({ age: "", name: "", model: "", photo: "", busy: false, error: "" });
       setPendingNotFound({ norm, chassis: raw, suggestions: suggestChassis(norm, mmteMap, foundSet) });
+      outcome = "notfound";
       setFeedback({ type: "notfound", chassis: raw, message: "Introuvable sur la liste MMTE." });
-      if (soundOn) playFeedbackSound("notfound");
+      if (soundOn && !quiet) playFeedbackSound("notfound");
     }
     setInputVal("");
-    inputRef.current && inputRef.current.focus();
+    if (!noFocus) inputRef.current && inputRef.current.focus();
+    return outcome;
   };
   const confirmRegister = () => {
     if (!pendingNotFound || !invId) return;
@@ -2978,6 +3129,10 @@ function InventaireMMTEApp() {
     }
     batch.commit().catch((e) => setFeedback({ type: "notfound", chassis: p.chassis, message: writeErrorMessage(e) }));
     if (prevDeleted) logAuditFor(invId, "restore", { norm: p.norm, chassis: p.chassis });
+    if (camPendingRef.current === p.norm) {
+      camPendingRef.current = "";
+      setSeries((s) => ({ ...s, hors: s.hors + 1, recent: [{ norm: p.norm, chassis: p.chassis, type: "hors" }, ...s.recent.filter((r) => r.norm !== p.norm)].slice(0, 8) }));
+    }
     setPendingNotFound(null);
     inputRef.current && inputRef.current.focus();
   };
@@ -3550,6 +3705,12 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       setInputVal,
       inputRef,
       submitChassis,
+      series,
+      setSeries,
+      seriesDone,
+      setSeriesDone,
+      scanContinuous,
+      undoSeries,
       feedback,
       feedbackStyle,
       pendingNotFound,
@@ -4788,6 +4949,12 @@ function InventoryScreen(props) {
     setInputVal,
     inputRef,
     submitChassis,
+    series,
+    setSeries,
+    seriesDone,
+    setSeriesDone,
+    scanContinuous,
+    undoSeries,
     feedback,
     feedbackStyle,
     pendingNotFound,
@@ -4815,6 +4982,11 @@ function InventoryScreen(props) {
     syncInfo
   } = props;
   const [showCamera, setShowCamera] = useState(false);
+  const endSeries = () => {
+    setShowCamera(false);
+    if (series.found + series.hors + series.dup > 0) setSeriesDone(series);
+    setSeries({ found: 0, hors: 0, dup: 0, recent: [] });
+  };
   const tabs = [
     { key: "total", label: `Total (${totalList.length})` },
     { key: "found", label: `Trouvés MMTE (${foundList.length})` },
@@ -4832,6 +5004,10 @@ function InventoryScreen(props) {
     CameraScanner,
     {
       knownMap,
+      onScanChassis: scanContinuous,
+      series,
+      onUndo: undoSeries,
+      onEndSeries: endSeries,
       onClose: () => setShowCamera(false),
       onDetect: (v) => {
         setShowCamera(false);
@@ -4839,7 +5015,7 @@ function InventoryScreen(props) {
         submitChassis(v);
       }
     }
-  ), restoredBanner && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-4 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-2.5 flex items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 text-emerald-800 text-sm font-semibold" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16, className: "shrink-0" }), "Inventaire partagé rejoint — vous voyez les pointages de toute l'équipe en temps réel."), /* @__PURE__ */ React.createElement("button", { onClick: () => setRestoredBanner(false), className: "text-emerald-700 font-bold text-lg leading-none px-1", "aria-label": "Fermer" }, "×")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wide text-slate-500 font-semibold" }, invDate), /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-extrabold", style: { color: BLUE_DEEP } }, parcName)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSoundOn((s) => !s), title: soundOn ? "Couper le son" : "Activer le son", className: "text-slate-400 hover:text-[#1B4F8C] p-1.5" }, soundOn ? /* @__PURE__ */ React.createElement(Volume2, { size: 18 }) : /* @__PURE__ */ React.createElement(VolumeX, { size: 18 })), !isGuest && /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmNewParc(true), className: "text-sm font-bold text-slate-500 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 16 }), " Nouveau parc"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 text-xs text-slate-400 font-semibold mb-4" }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), " Durée de session : ", elapsed), confirmNewParc && /* @__PURE__ */ React.createElement("div", { className: "mb-4 rounded-xl border-2 border-rose-300 bg-rose-50 p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-rose-900" }, "Quitter cet inventaire et repartir sur un nouveau parc ?"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-700 mt-1" }, "Les données déjà enregistrées restent sauvegardées dans le système partagé."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-3" }, /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm" }, "Oui, changer de parc"), /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmNewParc(false), className: "px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm" }, "Annuler"))), /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between text-xs font-bold text-slate-500 mb-1" }, /* @__PURE__ */ React.createElement("span", null, "Progression MMTE"), /* @__PURE__ */ React.createElement("span", null, progressPct, "%")), /* @__PURE__ */ React.createElement("div", { className: "w-full h-2.5 rounded-full bg-slate-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full transition-all duration-500", style: { width: `${progressPct}%`, background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 overflow-x-auto pb-1 mb-5" }, /* @__PURE__ */ React.createElement(StatChip, { label: "Attendus MMTE", value: mmteSize, tone: "navy" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Trouvés MMTE", value: foundList.length, tone: "emerald" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Enregistrés", value: registeredList.length, tone: "sky" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Total présent", value: totalList.length, tone: "navy" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Manquants", value: missingList.length, tone: "rose" })), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-4 relative", style: { overflow: "visible" } }, stampAnim && /* @__PURE__ */ React.createElement("div", { className: "pointer-events-none absolute inset-0 flex items-center justify-center z-10" }, /* @__PURE__ */ React.createElement("div", { className: `stamp-anim border-4 rounded-full px-6 py-3 font-black uppercase tracking-widest text-lg ${stampAnim === "found" ? "border-emerald-600 text-emerald-600" : "border-[#2E7DC1] text-[#2E7DC1]"}` }, stampAnim === "found" ? "Trouvé MMTE" : "Enregistré")), /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-2" }, "Numéro de châssis"), /* @__PURE__ */ React.createElement(
+  ), seriesDone && /* @__PURE__ */ React.createElement("div", { "data-testid": "series-summary", className: "no-print mb-4 rounded-xl border-2 border-sky-200 bg-sky-50 px-4 py-2.5 flex items-center justify-between gap-3 text-sm font-semibold text-sky-900" }, /* @__PURE__ */ React.createElement("span", null, `Série terminée : ${seriesDone.found} trouvé(s), ${seriesDone.hors} hors MMTE, ${seriesDone.dup} doublon(s) ignoré(s).`), /* @__PURE__ */ React.createElement("button", { onClick: () => setSeriesDone(null), className: "font-bold text-lg leading-none px-1", "aria-label": "Fermer" }, "×")), restoredBanner && /* @__PURE__ */ React.createElement("div", { className: "no-print mb-4 rounded-xl border-2 border-emerald-300 bg-emerald-50 px-4 py-2.5 flex items-center justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-2 text-emerald-800 text-sm font-semibold" }, /* @__PURE__ */ React.createElement(CheckCircle2, { size: 16, className: "shrink-0" }), "Inventaire partagé rejoint — vous voyez les pointages de toute l'équipe en temps réel."), /* @__PURE__ */ React.createElement("button", { onClick: () => setRestoredBanner(false), className: "text-emerald-700 font-bold text-lg leading-none px-1", "aria-label": "Fermer" }, "×")), /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between mb-1" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "text-xs uppercase tracking-wide text-slate-500 font-semibold" }, invDate), /* @__PURE__ */ React.createElement("h2", { className: "text-xl font-extrabold", style: { color: BLUE_DEEP } }, parcName)), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-3" }, /* @__PURE__ */ React.createElement("button", { onClick: () => setSoundOn((s) => !s), title: soundOn ? "Couper le son" : "Activer le son", className: "text-slate-400 hover:text-[#1B4F8C] p-1.5" }, soundOn ? /* @__PURE__ */ React.createElement(Volume2, { size: 18 }) : /* @__PURE__ */ React.createElement(VolumeX, { size: 18 })), !isGuest && /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmNewParc(true), className: "text-sm font-bold text-slate-500 flex items-center gap-1" }, /* @__PURE__ */ React.createElement(RotateCcw, { size: 16 }), " Nouveau parc"))), /* @__PURE__ */ React.createElement("div", { className: "flex items-center gap-1.5 text-xs text-slate-400 font-semibold mb-4" }, /* @__PURE__ */ React.createElement(Clock, { size: 13 }), " Durée de session : ", elapsed), confirmNewParc && /* @__PURE__ */ React.createElement("div", { className: "mb-4 rounded-xl border-2 border-rose-300 bg-rose-50 p-4" }, /* @__PURE__ */ React.createElement("div", { className: "font-bold text-rose-900" }, "Quitter cet inventaire et repartir sur un nouveau parc ?"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-rose-700 mt-1" }, "Les données déjà enregistrées restent sauvegardées dans le système partagé."), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 mt-3" }, /* @__PURE__ */ React.createElement("button", { onClick: resetAll, className: "px-4 py-2 rounded-lg bg-rose-600 text-white font-bold text-sm" }, "Oui, changer de parc"), /* @__PURE__ */ React.createElement("button", { onClick: () => setConfirmNewParc(false), className: "px-4 py-2 rounded-lg bg-white border-2 border-rose-300 text-rose-800 font-semibold text-sm" }, "Annuler"))), /* @__PURE__ */ React.createElement("div", { className: "mb-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex justify-between text-xs font-bold text-slate-500 mb-1" }, /* @__PURE__ */ React.createElement("span", null, "Progression MMTE"), /* @__PURE__ */ React.createElement("span", null, progressPct, "%")), /* @__PURE__ */ React.createElement("div", { className: "w-full h-2.5 rounded-full bg-slate-100 overflow-hidden" }, /* @__PURE__ */ React.createElement("div", { className: "h-full rounded-full transition-all duration-500", style: { width: `${progressPct}%`, background: `linear-gradient(90deg, ${BLUE_DEEP}, ${BLUE_LIGHT})` } }))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 overflow-x-auto pb-1 mb-5" }, /* @__PURE__ */ React.createElement(StatChip, { label: "Attendus MMTE", value: mmteSize, tone: "navy" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Trouvés MMTE", value: foundList.length, tone: "emerald" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Enregistrés", value: registeredList.length, tone: "sky" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Total présent", value: totalList.length, tone: "navy" }), /* @__PURE__ */ React.createElement(StatChip, { label: "Manquants", value: missingList.length, tone: "rose" })), /* @__PURE__ */ React.createElement("div", { className: "bg-white rounded-2xl border-2 border-[#1B4F8C]/15 shadow-sm p-4 relative", style: { overflow: "visible" } }, stampAnim && /* @__PURE__ */ React.createElement("div", { className: "pointer-events-none absolute inset-0 flex items-center justify-center z-10" }, /* @__PURE__ */ React.createElement("div", { className: `stamp-anim border-4 rounded-full px-6 py-3 font-black uppercase tracking-widest text-lg ${stampAnim === "found" ? "border-emerald-600 text-emerald-600" : "border-[#2E7DC1] text-[#2E7DC1]"}` }, stampAnim === "found" ? "Trouvé MMTE" : "Enregistré")), /* @__PURE__ */ React.createElement("label", { className: "block text-sm font-bold text-slate-700 mb-2" }, "Numéro de châssis"), /* @__PURE__ */ React.createElement(
     ChassisAutocomplete,
     {
       value: inputVal,
