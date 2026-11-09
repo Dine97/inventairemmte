@@ -58,7 +58,9 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   else if (section === "manifestes" || section === "navires") body = <StkManifests />;
   else if (section === "miseenservice" && isAdmin) body = <StkRollout />;
   else if (section === "saisie") body = <StkManualMoves key={JSON.stringify(movePreset)} preset={movePreset} />;
-  else if (section === "moves") body = <StkMovements />;
+  else if (section === "moves") body = <StkMovementsWeek />;
+  else if (section === "semaines") body = <StkWeeks />;
+  else if (section === "transferts") body = <StkTransfers />;
   else if (section === "justif") body = <StkJustifScreen />;
   else if (section === "imports") body = <StkImportsScreen />;
   else if (section === "admin" && isAdmin) body = <StkAdmin />;
@@ -215,7 +217,7 @@ function StkParc({ parcId }) {
     { key: "depot", label: "Dépôt", count: groups.depot.length }
   ];
   if (groups.sans_date.length) tabs.push({ key: "sans_date", label: "Sans date", count: groups.sans_date.length });
-  if (!atDate) tabs.push({ key: "periode", label: "Entrées / sorties" }, { key: "evolution", label: "Évolution" }, { key: "inventaire", label: "Contrôle inventaire" }, { key: "imports", label: "Imports" });
+  if (!atDate) tabs.push({ key: "periode", label: "Entrées / sorties" }, { key: "semaines", label: "Par semaine" }, { key: "transferts", label: "Transferts" }, { key: "evolution", label: "Évolution" }, { key: "inventaire", label: "Contrôle inventaire" }, { key: "imports", label: "Imports" });
   const list = tab === "tous" ? rows : groups[tab] || [];
   const filtered = stkFilterRows(list, q);
   const title = tab === "tous" ? "Stock" : (tabs.find((t) => t.key === tab) || {}).label;
@@ -244,7 +246,7 @@ function StkParc({ parcId }) {
       <StkKpi label="En dépôt" value={groups.depot.length} tone="rose" onClick={() => setTab("depot")} />
     </div>
     <StkTabs tabs={tabs} value={tab} onChange={setTab} />
-    {tab === "periode" ? <StkPeriod parcId={parcId} parcName={info.parc} /> : tab === "imports" ? <StkImportsList parcId={parcId} /> : tab === "evolution" ? <StkEvolution parcId={parcId} title={`Évolution du stock — ${info.parc}`} /> : tab === "inventaire" ? <StkInventoryCheck parcName={info.parc} /> :
+    {tab === "periode" ? <StkPeriod parcId={parcId} parcName={info.parc} /> : tab === "semaines" ? <StkWeeks parcId={parcId} /> : tab === "transferts" ? <StkTransfers parcId={parcId} /> : tab === "imports" ? <StkImportsList parcId={parcId} /> : tab === "evolution" ? <StkEvolution parcId={parcId} title={`Évolution du stock — ${info.parc}`} /> : tab === "inventaire" ? <StkInventoryCheck parcName={info.parc} /> :
       <StkCard className="p-4 md:p-5">
         <div className="flex flex-wrap gap-2 items-center mb-3">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrer : châssis, marque, navire..." className={`${stkInput} flex-1 min-w-[200px]`} />

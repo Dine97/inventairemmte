@@ -664,6 +664,61 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return { ok: true, n: list.length };
   },
 
+  // ---- Mouvements par semaine (lundi → dimanche) et transferts parc à parc ----
+  async weeks(p) {
+    const to = /^\d{4}-\d{2}-\d{2}$/.test(String(p.to)) ? p.to : today();
+    const from = /^\d{4}-\d{2}-\d{2}$/.test(String(p.from)) ? p.from : new Date(Date.parse(to) - 7 * 11 * 864e5).toISOString().slice(0, 10);
+    return must(await sb.rpc("stock_weeks", { p_parc: p.parc_id ? Number(p.parc_id) : null, p_from: from, p_to: to }));
+  },
+  async mouvements(p) {
+    const types = (Array.isArray(p.types) ? p.types : []).filter((t: string) => ["entree", "sortie", "transfert_recu", "transfert_envoye"].includes(t));
+    return await fetchAll(() => {
+      let q = sb.from("v_mouvements").select("*");
+      if (p.parc_id) q = q.eq("parc_id", Number(p.parc_id));
+      if (types.length) q = q.in("type", types);
+      // par semaine (lundi) ou par période libre (dates effectives)
+      if (p.week_from) q = q.gte("semaine", p.week_from);
+      if (p.week_to) q = q.lte("semaine", p.week_to);
+      if (p.from) q = q.gte("date_eff", p.from);
+      if (p.to) q = q.lte("date_eff", p.to);
+      return q.order("date_mvt", { ascending: false }).order("chassis");
+    }, 100000);
+  },
+  async transfers(p) {
+    return must(await sb.rpc("stock_transfers", { p_parc: p.parc_id ? Number(p.parc_id) : null, p_from: p.from || "2000-01-01", p_to: p.to || today() }));
+  },
+  async transfer_candidates() {
+    return must(await sb.rpc("stock_transfer_candidates", { p_max_days: 180 }));
+  },
+  async transfer_decide(p, who) {
+    agentOnly(who);
+    const key = { vehicle_id: Number(p.vehicle_id), from_parc_id: Number(p.depart_id), exit_date: String(p.date_sortie), to_parc_id: Number(p.arrivee_id), entry_date: String(p.date_arrivee) };
+    if (!key.vehicle_id || !key.from_parc_id || !key.to_parc_id || !/^\d{4}-\d{2}-\d{2}$/.test(key.exit_date) || !/^\d{4}-\d{2}-\d{2}$/.test(key.entry_date)) throw new ApiError("DONNEES_INCOMPLETES");
+    const decision = p.decision === "transfert" ? "transfert" : "distinct";
+    must(await sb.from("stock_transfer_links").upsert({ ...key, decision, by_name: who.name, at: new Date().toISOString() }, { onConflict: "vehicle_id,from_parc_id,exit_date,to_parc_id,entry_date" }));
+    const names = must(await sb.from("parcs").select("id,name").in("id", [key.from_parc_id, key.to_parc_id])) as any[];
+    const nm = (id: number) => (names.find((x) => x.id === id) || {}).name || id;
+    if (decision === "transfert") {
+      // la sortie du premier parc est justifiée par le transfert (sauf justification déjà saisie)
+      must(await sb.from("stays").update({ justif_type: "Transfert", justif_status: "justifiee", justif_by: `Transfert confirmé vers ${nm(key.to_parc_id)} — ${who.name}`, justif_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("vehicle_id", key.vehicle_id).eq("parc_id", key.from_parc_id).eq("exit_date", key.exit_date).eq("justif_status", "non_justifiee").is("deleted_at", null));
+    }
+    await audit(who, decision === "transfert" ? "transfert_confirme" : "transfert_ecarte", "vehicle", key.vehicle_id,
+      decision === "transfert" ? `Transfert confirmé : ${nm(key.from_parc_id)} (sortie du ${key.exit_date}) → ${nm(key.to_parc_id)} (entrée du ${key.entry_date})` : `Pas un transfert : sortie de ${nm(key.from_parc_id)} le ${key.exit_date} et entrée à ${nm(key.to_parc_id)} le ${key.entry_date} sont deux mouvements distincts`);
+    return { ok: true };
+  },
+  async transfer_undo(p, who) {
+    adminOnly(who);
+    const vid = Number(p.vehicle_id);
+    const rows = must(await sb.from("stock_transfer_links").delete().eq("vehicle_id", vid).eq("from_parc_id", Number(p.depart_id)).eq("to_parc_id", Number(p.arrivee_id)).eq("entry_date", String(p.date_arrivee)).select("*")) as any[];
+    for (const l of rows) {
+      if (l.decision === "transfert") await sb.from("stays").update({ justif_type: null, justif_status: "non_justifiee", justif_by: null, justif_at: null, updated_at: new Date().toISOString() })
+        .eq("vehicle_id", l.vehicle_id).eq("parc_id", l.from_parc_id).eq("exit_date", l.exit_date).like("justif_by", "Transfert confirmé%");
+    }
+    await audit(who, "transfert_annule", "vehicle", vid, "Confirmation de transfert annulée");
+    return { ok: true, n: rows.length };
+  },
+
   // ---- Entrées et sorties saisies (une par une ou par fichier) ----
   async moves_preview(p, who) {
     agentOnly(who);

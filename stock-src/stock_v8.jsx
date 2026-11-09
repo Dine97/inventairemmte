@@ -85,12 +85,12 @@ function StkProgressBar({ p, size }) {
 }
 
 // ---------------- Couverture hebdomadaire et relances (6.8) ----------------
-// Semaine de travail du lundi au vendredi (parcs fermés le week-end). Un fichier compte pour la semaine
-// s'il est daté du vendredi précédent (état de fin de semaine envoyé le lundi) au vendredi de la semaine.
+// Semaine du lundi au dimanche (des véhicules peuvent entrer sur un parc le week-end). Un fichier compte pour la semaine
+// s'il est daté du vendredi précédent (état de fin de semaine envoyé le lundi) au dimanche de la semaine.
 const StkMail = (p) => <Icon {...p}><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 6-10 7L2 6" /></Icon>;
 function stkWeekOf(iso) { return stkMonday(iso); }
-function stkWeekCovers(dates, monday) { const a = stkAddDays(monday, -3), b = stkAddDays(monday, 4); return dates.some((d) => d >= a && d <= b); }
-function stkWeekLabel(monday) { return `du ${stkFmt(monday)} au ${stkFmt(stkAddDays(monday, 4))}`; }
+function stkWeekCovers(dates, monday) { const a = stkAddDays(monday, -3), b = stkAddDays(monday, 6); return dates.some((d) => d >= a && d <= b); }
+function stkWeekLabel(monday) { return `du ${stkFmt(monday)} au ${stkFmt(stkAddDays(monday, 6))}`; }
 const STK_COV = {
   jamais: { t: "Jamais reçu", c: "bg-rose-50 text-rose-800 border-rose-200", o: 0 },
   absent: { t: "Absent", c: "bg-rose-50 text-rose-800 border-rose-200", o: 1 },
@@ -183,7 +183,7 @@ function StkCoverage() {
      { h: "Relances cette semaine", x: (r) => r.relances_semaine || "", w: 12 }, { h: "Dernière relance", x: (r) => (r.derniere_relance ? stkFmtTs(r.derniere_relance.at) : ""), w: 18 }], rows);
   const F = [["a_traiter", `À traiter (${n("jamais") + n("absent") + n("retard")})`], ["a_jour", `À jour (${ok})`], ["inactif", `Inactifs (${n("inactif")})`], ["tous", `Tous (${rows.length})`]];
   return <>
-    <StkPageHead title="Couverture hebdomadaire" sub={`Semaine ${stkWeekLabel(L0)} · un fichier compte pour la semaine s'il est daté du vendredi précédent au vendredi de la semaine.`}
+    <StkPageHead title="Couverture hebdomadaire" sub={`Semaine ${stkWeekLabel(L0)} · un fichier compte pour la semaine s'il est daté du vendredi précédent au dimanche de la semaine.`}
       right={<div className="flex flex-wrap gap-2"><StkBtn small onClick={exportXlsx}><Download size={14} /> Excel</StkBtn>{canEdit && <StkBtn small kind="primary" onClick={() => go("bulk")}><StkIc.Layers size={14} /> Import groupé</StkBtn>}</div>} />
     <StkCard className="p-4 md:p-5" data-testid="coverage-head">
       <div className="flex flex-wrap items-end gap-6">
