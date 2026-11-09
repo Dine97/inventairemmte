@@ -210,7 +210,7 @@ function StkTable({ columns, rows, onRow, selectable, selected, setSelected, emp
 function stkCols(cfg, ref, opts) {
   opts = opts || {};
   const cols = [
-    { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] break-all">{r.chassis}</span> },
+    { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] whitespace-nowrap">{r.chassis}</span> },
     { key: "veh", label: "Véhicule", sort: (r) => stkVeh(r), render: (r) => <span className="text-slate-700">{stkVeh(r) || "—"}</span> },
     { key: "navire", label: "Navire", render: (r) => <span className="text-slate-600">{r.navire || "—"}</span> }
   ];

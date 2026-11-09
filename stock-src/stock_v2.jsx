@@ -193,7 +193,7 @@ function StkAnomalies() {
     if (!window.confirm(`Confirmer que ${r.entree} (entrée) et ${r.sortie} (sortie) sont le même véhicule ?\n\nLe châssis ${r.entree} sera fusionné dans ${r.sortie}, l'historique du parc recalculé, et la faute mémorisée pour les prochains fichiers.`)) return;
     try { await stkCall("merge", { from_id: r.entree_id, into_id: r.sortie_id }); toast("Véhicules fusionnés"); reloadDash(); load(); } catch (e) { alert(stkErrText(e)); }
   };
-  const V = (r, k) => <button className="font-plex-mono font-bold text-[#1B4F8C] underline break-all" onClick={() => openVehicle({ id: r[k || "vehicle_id"] })}>{r.chassis || r[k === "entree_id" ? "entree" : "sortie"]}</button>;
+  const V = (r, k) => <button className="font-plex-mono font-bold text-[#1B4F8C] underline whitespace-nowrap" onClick={() => openVehicle({ id: r[k || "vehicle_id"] })}>{r.chassis || r[k === "entree_id" ? "entree" : "sortie"]}</button>;
   const defs = {
     proches: { label: "Fautes de frappe probables", help: "Un châssis « entré » et un châssis « sorti » du même parc, au même import, ne diffèrent que d'un ou deux caractères : c'est probablement le même véhicule mal saisi.", cols: [
       { key: "parc", label: "Parc" }, { key: "date", label: "Import du", render: (r) => stkFmt(r.date) },

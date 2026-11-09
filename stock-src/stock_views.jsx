@@ -380,7 +380,7 @@ function StkSearch({ preset }) {
   useEffect(() => { if (preset && (preset.q || preset.situation || preset.sans_date || preset.navire)) run(); }, []);
   const applySaved = (params) => { const n = { q: "", field: "", parc_id: "", statut: "", navire: "", marque: "", arr_from: "", arr_to: "", situation: "", sans_date: false, ...params }; setF(n); run(n); };
   const cols = [
-    { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] break-all">{r.chassis}</span> },
+    { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] whitespace-nowrap">{r.chassis}</span> },
     { key: "veh", label: "Véhicule", sort: (r) => stkVeh(r), render: (r) => stkVeh(r) || "—" },
     { key: "navire", label: "Navire", render: (r) => r.navire || "—" },
     { key: "parcName", label: "Parc actuel", render: (r) => r.parcName ? <span className="font-semibold">{r.parcName}</span> : <StkBadge tone={STK_SIT_TONE.sorti}>Sorti</StkBadge> },

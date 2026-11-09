@@ -23,7 +23,7 @@ function stkMvDateNote(r) {
 }
 function stkMvCols(showParc) {
   const cols = [
-    { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] break-all">{r.chassis}</span> },
+    { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] whitespace-nowrap">{r.chassis}</span> },
     { key: "veh", label: "Véhicule", sort: (r) => stkVeh(r), render: (r) => <span className="text-slate-700">{stkVeh(r) || "—"}</span> },
     { key: "navire", label: "Navire", render: (r) => <span className="text-slate-600">{r.navire || "—"}</span> }
   ];
@@ -251,7 +251,7 @@ function StkTransfers({ parcId: fixed, weekFrom, weekTo, embedded }) {
         </div>
         {nDouble > 0 && statut !== "complet" && <div className="text-xs text-amber-900">« Double présence » : le véhicule est arrivé dans le nouveau parc mais figure encore dans le dernier fichier de l'ancien. Normal en attendant le fichier suivant de l'ancien parc ; à vérifier si cela dure.</div>}
         {!rows ? <StkLoading /> : <StkTable rows={list} rowKey={(r) => r.vehicle_id + "|" + r.arrivee_id + "|" + r.date_arrivee} onRow={(r) => openVehicle({ id: r.vehicle_id })} empty="Aucun transfert sur la période." columns={[
-          { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] break-all">{r.chassis}</span> },
+          { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] whitespace-nowrap">{r.chassis}</span> },
           { key: "veh", label: "Véhicule", sort: (r) => stkVeh(r), render: (r) => <span className="text-slate-700">{stkVeh(r) || "—"}</span> },
           { key: "depart", label: "Départ", render: (r) => <div><b>{r.depart}</b><div className="text-[11px] text-slate-500">{r.date_sortie ? `sorti le ${stkFmt(r.date_sortie)}` : "toujours présent"}</div></div> },
           { key: "arrivee", label: "Arrivée", render: (r) => <div><b>{r.arrivee}</b><div className="text-[11px] text-slate-500">entré le {stkFmt(r.date_arrivee)}</div></div> },
@@ -275,7 +275,7 @@ function StkTransfers({ parcId: fixed, weekFrom, weekTo, embedded }) {
       {tab === "confirmer" && (!cands ? <StkLoading /> : <div className="space-y-3">
         <div className="text-xs text-slate-600">Véhicules sortis d'un parc puis entrés dans un autre <b>plus de 14 jours</b> après (jusqu'à 6 mois) : l'outil ne peut pas savoir seul s'il s'agit d'un transfert. Confirmer un transfert justifie la sortie du premier parc.</div>
         <StkTable rows={cands} rowKey={(r) => r.vehicle_id + "|" + r.arrivee_id + "|" + r.date_arrivee} onRow={(r) => openVehicle({ id: r.vehicle_id })} empty="Rien à confirmer." columns={[
-          { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] break-all">{r.chassis}</span> },
+          { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] whitespace-nowrap">{r.chassis}</span> },
           { key: "veh", label: "Véhicule", sort: (r) => stkVeh(r), render: (r) => stkVeh(r) || "—" },
           { key: "depart", label: "Sorti de", render: (r) => <div><b>{r.depart}</b><div className="text-[11px] text-slate-500">le {stkFmt(r.date_sortie)}{r.justif_status && r.justif_status !== "non_justifiee" ? ` · ${r.justif_type || "justifiée"}` : ""}</div></div> },
           { key: "arrivee", label: "Entré à", render: (r) => <div><b>{r.arrivee}</b><div className="text-[11px] text-slate-500">le {stkFmt(r.date_arrivee)}</div></div> },
