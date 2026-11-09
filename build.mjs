@@ -35,7 +35,7 @@ if (!sw.includes(`lib/app.css?v=${version}`) || !sw.includes(`lib/stock.js?v=${v
   throw new Error(`service-worker.js : mettez la liste APP_SHELL à la version ${version} (lib/app.css?v=… et lib/stock.js?v=…) et changez CACHE_NAME`);
 
 // 2. Module complet, isolé dans sa propre portée et chargé à la demande
-const MODULE_FILES = ["parser.js", "stock_core.jsx", "stock_views.jsx", "stock_import_admin.jsx", "stock_v2.jsx", "stock_v3.jsx", "stock_v4.jsx", "stock_v5.jsx", "stock_v6.jsx", "stock_v7.jsx", "stock_v8.jsx", "stock_v9.jsx"];
+const MODULE_FILES = ["parser.js", "stock_core.jsx", "stock_views.jsx", "stock_import_admin.jsx", "stock_v2.jsx", "stock_v3.jsx", "stock_v4.jsx", "stock_v5.jsx", "stock_v6.jsx", "stock_v7.jsx", "stock_v8.jsx", "stock_v9.jsx", "stock_v10.jsx"];
 const modSrc = MODULE_FILES.map((f) => read("stock-src/" + f)).join("\n");
 const mod = transformSync(
   `(function () {\n"use strict";\n${modSrc}\nwindow.STK = { StkApp, StkInvStockSource, StkAccountTools, stkMergeInventoryLists };\n})();\n`,

@@ -719,6 +719,13 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return { ok: true, n: rows.length };
   },
 
+  // ---- À régulariser (onglet de chaque parc) ----
+  async regulariser(p) {
+    if (!Number(p.parc_id)) throw new ApiError("PARC_MANQUANT");
+    const s = await settingsMap();
+    return must(await sb.rpc("stock_regulariser", { p_parc: Number(p.parc_id), p_ref: today(), p_duree: Number(s.duree_sejour) || 365, p_mmte: s.source_depot === "mmte" }));
+  },
+
   // ---- Entrées et sorties saisies (une par une ou par fichier) ----
   async moves_preview(p, who) {
     agentOnly(who);

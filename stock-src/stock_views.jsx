@@ -204,6 +204,9 @@ function StkParc({ parcId }) {
     try { setErr(""); setData(await stkCall("parc_stock", { parc_id: parcId })); } catch (e) { setErr(stkErrText(e)); }
   };
   useEffect(() => { load(); }, [parcId]);
+  const [regN, setRegN] = useState(null);
+  const loadReg = () => stkCall("regulariser", { parc_id: parcId }).then((r) => setRegN(new Set(r.map((x) => x.vehicle_id)).size)).catch(() => setRegN(null));
+  useEffect(() => { loadReg(); }, [parcId]);
   const ref = atDate ? atDate.date : today;
   const rows = atDate ? atDate.rows : (data ? data.rows : []);
   const groups = useMemo(() => {
@@ -218,6 +221,7 @@ function StkParc({ parcId }) {
     { key: "depot", label: "Dépôt", count: groups.depot.length }
   ];
   if (groups.sans_date.length) tabs.push({ key: "sans_date", label: "Sans date", count: groups.sans_date.length });
+  if (!atDate) tabs.push({ key: "regulariser", label: "À régulariser", count: regN, warn: !!regN });
   if (!atDate) tabs.push({ key: "periode", label: "Entrées / sorties" }, { key: "semaines", label: "Par semaine" }, { key: "transferts", label: "Transferts" }, { key: "evolution", label: "Évolution" }, { key: "inventaire", label: "Contrôle inventaire" }, { key: "imports", label: "Imports" });
   const list = tab === "tous" ? rows : groups[tab] || [];
   const filtered = stkFilterRows(list, q);
@@ -247,7 +251,7 @@ function StkParc({ parcId }) {
       <StkKpi label="En dépôt" value={groups.depot.length} tone="rose" onClick={() => setTab("depot")} />
     </div>
     <StkTabs tabs={tabs} value={tab} onChange={setTab} />
-    {tab === "periode" ? <StkPeriod parcId={parcId} parcName={info.parc} /> : tab === "semaines" ? <StkWeeks parcId={parcId} /> : tab === "transferts" ? <StkTransfers parcId={parcId} /> : tab === "imports" ? <StkImportsList parcId={parcId} /> : tab === "evolution" ? <StkEvolution parcId={parcId} title={`Évolution du stock — ${info.parc}`} /> : tab === "inventaire" ? <StkInventoryCheck parcName={info.parc} /> :
+    {tab === "regulariser" ? <StkRegulariser parcId={parcId} parcName={info.parc} onChanged={loadReg} /> : tab === "periode" ? <StkPeriod parcId={parcId} parcName={info.parc} /> : tab === "semaines" ? <StkWeeks parcId={parcId} /> : tab === "transferts" ? <StkTransfers parcId={parcId} /> : tab === "imports" ? <StkImportsList parcId={parcId} /> : tab === "evolution" ? <StkEvolution parcId={parcId} title={`Évolution du stock — ${info.parc}`} /> : tab === "inventaire" ? <StkInventoryCheck parcName={info.parc} /> :
       <StkCard className="p-4 md:p-5">
         <div className="flex flex-wrap gap-2 items-center mb-3">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrer : châssis, marque, navire..." className={`${stkInput} flex-1 min-w-[200px]`} />

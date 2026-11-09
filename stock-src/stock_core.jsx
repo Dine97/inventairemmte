@@ -239,7 +239,7 @@ function StkExportBar({ onXlsx, onPdf, disabled }) {
   </div>;
 }
 function StkTabs({ tabs, value, onChange }) {
-  return <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">{tabs.map((t) => <button key={t.key} onClick={() => onChange(t.key)} className={`shrink-0 px-3 py-2 rounded-lg text-sm font-bold border-2 ${value === t.key ? "bg-[#123A66] text-white border-[#123A66]" : "bg-white text-slate-600 border-slate-200 hover:border-[#1B4F8C]/40"}`}>{t.label}{t.count != null && <span className={`ml-1.5 font-plex-mono text-xs ${value === t.key ? "text-[#7FC2FF]" : "text-slate-400"}`}>{t.count.toLocaleString("fr-FR")}</span>}</button>)}</div>;
+  return <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">{tabs.map((t) => <button key={t.key} onClick={() => onChange(t.key)} className={`shrink-0 px-3 py-2 rounded-lg text-sm font-bold border-2 ${value === t.key ? "bg-[#123A66] text-white border-[#123A66]" : "bg-white text-slate-600 border-slate-200 hover:border-[#1B4F8C]/40"}`}>{t.label}{t.count != null && (t.warn && value !== t.key ? <span className="ml-1.5 font-plex-mono text-xs px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-900">{t.count.toLocaleString("fr-FR")}</span> : <span className={`ml-1.5 font-plex-mono text-xs ${value === t.key ? "text-[#7FC2FF]" : "text-slate-400"}`}>{t.count.toLocaleString("fr-FR")}</span>)}</button>)}</div>;
 }
 function stkFileToB64(file) {
   return new Promise((res, rej) => { const fr = new FileReader(); fr.onerror = () => rej(new Error("lecture")); fr.onload = () => res(String(fr.result).split(",")[1]); fr.readAsDataURL(file); });

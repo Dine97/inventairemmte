@@ -1,4 +1,4 @@
-const CACHE_NAME = "inventaire-mmte-v61";
+const CACHE_NAME = "inventaire-mmte-v62";
 // Bibliothèques (noms de fichiers versionnés) : servies depuis l'appareil sans attendre le réseau.
 const LIB_CACHE = "inventaire-mmte-lib-v1";
 const LIBS = [
@@ -19,9 +19,9 @@ const APP_SHELL = [
   "./icons/icon-512.png",
   "./lib/jszip.min.js",
   "./lib/img/mad-roulants-nuit.jpg",
-  "./lib/app.css?v=6.10.4",
-  "./lib/stock.js?v=6.10.4",
-  "./lib/stock-worker.js?v=6.10.4",
+  "./lib/app.css?v=6.11.0",
+  "./lib/stock.js?v=6.11.0",
+  "./lib/stock-worker.js?v=6.11.0",
 ];
 
 self.addEventListener("install", (event) => {
