@@ -319,7 +319,7 @@ function StkAdminParams() {
         <Num k="duree_sejour" label="Durée de séjour (jours)" hint="Passage en dépôt après cette durée, depuis la date d'arrivée du navire" />
         <Num k="seuil_alerte" label="Alerte « Bientôt en dépôt » (jours)" />
         <Num k="fenetre_transfert" label="Reconnaissance automatique des transferts (jours)" hint="Sortie d'un parc puis entrée dans un autre dans ce délai = transfert" />
-        <Num k="seuil_agrement" label="Alerte d'échéance des agréments (jours)" hint="Avertissement avant l'expiration de l'agrément d'un parc" />
+        <Num k="seuil_agrement" label="Alerte d'échéance des cautions bancaires (jours)" hint="Avertissement avant l'expiration de la caution d'un parc" />
         <Num k="delai_ptu" label="Alerte véhicule resté au PTU (jours)" hint="Au-delà, le véhicule est signalé dans l'écran des PTU" />
       </div>
       <StkField label="Date de dépôt utilisée" hint="La date MMTE est connue après un « Contrôle avec MMTE ». Sans elle, la date calculée reste utilisée."><select value={f.source_depot} onChange={set("source_depot")} className={stkInput}><option value="parc">Calculée : date d'arrivée du fichier du parc + durée de séjour</option><option value="mmte">Date de dépôt MMTE quand elle est connue (sinon calculée)</option></select></StkField>
@@ -343,10 +343,10 @@ function StkAdminParams() {
           <select value={f.droits[k] || "agent"} onChange={(e) => setF((x) => ({ ...x, droits: { ...x.droits, [k]: e.target.value } }))} className={`${stkInput} max-w-[250px]`} data-testid={"droit-" + k}>
             <option value="agent">Agents et administrateurs</option><option value="admin">Administrateurs seulement</option></select>
         </div>)}
-        {["Modifier l'identité d'un parc (chefs, zone, adresse, position, photo)", "Joindre ou modifier un agrément", "Joindre un rapport d'inventaire", "Paramètres de l'application"].map((l) => <div key={l} className="px-3 py-2 flex flex-wrap items-center gap-2 bg-slate-50">
+        {["Modifier l'identité d'un parc (chefs, zone, adresse, position, photo)", "Joindre ou modifier une caution bancaire", "Joindre un rapport d'inventaire", "Paramètres de l'application"].map((l) => <div key={l} className="px-3 py-2 flex flex-wrap items-center gap-2 bg-slate-50">
           <div className="flex-1 min-w-[200px] text-sm font-semibold text-slate-700">{l}</div><span className="text-sm text-slate-500 px-3">Administrateurs seulement (fixe)</span></div>)}
         <div className="px-3 py-2 flex flex-wrap items-center gap-2">
-          <div className="flex-1 min-w-[200px] text-sm font-semibold text-slate-700">Consulter la carte d'identité des parcs et les agréments</div>
+          <div className="flex-1 min-w-[200px] text-sm font-semibold text-slate-700">Consulter la carte d'identité des parcs et les cautions bancaires</div>
           <select value={f.identite_visible} onChange={set("identite_visible")} className={`${stkInput} max-w-[250px]`}><option value="tous">Tous les utilisateurs</option><option value="admin">Administrateurs seulement</option></select>
         </div>
       </div>

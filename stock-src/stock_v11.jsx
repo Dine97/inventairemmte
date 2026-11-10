@@ -1,6 +1,6 @@
 // ============================================================
-// 6.13 — Carte d'identité des parcs, agréments, rapports d'inventaire, parcs tampon uniques (PTU)
-// Identité, agréments et rapports : modifiables par l'administrateur seulement.
+// 6.13 — Carte d'identité des parcs, cautions bancaires (appelées « agréments » dans le code), rapports d'inventaire, parcs tampon uniques (PTU)
+// Identité, cautions et rapports : modifiables par l'administrateur seulement.
 // ============================================================
 
 // ---------- Outils ----------
@@ -24,7 +24,7 @@ const STK_AGR = {
   manquant: { label: "Manquant", tone: "bg-slate-100 text-slate-600 border-slate-300" }
 };
 function stkAgrStatus(echeance, today, seuil) {
-  if (!echeance) return { code: "manquant", jours: null, text: "Aucun agrément joint" };
+  if (!echeance) return { code: "manquant", jours: null, text: "Aucune caution jointe" };
   const j = stkDiff(today, echeance);
   if (j < 0) return { code: "expire", jours: j, text: `Expiré depuis ${-j} j` };
   if (j <= seuil) return { code: "bientot", jours: j, text: j === 0 ? "Expire aujourd'hui" : `Expire dans ${j} j` };
@@ -32,7 +32,7 @@ function stkAgrStatus(echeance, today, seuil) {
 }
 function StkAgrBadge({ echeance, seuil, short }) {
   const s = stkAgrStatus(echeance, stkToday(), seuil);
-  return <StkBadge tone={STK_AGR[s.code].tone}>{short ? STK_AGR[s.code].label : s.code === "manquant" ? "Agrément manquant" : s.text}</StkBadge>;
+  return <StkBadge tone={STK_AGR[s.code].tone}>{short ? STK_AGR[s.code].label : s.code === "manquant" ? "Caution manquante" : "Caution : " + s.text.charAt(0).toLowerCase() + s.text.slice(1)}</StkBadge>;
 }
 const STK_PARC_TYPES = { parc: "Parc de vente", divers: "Parc de divers", ptu: "Parc tampon unique (PTU)" };
 const StkDiversBadge = () => <StkBadge tone="bg-violet-50 text-violet-800 border-violet-200">Parc de divers</StkBadge>;
@@ -193,29 +193,29 @@ function StkParcIdentity({ parcId, parcName }) {
 
     {!isPtu && <StkCard className="p-4 md:p-5 space-y-3" data-testid="agrement-card">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="font-bold text-[#0B1F38] text-lg flex-1">Agrément</div>
-        {isAdmin && <StkBtn small kind="primary" onClick={() => setAgr(cur ? { renew: cur } : {})} data-testid="btn-add-agrement"><StkIc.Plus size={14} /> {cur ? "Renouveler l'agrément" : "Joindre l'agrément"}</StkBtn>}
+        <div className="font-bold text-[#0B1F38] text-lg flex-1">Caution bancaire</div>
+        {isAdmin && <StkBtn small kind="primary" onClick={() => setAgr(cur ? { renew: cur } : {})} data-testid="btn-add-agrement"><StkIc.Plus size={14} /> {cur ? "Renouveler la caution" : "Joindre la caution"}</StkBtn>}
       </div>
-      {!cur ? <StkMsg tone="warn">Aucun agrément joint pour ce parc.</StkMsg> : <div className={`rounded-xl border-2 px-4 py-3 ${st.code === "expire" ? "border-rose-200 bg-rose-50/60" : st.code === "bientot" ? "border-amber-300 bg-amber-50/60" : "border-emerald-200 bg-emerald-50/50"}`}>
+      {!cur ? <StkMsg tone="warn">Aucune caution bancaire jointe pour ce parc.</StkMsg> : <div className={`rounded-xl border-2 px-4 py-3 ${st.code === "expire" ? "border-rose-200 bg-rose-50/60" : st.code === "bientot" ? "border-amber-300 bg-amber-50/60" : "border-emerald-200 bg-emerald-50/50"}`}>
         <div className="flex flex-wrap items-center gap-2">
           <StkBadge tone={STK_AGR[st.code].tone}>{STK_AGR[st.code].label}</StkBadge>
-          <span className="font-semibold text-[#0B1F38]">{cur.numero ? `N° ${cur.numero}` : "Agrément"}</span>
+          <span className="font-semibold text-[#0B1F38]">{cur.numero ? `N° ${cur.numero}` : "Caution bancaire"}</span>
           <span className="text-sm text-slate-700">du {stkFmt(cur.date_emission)} au <b>{stkFmt(cur.date_echeance)}</b></span>
           <span className="text-sm font-semibold text-slate-600">· {st.text}</span>
           <div className="flex-1" />
-          {cur.file_path && <StkBtn small onClick={() => stkOpenParcFile(cur.file_path)} data-testid="btn-voir-agrement"><Eye size={14} /> Voir l'agrément</StkBtn>}
+          {cur.file_path && <StkBtn small onClick={() => stkOpenParcFile(cur.file_path)} data-testid="btn-voir-agrement"><Eye size={14} /> Voir l'acte de caution</StkBtn>}
           {isAdmin && <StkBtn small onClick={() => setAgr({ edit: cur })}>Modifier</StkBtn>}
         </div>
         {cur.note && <div className="text-sm text-slate-600 mt-1">{cur.note}</div>}
       </div>}
       {d.agrements.length > 1 && <div>
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Historique des agréments</div>
+        <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Historique des cautions</div>
         <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">{d.agrements.slice(1).map((a) => <div key={a.id} className="px-3 py-2 flex flex-wrap items-center gap-2 text-sm">
-          <span className="font-semibold">{a.numero ? `N° ${a.numero}` : "Agrément"}</span><span className="text-slate-600">du {stkFmt(a.date_emission)} au {stkFmt(a.date_echeance)}</span>
+          <span className="font-semibold">{a.numero ? `N° ${a.numero}` : "Caution bancaire"}</span><span className="text-slate-600">du {stkFmt(a.date_emission)} au {stkFmt(a.date_echeance)}</span>
           <div className="flex-1" />
           {a.file_path && <button className="text-xs font-bold text-[#1B4F8C] underline" onClick={() => stkOpenParcFile(a.file_path)}>Voir</button>}
           {isAdmin && <button className="text-xs font-bold text-[#1B4F8C] underline" onClick={() => setAgr({ edit: a })}>Modifier</button>}
-          {isAdmin && <button className="text-xs text-rose-700 underline" onClick={() => act("agrement_delete", { id: a.id }, "Retirer cet agrément de l'historique ?", "Agrément retiré")}>Retirer</button>}
+          {isAdmin && <button className="text-xs text-rose-700 underline" onClick={() => act("agrement_delete", { id: a.id }, "Retirer cette caution de l'historique ?", "Caution retirée")}>Retirer</button>}
         </div>)}</div>
       </div>}
     </StkCard>}
@@ -240,7 +240,7 @@ function StkParcIdentity({ parcId, parcName }) {
     </StkCard>
 
     {edit && <StkIdentityForm parc={p} zones={X.zones} onClose={() => setEdit(false)} onSaved={() => { setEdit(false); after("Identité du parc enregistrée"); }} />}
-    {agr && <StkAgrementForm parcId={parcId} parcName={p.name} init={agr} onClose={() => setAgr(null)} onSaved={() => { setAgr(null); after("Agrément enregistré"); }} />}
+    {agr && <StkAgrementForm parcId={parcId} parcName={p.name} init={agr} onClose={() => setAgr(null)} onSaved={() => { setAgr(null); after("Caution bancaire enregistrée"); }} />}
     {rap && <StkRapportForm parcId={parcId} types={X.typesRapport} onClose={() => setRap(false)} onSaved={() => { setRap(false); after("Rapport joint"); }} />}
   </div>;
 }
@@ -286,9 +286,9 @@ function StkAgrementForm({ parcId, parcName, init, onClose, onSaved }) {
   const ech = autoEch && f.date_emission ? stkAddDays(stkAddYears(f.date_emission, 1), -1) : f.date_echeance;
   const save = async () => {
     setErr("");
-    if (!f.date_emission || !ech) { setErr("Indiquez la date d'émission et la date d'échéance."); return; }
-    if (ech < f.date_emission) { setErr("L'échéance doit suivre la date d'émission."); return; }
-    if (!base.id && !file && !window.confirm("Aucun document joint. Enregistrer l'agrément sans le document ?")) return;
+    if (!f.date_emission || !ech) { setErr("Indiquez la date de prise d'effet et la date d'échéance."); return; }
+    if (ech < f.date_emission) { setErr("L'échéance doit suivre la prise d'effet."); return; }
+    if (!base.id && !file && !window.confirm("Aucun document joint. Enregistrer la caution sans l'acte ?")) return;
     setBusy(true);
     try {
       const p = { parc_id: parcId, id: base.id, numero: f.numero, date_emission: f.date_emission, date_echeance: ech, note: f.note };
@@ -297,18 +297,18 @@ function StkAgrementForm({ parcId, parcName, init, onClose, onSaved }) {
       onSaved();
     } catch (e) { setErr(stkErrText(e)); setBusy(false); }
   };
-  return <StkModal title={`${base.id ? "Modifier l'agrément" : init.renew ? "Renouveler l'agrément" : "Joindre l'agrément"} — ${parcName}`} onClose={onClose} footer={<><StkBtn onClick={onClose}>Annuler</StkBtn><StkBtn kind="primary" disabled={busy} onClick={save} data-testid="save-agrement">{busy ? "Envoi..." : "Enregistrer"}</StkBtn></>}>
+  return <StkModal title={`${base.id ? "Modifier la caution" : init.renew ? "Renouveler la caution" : "Joindre la caution bancaire"} — ${parcName}`} onClose={onClose} footer={<><StkBtn onClick={onClose}>Annuler</StkBtn><StkBtn kind="primary" disabled={busy} onClick={save} data-testid="save-agrement">{busy ? "Envoi..." : "Enregistrer"}</StkBtn></>}>
     <div className="space-y-3">
-      {init.renew && <StkMsg tone="info">L'agrément actuel ({init.renew.numero || "sans n°"}) reste dans l'historique.</StkMsg>}
-      <StkField label="N° d'agrément"><input value={f.numero} onChange={(e) => setF((x) => ({ ...x, numero: e.target.value }))} className={stkInput} data-testid="f-agr-numero" /></StkField>
+      {init.renew && <StkMsg tone="info">La caution actuelle ({init.renew.numero || "sans n°"}) reste dans l'historique.</StkMsg>}
+      <StkField label="N° de caution douanière"><input value={f.numero} onChange={(e) => setF((x) => ({ ...x, numero: e.target.value }))} className={stkInput} data-testid="f-agr-numero" /></StkField>
       <div className="grid sm:grid-cols-2 gap-3">
-        <StkField label="Date d'émission"><input type="date" value={f.date_emission} onChange={(e) => setF((x) => ({ ...x, date_emission: e.target.value }))} className={stkInput} data-testid="f-agr-emission" /></StkField>
-        <StkField label="Date d'échéance" hint={autoEch ? "Calculée : un an après l'émission" : ""}>
+        <StkField label="Prise d'effet"><input type="date" value={f.date_emission} onChange={(e) => setF((x) => ({ ...x, date_emission: e.target.value }))} className={stkInput} data-testid="f-agr-emission" /></StkField>
+        <StkField label="Date d'échéance" hint={autoEch ? "Calculée : un an après la prise d'effet" : ""}>
           <input type="date" value={ech || ""} disabled={autoEch} onChange={(e) => setF((x) => ({ ...x, date_echeance: e.target.value }))} className={stkInput} data-testid="f-agr-echeance" />
         </StkField>
       </div>
       <label className="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={!autoEch} onChange={(e) => { setAutoEch(!e.target.checked); if (e.target.checked) setF((x) => ({ ...x, date_echeance: ech })); }} /> Saisir une autre date d'échéance</label>
-      <StkField label={base.file_path ? "Remplacer le document (facultatif)" : "Document de l'agrément (PDF ou photo)"}>
+      <StkField label={base.file_path ? "Remplacer l'acte (facultatif)" : "Acte de caution (PDF ou photo)"}>
         <input type="file" accept="application/pdf,image/*" onChange={(e) => setFile(e.target.files[0] || null)} className="block text-sm" data-testid="f-agr-file" />
       </StkField>
       <StkField label="Note"><input value={f.note} onChange={(e) => setF((x) => ({ ...x, note: e.target.value }))} className={stkInput} /></StkField>
@@ -342,7 +342,7 @@ function StkRapportForm({ parcId, types, onClose, onSaved }) {
   </StkModal>;
 }
 
-// ---------- Écran « Agréments » ----------
+// ---------- Écran « Cautions bancaires » (anciennement « Agréments ») ----------
 function StkAgrements() {
   const C = React.useContext(StkCtx);
   const { openParc, isAdmin } = C;
@@ -350,7 +350,9 @@ function StkAgrements() {
   const [d, setD] = useState(null);
   const [err, setErr] = useState("");
   const [f, setF] = useState({ statut: "", zone: "", mois: "", q: "" });
-  useEffect(() => { stkCall("agrements").then(setD).catch((e) => setErr(stkErrText(e))); }, []);
+  const [bulk, setBulk] = useState(false);
+  const loadAgr = () => stkCall("agrements").then(setD).catch((e) => setErr(stkErrText(e)));
+  useEffect(() => { loadAgr(); }, []);
   const today = stkToday();
   const rows = useMemo(() => {
     if (!d) return [];
@@ -368,20 +370,21 @@ function StkAgrements() {
   const list = rows.filter((r) => (!f.statut || r.statut === f.statut) && (!f.zone || (f.zone === "-" ? !r.zone : r.zone === f.zone)) && (!f.mois || (r.agr && r.agr.date_echeance.startsWith(f.mois)))
     && (!f.q || (r.name + " " + ((r.agr && r.agr.numero) || "")).toUpperCase().includes(f.q.trim().toUpperCase())))
     .sort((a, b) => ({ expire: 0, bientot: 1, manquant: 2, valide: 3 }[a.statut] - { expire: 0, bientot: 1, manquant: 2, valide: 3 }[b.statut]) || ((a.jours == null ? 1e9 : a.jours) - (b.jours == null ? 1e9 : b.jours)) || a.name.localeCompare(b.name));
-  const xcols = [{ h: "Parc", k: "name", w: 24 }, { h: "Type", x: (r) => STK_PARC_TYPES[r.type] || "", w: 14 }, { h: "Zone", k: "zone", w: 12 }, { h: "N° d'agrément", x: (r) => r.agr ? r.agr.numero : "", w: 18 }, { h: "Émission", x: (r) => r.agr ? stkFmt(r.agr.date_emission) : "", w: 12 }, { h: "Échéance", x: (r) => r.agr ? stkFmt(r.agr.date_echeance) : "", w: 12 }, { h: "Jours restants", x: (r) => r.jours == null ? "" : r.jours, w: 10 }, { h: "Statut", x: (r) => STK_AGR[r.statut].label, w: 16 }, { h: "Document", x: (r) => r.agr && r.agr.file_path ? "Joint" : "Non joint", w: 10 }];
+  const xcols = [{ h: "Parc", k: "name", w: 24 }, { h: "Type", x: (r) => STK_PARC_TYPES[r.type] || "", w: 14 }, { h: "Zone", k: "zone", w: 12 }, { h: "N° de caution", x: (r) => r.agr ? r.agr.numero : "", w: 18 }, { h: "Prise d'effet", x: (r) => r.agr ? stkFmt(r.agr.date_emission) : "", w: 12 }, { h: "Échéance", x: (r) => r.agr ? stkFmt(r.agr.date_echeance) : "", w: 12 }, { h: "Jours restants", x: (r) => r.jours == null ? "" : r.jours, w: 10 }, { h: "Statut", x: (r) => STK_AGR[r.statut].label, w: 16 }, { h: "Document", x: (r) => r.agr && r.agr.file_path ? "Joint" : "Non joint", w: 10 }];
   const exp = (k) => {
     const meta = [`Situation au ${stkFmt(today)} — alerte ${X.agr} jours avant l'échéance`, `${list.length} parc(s)`];
-    if (k === "x") stkExportXlsx(`Agrements_parcs_${today}`, "Agréments des parcs", meta, xcols, list);
-    else stkPrintPdf("Agréments des parcs", meta, xcols, list, false);
+    if (k === "x") stkExportXlsx(`Cautions_bancaires_parcs_${today}`, "Cautions bancaires des parcs", meta, xcols, list);
+    else stkPrintPdf("Cautions bancaires des parcs", meta, xcols, list, false);
   };
   const mail = (r) => {
     const to = stkMailEmails(r.contact_email);
-    const s = r.statut === "expire" ? `Votre agrément ${r.agr && r.agr.numero ? "n° " + r.agr.numero + " " : ""}est arrivé à échéance le ${stkFmt(r.agr.date_echeance)}.` : r.statut === "manquant" ? "Nous ne disposons pas de votre agrément en cours de validité." : `Votre agrément ${r.agr.numero ? "n° " + r.agr.numero + " " : ""}arrive à échéance le ${stkFmt(r.agr.date_echeance)}.`;
-    window.location.href = stkMailto(to, `Agrément du parc ${r.name}`, `Madame, Monsieur,\n\n${s}\n\nMerci de nous transmettre une copie de l'agrément renouvelé dès sa délivrance.\n\nCordialement,\n\n${C.userName || ""}\nBénin Control — Département MAD-MAE`);
+    const s = r.statut === "expire" ? `Votre caution bancaire ${r.agr && r.agr.numero ? "n° " + r.agr.numero + " " : ""}est arrivé à échéance le ${stkFmt(r.agr.date_echeance)}.` : r.statut === "manquant" ? "Nous ne disposons pas de votre caution bancaire en cours de validité." : `Votre caution bancaire ${r.agr.numero ? "n° " + r.agr.numero + " " : ""}arrive à échéance le ${stkFmt(r.agr.date_echeance)}.`;
+    window.location.href = stkMailto(to, `Caution bancaire du parc ${r.name}`, `Madame, Monsieur,\n\n${s}\n\nMerci de nous transmettre une copie de l'acte de caution renouvelé dès sa délivrance.\n\nCordialement,\n\n${C.userName || ""}\nBénin Control — Département MAD-MAE`);
   };
-  if (err) return <><StkPageHead title="Agréments des parcs" /><StkMsg tone="err">{err}</StkMsg></>;
+  if (err) return <><StkPageHead title="Cautions bancaires des parcs" /><StkMsg tone="err">{err}</StkMsg></>;
   return <>
-    <StkPageHead title="Agréments des parcs" sub={`Agrément d'un an renouvelable · alerte ${X.agr} jours avant l'échéance${isAdmin ? " (réglable dans Administration → Paramètres)" : ""}`} right={<StkExportBar disabled={!list.length} onXlsx={() => exp("x")} onPdf={() => exp("p")} />} />
+    <StkPageHead title="Cautions bancaires des parcs" sub={`Caution douanière d'un an renouvelable, au profit de la DGDDI · alerte ${X.agr} jours avant l'échéance${isAdmin ? " (réglable dans Administration → Paramètres)" : ""}`} right={<>{isAdmin && d && <StkBtn onClick={() => setBulk(true)} data-testid="btn-bulk-actes"><Upload size={16} /> Joindre des actes en lot</StkBtn>}<StkExportBar disabled={!list.length} onXlsx={() => exp("x")} onPdf={() => exp("p")} /></>} />
+    {bulk && <StkCautionBulk rows={rows} onClose={() => setBulk(false)} onDone={() => { setBulk(false); loadAgr(); C.reloadMeta && C.reloadMeta(); }} />}
     {!d ? <StkLoading /> : <>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {["expire", "bientot", "manquant", "valide"].map((k) => <button key={k} data-testid={"agr-kpi-" + k} onClick={() => setF((x) => ({ ...x, statut: x.statut === k ? "" : k }))} className={`text-left rounded-2xl border-2 px-4 py-3 bg-white ${f.statut === k ? "border-[#123A66]" : "border-slate-200"}`}>
@@ -391,7 +394,7 @@ function StkAgrements() {
       </div>
       <StkCard className="p-4 md:p-5 space-y-3">
         <div className="flex flex-wrap gap-2">
-          <input value={f.q} onChange={(e) => setF((x) => ({ ...x, q: e.target.value }))} placeholder="Parc ou n° d'agrément" className={`${stkInput} flex-1 min-w-[180px]`} />
+          <input value={f.q} onChange={(e) => setF((x) => ({ ...x, q: e.target.value }))} placeholder="Parc ou n° de caution" className={`${stkInput} flex-1 min-w-[180px]`} />
           <select value={f.statut} onChange={(e) => setF((x) => ({ ...x, statut: e.target.value }))} className={`${stkInput} max-w-[180px]`} data-testid="agr-f-statut"><option value="">Tous les statuts</option>{Object.entries(STK_AGR).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
           <select value={f.zone} onChange={(e) => setF((x) => ({ ...x, zone: e.target.value }))} className={`${stkInput} max-w-[170px]`}><option value="">Toutes les zones</option>{X.zones.map((z) => <option key={z} value={z}>{z}</option>)}<option value="-">Zone non renseignée</option></select>
           <select value={f.mois} onChange={(e) => setF((x) => ({ ...x, mois: e.target.value }))} className={`${stkInput} max-w-[200px]`}><option value="">Toutes les échéances</option>{months.map((m) => <option key={m} value={m}>Échéance en {monthName(m)}</option>)}</select>
@@ -400,7 +403,7 @@ function StkAgrements() {
           { key: "name", label: "Parc", render: (r) => <b className="text-[#0B1F38] whitespace-nowrap">{r.name}</b> },
           { key: "zone", label: "Zone", render: (r) => <span className="whitespace-nowrap">{r.zone || <span className="text-slate-400">—</span>}{r.type === "divers" && <span className="ml-1.5"><StkDiversBadge /></span>}</span> },
           { key: "numero", label: "N°", sort: (r) => r.agr && r.agr.numero, render: (r) => r.agr ? (r.agr.numero || "—") : "—" },
-          { key: "em", label: "Émission", sort: (r) => r.agr && r.agr.date_emission, render: (r) => r.agr ? stkFmt(r.agr.date_emission) : "—" },
+          { key: "em", label: "Prise d'effet", sort: (r) => r.agr && r.agr.date_emission, render: (r) => r.agr ? stkFmt(r.agr.date_emission) : "—" },
           { key: "ech", label: "Échéance", sort: (r) => r.agr && r.agr.date_echeance, render: (r) => r.agr ? <b>{stkFmt(r.agr.date_echeance)}</b> : "—" },
           { key: "jours", label: "Statut", sort: (r) => r.jours == null ? 1e9 : r.jours, render: (r) => <StkBadge tone={STK_AGR[r.statut].tone}>{r.statut === "valide" ? `Valide · ${r.jours} j` : r.stext}</StkBadge> },
           { key: "doc", label: "", sortable: false, render: (r) => <div className="flex gap-1.5 justify-end" onClick={(e) => e.stopPropagation()}>
@@ -413,7 +416,7 @@ function StkAgrements() {
   </>;
 }
 
-// Alerte des agréments sur le tableau de bord
+// Alerte des cautions bancaires sur le tableau de bord
 function StkAgrAlert() {
   const C = React.useContext(StkCtx);
   const X = stkCfgExtra(C.settings);
@@ -424,11 +427,11 @@ function StkAgrAlert() {
   const exp = st.filter((s) => s === "expire").length, soon = st.filter((s) => s === "bientot").length, miss = st.filter((s) => s === "manquant").length;
   if (!exp && !soon && !miss) return null;
   return <button onClick={() => C.go("agrements")} data-testid="agr-alert" className={`w-full text-left rounded-xl border-2 px-4 py-3 text-sm flex flex-wrap items-center gap-x-4 gap-y-1 ${exp || soon ? "border-amber-300 bg-amber-50 text-amber-900" : "border-slate-200 bg-white text-slate-600"}`}>
-    <b>Agréments des parcs</b>
+    <b>Cautions bancaires des parcs</b>
     {exp > 0 && <span className="font-bold text-rose-700">{exp} expiré(s)</span>}
     {soon > 0 && <span className="font-bold">{soon} expire(nt) dans moins de {X.agr} jours</span>}
     {miss > 0 && <span>{miss} non joint(s)</span>}
-    <span className="ml-auto font-bold text-[#1B4F8C]">Voir les agréments →</span>
+    <span className="ml-auto font-bold text-[#1B4F8C]">Voir les cautions →</span>
   </button>;
 }
 
@@ -684,6 +687,87 @@ function StkEnlevement({ ptus, ptuId, onClose, onDone }) {
       </div>
       <StkField label="Châssis (un par ligne)"><textarea rows={5} value={paste} onChange={(e) => setPaste(e.target.value)} className={stkInput} data-testid="f-enl-paste" /></StkField>
       {err && <StkMsg tone="err">{err}</StkMsg>}
+    </div>
+  </StkModal>;
+}
+
+// ---------- Actes de caution joints en lot (le nom du fichier désigne le parc) ----------
+const STK_FILE_NOISE = ["CAUTIONS", "CAUTIOUS", "CAUTION", "PARC", "PARK", "AUTO", "SARL", "SA", "GROUPE", "ET", "FILS", "PDF", "SCAN", "COPIE"];
+function stkFileKey(name) {
+  const words = String(name || "").replace(/\.[a-z0-9]+$/i, "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim().split(" ");
+  const kept = words.filter((w) => w && !STK_FILE_NOISE.includes(w));
+  return (kept.length ? kept : words).join("");
+}
+function stkLev(a, b) {
+  const m = a.length, n = b.length; if (Math.abs(m - n) > 3) return 9;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) { const cur = [i]; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = cur; }
+  return prev[n];
+}
+// Associe chaque fichier à un parc : nom identique, puis nom du parc contenu dans le fichier, puis début de nom unique, puis faute de frappe
+function stkMatchFiles(files, parcs) {
+  const P = parcs.map((p) => ({ id: p.id, key: stkFileKey(p.name), raw: String(p.name).toUpperCase().replace(/[^A-Z0-9]/g, "") }));
+  const res = files.map((f) => ({ file: f, key: stkFileKey(f.name), parc_id: null, how: "" }));
+  const used = new Set();
+  const take = (r, id, how) => { r.parc_id = id; r.how = how; used.add(id); };
+  res.forEach((r) => { const hit = P.find((p) => p.key === r.key || p.raw === r.key); if (hit && !used.has(hit.id)) take(r, hit.id, "nom"); });
+  res.filter((r) => !r.parc_id).forEach((r) => {
+    const c = P.filter((p) => !used.has(p.id) && p.key.length >= 2 && (r.key.includes(p.key) || r.key.includes(p.raw))).sort((a, b) => b.key.length - a.key.length);
+    if (c.length) take(r, c[0].id, "nom");
+  });
+  res.filter((r) => !r.parc_id).forEach((r) => {
+    const c = P.filter((p) => !used.has(p.id) && r.key.length >= 3 && (p.key.startsWith(r.key) || r.key.startsWith(p.key)));
+    if (c.length === 1) take(r, c[0].id, "début du nom");
+  });
+  res.filter((r) => !r.parc_id).forEach((r) => {
+    const c = P.filter((p) => !used.has(p.id)).map((p) => ({ p, d: stkLev(r.key, p.key) })).filter((x) => x.d <= 2).sort((a, b) => a.d - b.d);
+    if (c.length && (c.length === 1 || c[0].d < c[1].d)) take(r, c[0].p.id, "nom approchant");
+  });
+  return res;
+}
+function StkCautionBulk({ rows, onClose, onDone }) {
+  const C = React.useContext(StkCtx);
+  const parcs = rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+  const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [prog, setProg] = useState("");
+  const [done, setDone] = useState(null);
+  const pick = (fl) => { const list = Array.from(fl || []).filter((f) => /pdf|image/i.test(f.type) || /\.(pdf|jpe?g|png)$/i.test(f.name)); setItems(stkMatchFiles(list, parcs)); };
+  const setParc = (i, id) => setItems((xs) => xs.map((x, j) => (j === i ? { ...x, parc_id: id ? Number(id) : null, how: id ? "choisi" : "" } : x)));
+  const byId = {}; parcs.forEach((p) => (byId[p.id] = p));
+  const dup = {}; items.forEach((x) => x.parc_id && (dup[x.parc_id] = (dup[x.parc_id] || 0) + 1));
+  const ready = items.filter((x) => x.parc_id && byId[x.parc_id] && byId[x.parc_id].agr);
+  const run = async () => {
+    setBusy(true); let ok = 0; const errs = [];
+    for (let i = 0; i < ready.length; i++) {
+      const x = ready[i], a = byId[x.parc_id].agr;
+      setProg(`Envoi ${i + 1} / ${ready.length} : ${x.file.name}`);
+      try {
+        await stkCall("agrement_save", { parc_id: x.parc_id, id: a.id, numero: a.numero, date_emission: a.date_emission, date_echeance: a.date_echeance, note: a.note, b64: await stkFileToB64(x.file), file_name: x.file.name, file_type: x.file.type || "application/pdf" }, false, 120e3);
+        ok++;
+      } catch (e) { errs.push(`${x.file.name} : ${stkErrText(e)}`); }
+    }
+    setBusy(false); setProg(""); setDone({ ok, errs });
+    C.toast(`${ok} acte(s) de caution joint(s)`);
+  };
+  if (done) return <StkModal title="Actes de caution joints" onClose={onDone} footer={<StkBtn kind="primary" onClick={onDone}>Terminer</StkBtn>}>
+    <div className="space-y-2" data-testid="bulk-result"><StkMsg tone="ok"><b>{done.ok}</b> acte(s) joint(s) à la caution de leur parc.</StkMsg>
+      {done.errs.length > 0 && <StkMsg tone="err">{done.errs.map((e) => <div key={e}>{e}</div>)}</StkMsg>}</div>
+  </StkModal>;
+  return <StkModal wide title="Joindre des actes de caution en lot" onClose={busy ? () => {} : onClose} footer={<><StkBtn onClick={onClose} disabled={busy}>Annuler</StkBtn><StkBtn kind="primary" disabled={busy || !ready.length} onClick={run} data-testid="save-bulk">{busy ? "Envoi..." : `Joindre ${ready.length} acte(s)`}</StkBtn></>}>
+    <div className="space-y-3">
+      <StkMsg tone="info">Sélectionnez tous les PDF d'un coup. Le parc est reconnu d'après le nom du fichier (par exemple « CAUTION_ATLANTIC.pdf »). Vérifiez la colonne « Parc », corrigez si besoin, puis validez. Chaque acte est joint à la caution actuelle du parc ; un acte déjà joint est remplacé.</StkMsg>
+      <input type="file" multiple accept="application/pdf,image/*" onChange={(e) => pick(e.target.files)} className="block text-sm" data-testid="f-bulk" disabled={busy} />
+      {prog && <StkMsg tone="info">{prog}</StkMsg>}
+      {items.length > 0 && <StkTable rows={items.map((x, i) => ({ ...x, i }))} rowKey={(r) => r.i} initial={200} columns={[
+        { key: "file", label: "Fichier", sort: (r) => r.file.name, render: (r) => <span className="text-sm break-all">{r.file.name}</span> },
+        { key: "parc", label: "Parc", sortable: false, render: (r) => <select value={r.parc_id || ""} onChange={(e) => setParc(r.i, e.target.value)} className={`${stkInput} min-w-[190px] ${!r.parc_id ? "!border-amber-400" : ""}`} disabled={busy}>
+          <option value="">— Non reconnu —</option>{parcs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select> },
+        { key: "agr", label: "Caution du parc", sortable: false, render: (r) => { const p = byId[r.parc_id]; if (!p) return <span className="text-amber-700 text-sm">Choisissez le parc</span>;
+          if (!p.agr) return <span className="text-rose-700 text-sm">Aucune caution enregistrée pour ce parc</span>;
+          return <span className="text-sm whitespace-nowrap">{p.agr.numero || "sans n°"} · {stkFmt(p.agr.date_echeance)}{p.agr.file_path ? <span className="text-slate-500"> · remplace l'acte joint</span> : ""}</span>; } },
+        { key: "how", label: "", sortable: false, render: (r) => dup[r.parc_id] > 1 ? <StkBadge tone="bg-amber-50 text-amber-900 border-amber-300">Parc choisi deux fois</StkBadge> : r.how ? <span className="text-[11px] text-slate-400">{r.how}</span> : null }
+      ]} />}
     </div>
   </StkModal>;
 }

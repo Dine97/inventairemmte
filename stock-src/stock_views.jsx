@@ -181,7 +181,7 @@ function StkDashboard({ lastImports }) {
             <div className="flex flex-wrap gap-1.5 mt-2">
               {lateD != null && lateD > 7 && <StkBadge tone="bg-amber-50 text-amber-900 border-amber-300">Pas d'import depuis {lateD} j</StkBadge>}
               {+d.non_justifiees > 0 && <StkBadge>{d.non_justifiees} sortie(s) non justifiée(s)</StkBadge>}
-              {(() => { const m = stkMeta(DC, d.parc_id); const st = stkAgrStatus(m.agrement, today, XA.agr); return st.code === "expire" || st.code === "bientot" ? <StkBadge tone={STK_AGR[st.code].tone}>Agrément : {st.text.toLowerCase()}</StkBadge> : null; })()}
+              {(() => { const m = stkMeta(DC, d.parc_id); const st = stkAgrStatus(m.agrement, today, XA.agr); return st.code === "expire" || st.code === "bientot" ? <StkBadge tone={STK_AGR[st.code].tone}>Caution : {st.text.toLowerCase()}</StkBadge> : null; })()}
               {stkMeta(DC, d.parc_id).type === "divers" && <StkDiversBadge />}
               {stkMeta(DC, d.parc_id).zone && <StkBadge tone="bg-[#EAF1FA] text-[#123A66] border-[#C9DBEF]">{stkMeta(DC, d.parc_id).zone}</StkBadge>}
             </div>
