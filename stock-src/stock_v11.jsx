@@ -34,6 +34,8 @@ function StkAgrBadge({ echeance, seuil, short }) {
   const s = stkAgrStatus(echeance, stkToday(), seuil);
   return <StkBadge tone={STK_AGR[s.code].tone}>{short ? STK_AGR[s.code].label : s.code === "manquant" ? "Agrément manquant" : s.text}</StkBadge>;
 }
+const STK_PARC_TYPES = { parc: "Parc de vente", divers: "Parc de divers", ptu: "Parc tampon unique (PTU)" };
+const StkDiversBadge = () => <StkBadge tone="bg-violet-50 text-violet-800 border-violet-200">Parc de divers</StkBadge>;
 function stkIsPtu(C, id) { const m = (C.parcsMeta || []).find((x) => x.id === Number(id)); return !!(m && m.type === "ptu"); }
 function stkMeta(C, id) { return (C.parcsMeta || []).find((x) => x.id === Number(id)) || {}; }
 function stkTelHref(t) { const d = String(t || "").replace(/[^\d+]/g, ""); return d ? "tel:" + d : null; }
@@ -83,6 +85,7 @@ function StkParcIdStrip({ parcId, onOpen }) {
   if (!m.id) return null;
   return <button onClick={onOpen} data-testid="id-strip" className="w-full text-left flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm hover:border-[#1B4F8C]/40">
     {m.type === "ptu" && <StkBadge tone="bg-[#0B1F38] text-[#E8D3A2] border-[#0B1F38]">Parc tampon unique (PTU)</StkBadge>}
+    {m.type === "divers" && <StkDiversBadge />}
     <span className="inline-flex items-center gap-1 text-slate-600"><StkIdIc.Pin size={14} /> {m.zone ? <b className="text-[#0B1F38]">Zone {m.zone}</b> : <span className="text-slate-400">Zone non renseignée</span>}</span>
     {m.type !== "ptu" && <StkAgrBadge echeance={m.agrement} seuil={X.agr} />}
     <span className="ml-auto text-xs font-bold text-[#1B4F8C]">Carte d'identité du parc →</span>
@@ -158,6 +161,7 @@ function StkParcIdentity({ parcId, parcName }) {
           <div className="flex flex-wrap items-center gap-2">
             <div className="text-xl font-semibold text-[#0B1F38] flex-1 min-w-[160px]">{p.name}</div>
             {isPtu && <StkBadge tone="bg-[#0B1F38] text-[#E8D3A2] border-[#0B1F38]">PTU</StkBadge>}
+            {p.type === "divers" && <StkDiversBadge />}
             {p.zone && <StkBadge tone="bg-[#EAF1FA] text-[#123A66] border-[#C9DBEF]">Zone {p.zone}</StkBadge>}
             {isAdmin && <StkBtn small onClick={() => setEdit(true)} data-testid="btn-edit-identity"><StkIc.Edit size={14} /> Modifier</StkBtn>}
           </div>
@@ -258,8 +262,8 @@ function StkIdentityForm({ parc, zones, onClose, onSaved }) {
           className={`px-4 py-2 rounded-lg text-sm font-bold border-2 ${f.zone === z ? "bg-[#123A66] text-white border-[#123A66]" : "bg-white text-slate-600 border-slate-200"}`}>{z}</button>)}</div>
       </StkField>
       <StkField label="Adresse" hint="La position GPS se fixe depuis la fiche, une fois sur le parc."><textarea rows={3} value={f.adresse} onChange={set("adresse")} className={stkInput} /></StkField>
-      <StkField label="Type" hint="Un parc tampon unique (PTU) reçoit les véhicules des manifestes et n'envoie pas d'état de stock.">
-        <select value={f.type} onChange={set("type")} className={stkInput}><option value="parc">Parc de vente</option><option value="ptu">Parc tampon unique (PTU)</option></select>
+      <StkField label="Type" hint={f.type === "divers" ? "Un parc de divers ne vend pas : il ramène des véhicules sur commande. Il envoie ses états de stock comme un parc de vente ; les transferts avec les parcs de vente, dans les deux sens, sont suivis comme les autres." : "Un parc tampon unique (PTU) reçoit les véhicules des manifestes et n'envoie pas d'état de stock."}>
+        <select value={f.type} onChange={set("type")} className={stkInput} data-testid="f-type">{Object.entries(STK_PARC_TYPES).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
       </StkField>
       {err && <StkMsg tone="err">{err}</StkMsg>}
     </div>
@@ -359,7 +363,7 @@ function StkAgrements() {
   const list = rows.filter((r) => (!f.statut || r.statut === f.statut) && (!f.zone || (f.zone === "-" ? !r.zone : r.zone === f.zone)) && (!f.mois || (r.agr && r.agr.date_echeance.startsWith(f.mois)))
     && (!f.q || (r.name + " " + ((r.agr && r.agr.numero) || "")).toUpperCase().includes(f.q.trim().toUpperCase())))
     .sort((a, b) => ({ expire: 0, bientot: 1, manquant: 2, valide: 3 }[a.statut] - { expire: 0, bientot: 1, manquant: 2, valide: 3 }[b.statut]) || ((a.jours == null ? 1e9 : a.jours) - (b.jours == null ? 1e9 : b.jours)) || a.name.localeCompare(b.name));
-  const xcols = [{ h: "Parc", k: "name", w: 24 }, { h: "Zone", k: "zone", w: 12 }, { h: "N° d'agrément", x: (r) => r.agr ? r.agr.numero : "", w: 18 }, { h: "Émission", x: (r) => r.agr ? stkFmt(r.agr.date_emission) : "", w: 12 }, { h: "Échéance", x: (r) => r.agr ? stkFmt(r.agr.date_echeance) : "", w: 12 }, { h: "Jours restants", x: (r) => r.jours == null ? "" : r.jours, w: 10 }, { h: "Statut", x: (r) => STK_AGR[r.statut].label, w: 16 }, { h: "Document", x: (r) => r.agr && r.agr.file_path ? "Joint" : "Non joint", w: 10 }];
+  const xcols = [{ h: "Parc", k: "name", w: 24 }, { h: "Type", x: (r) => STK_PARC_TYPES[r.type] || "", w: 14 }, { h: "Zone", k: "zone", w: 12 }, { h: "N° d'agrément", x: (r) => r.agr ? r.agr.numero : "", w: 18 }, { h: "Émission", x: (r) => r.agr ? stkFmt(r.agr.date_emission) : "", w: 12 }, { h: "Échéance", x: (r) => r.agr ? stkFmt(r.agr.date_echeance) : "", w: 12 }, { h: "Jours restants", x: (r) => r.jours == null ? "" : r.jours, w: 10 }, { h: "Statut", x: (r) => STK_AGR[r.statut].label, w: 16 }, { h: "Document", x: (r) => r.agr && r.agr.file_path ? "Joint" : "Non joint", w: 10 }];
   const exp = (k) => {
     const meta = [`Situation au ${stkFmt(today)} — alerte ${X.agr} jours avant l'échéance`, `${list.length} parc(s)`];
     if (k === "x") stkExportXlsx(`Agrements_parcs_${today}`, "Agréments des parcs", meta, xcols, list);
@@ -389,7 +393,7 @@ function StkAgrements() {
         </div>
         <StkTable rows={list} rowKey={(r) => r.id} onRow={(r) => openParc(r.id, "identite")} empty="Aucun parc." columns={[
           { key: "name", label: "Parc", render: (r) => <b className="text-[#0B1F38] whitespace-nowrap">{r.name}</b> },
-          { key: "zone", label: "Zone", render: (r) => r.zone || <span className="text-slate-400">—</span> },
+          { key: "zone", label: "Zone", render: (r) => <span className="whitespace-nowrap">{r.zone || <span className="text-slate-400">—</span>}{r.type === "divers" && <span className="ml-1.5"><StkDiversBadge /></span>}</span> },
           { key: "numero", label: "N°", sort: (r) => r.agr && r.agr.numero, render: (r) => r.agr ? (r.agr.numero || "—") : "—" },
           { key: "em", label: "Émission", sort: (r) => r.agr && r.agr.date_emission, render: (r) => r.agr ? stkFmt(r.agr.date_emission) : "—" },
           { key: "ech", label: "Échéance", sort: (r) => r.agr && r.agr.date_echeance, render: (r) => r.agr ? <b>{stkFmt(r.agr.date_echeance)}</b> : "—" },

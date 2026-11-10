@@ -793,7 +793,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
       identite_at: new Date().toISOString(), identite_by: who.name,
     };
     if (f.zone && !zones.includes(f.zone)) throw new ApiError("ZONE_INCONNUE");
-    if (p.type === "parc" || p.type === "ptu") { f.type = p.type; if (p.type === "ptu") f.suivi_hebdo = false; }
+    if (["parc", "divers", "ptu"].includes(p.type)) { f.type = p.type; if (p.type === "ptu") f.suivi_hebdo = false; }
     const before = must(await sb.from("parcs").select("name,type,zone,adresse,chef_parc_nom,chef_parc_tel,chef_trafic_nom,chef_trafic_tel").eq("id", id).maybeSingle()) as any;
     must(await sb.from("parcs").update(f).eq("id", id));
     await audit(who, "identite_parc", "parc", id, `Identité du parc ${before ? before.name : id} modifiée`, before, f);
