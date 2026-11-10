@@ -5,7 +5,9 @@ function StkImport({ preset }) {
   const [parc, setParc] = useState((preset && preset.parc) || "");
   const [date, setDate] = useState(stkToday());
   const [comment, setComment] = useState("");
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
+  const file = files.length ? { name: files.map((f) => f.name).join(" + "), size: files.reduce((a, f) => a + f.size, 0) } : null;
+  const [roles, setRoles] = useState({});
   const [wb, setWb] = useState(null);
   const [tpl, setTpl] = useState({ templates: [], synonyms: [] });
   const [forced, setForced] = useState({});
@@ -21,17 +23,17 @@ function StkImport({ preset }) {
   const parcNames = useMemo(() => Array.from(new Set(dash.filter((d) => d.active !== false).map((d) => d.parc))).sort(), [dash]);
   const parcOk = parc.trim().length > 0;
 
-  const analyse = async (book, parcName, frc) => {
+  const analyse = async (book, parcName, frc, rls) => {
     setErr(""); setPreview(null);
     let t = { templates: [], synonyms: [] };
     try { setBusy("Recherche du modèle de lecture du parc..."); t = await stkCall("templates", { parc_name: parcName }); setTpl(t); } catch (e) {}
     setBusy("Lecture du fichier...");
     let res;
-    try { res = stkApplyAliases(await stkParseBook(book, { synonyms: t.synonyms, templates: t.templates, forced: frc }, setProg), t.aliases); }
+    try { res = stkApplyAliases(await stkParseBook(book, { synonyms: t.synonyms, templates: t.templates, forced: frc, roles: rls || roles }, setProg), t.aliases); }
     catch (e) { setProg(null); setBusy(""); setErr("Lecture impossible : " + (e.message || e)); return; }
     setProg(null);
     setParsed(res);
-    if (!res.rows.length) { setBusy(""); return; }
+    if (!res.rows.length) { setBusy(""); setPreview(null); return; }
     if (!parcName) { setBusy(""); return; }
     try {
       setBusy("Comparaison avec le dernier stock du parc...");
@@ -39,20 +41,22 @@ function StkImport({ preset }) {
     } catch (e) { setErr(stkErrText(e)); }
     setBusy("");
   };
-  const onFile = async (f) => {
-    if (!f) return;
-    setFile(f); setResult(null); setForced({}); setParsed(null); setPreview(null); setErr("");
-    if (!parc) { const g = parcNames.find((n) => stkNorm(f.name).includes(stkNorm(n))); if (g) setParc(g); }
+  const onFile = async (list) => {
+    const fl = Array.from(list || []).filter(Boolean);
+    if (!fl.length) return;
+    const f = fl[0];
+    setFiles(fl); setResult(null); setForced({}); setRoles({}); setParsed(null); setPreview(null); setErr(""); setMoveRes(null);
+    if (!parc) { const g = parcNames.find((n) => fl.some((x) => stkNorm(x.name).includes(stkNorm(n)))); if (g) setParc(g); }
     try {
-      setBusy("Ouverture du fichier...");
+      setBusy(fl.length > 1 ? `Ouverture des ${fl.length} fichiers...` : "Ouverture du fichier...");
       stkCloseBook(wb);
-      const book = await stkOpenWorkbook(f, setProg);
+      const book = await stkOpenWorkbooks(fl, setProg);
       setProg(null);
       setWb(book);
       // parc saisi pendant l'ouverture du fichier (valeur à jour, pas celle du moment du choix du fichier)
       const cur = (parcRef.current || "").trim().toUpperCase();
-      const guess = cur || parcNames.find((n) => stkNorm(f.name).includes(stkNorm(n))) || "";
-      await analyse(book, guess, {});
+      const guess = cur || parcNames.find((n) => fl.some((x) => stkNorm(x.name).includes(stkNorm(n)))) || "";
+      await analyse(book, guess, {}, {});
     } catch (e) { setProg(null); setBusy(""); setErr("Fichier illisible : " + (e.message || e)); }
   };
   const wbRef = useRef(null);
@@ -61,6 +65,26 @@ function StkImport({ preset }) {
   parcRef.current = parc;
   useEffect(() => () => stkCloseBook(wbRef.current), []);
   useEffect(() => { if (wb && parcOk) { const t = setTimeout(() => analyse(wb, parc.trim().toUpperCase(), forced), 500); return () => clearTimeout(t); } }, [parc]);
+  const setRole = (sheet, role) => { const r = { ...roles, [sheet]: role }; setRoles(r); analyse(wb, parc.trim().toUpperCase(), forced, r); };
+  const [moveRes, setMoveRes] = useState(null);
+  const dm = parsed && parsed.declMoves ? parsed.declMoves : { entrees: [], sorties: [] };
+  const hasMoves = dm.entrees.length + dm.sorties.length > 0;
+  // Pas d'état de stock, seulement des entrées / sorties : enregistrées comme des mouvements saisis
+  const saveMoves = async () => {
+    if (!parcOk) return;
+    setBusy("Enregistrement des mouvements..."); setErr("");
+    const out = {};
+    try {
+      for (const kind of ["entree", "sortie"]) {
+        const list = kind === "entree" ? dm.entrees : dm.sorties;
+        if (!list.length) continue;
+        out[kind] = await stkCall("moves_add", { parc_name: parc.trim().toUpperCase(), kind, date, source: "fichier", file_name: file.name,
+          motif: kind === "sortie" ? "Sortie déclarée par le parc (fichier)" : "Entrée déclarée par le parc (fichier)",
+          items: list.map((r) => ({ ...r, date: r.date || "", motif: r.justif_type || "" })) }, false, 180e3);
+      }
+      setMoveRes(out); setBusy(""); reloadDash();
+    } catch (e) { setBusy(""); setErr(stkErrText(e)); }
+  };
   const lastDate = preview && preview.last_stock_date;
   const tooOld = lastDate && date < lastDate;
   const typos = useMemo(() => preview && !preview.is_initial ? stkTypoPairs(preview.entrees, preview.sorties) : [], [preview]);
@@ -93,7 +117,7 @@ function StkImport({ preset }) {
       reloadDash();
     } catch (e) { setBusy(""); setErr(stkErrText(e)); }
   };
-  const reset = () => { setFile(null); setWb(null); setParsed(null); setPreview(null); setResult(null); setForced({}); setComment(""); if (inputRef.current) inputRef.current.value = ""; };
+  const reset = () => { setFiles([]); setRoles({}); setMoveRes(null); setWb(null); setParsed(null); setPreview(null); setResult(null); setForced({}); setComment(""); if (inputRef.current) inputRef.current.value = ""; };
 
   if (result) return <>
     <StkPageHead title="Import enregistré" sub={`${parc.toUpperCase()} — stock du ${stkFmt(date)}`} />
@@ -105,7 +129,7 @@ function StkImport({ preset }) {
   </>;
 
   return <>
-    <StkPageHead title="Importer le stock d'un parc" sub="Choisissez le parc, déposez le fichier Excel reçu (tous formats : .xlsx, .xls, .xlsm, .ods, .csv). L'outil reconnaît les colonnes et compare avec le dernier stock du parc." right={<StkBtn small onClick={() => C.go("bulk")}><StkIc.Layers size={14} /> Plusieurs fichiers : import groupé</StkBtn>} />
+    <StkPageHead title="Importer le stock d'un parc" sub="Choisissez le parc et déposez le ou les fichiers reçus (Excel, CSV ou PDF ; stock, entrées et sorties, une ou plusieurs feuilles). L'outil reconnaît chaque tableau et compare avec le dernier stock du parc." right={<StkBtn small onClick={() => C.go("bulk")}><StkIc.Layers size={14} /> Plusieurs fichiers : import groupé</StkBtn>} />
     <StkCard className="p-4 md:p-5 space-y-4">
       <div className="grid md:grid-cols-3 gap-3">
         <StkField label="Parc"><ParcAutocomplete value={parc} onChange={setParc} parcsList={parcNames} /></StkField>
@@ -113,17 +137,26 @@ function StkImport({ preset }) {
         <StkField label="Commentaire (facultatif)"><input value={comment} onChange={(e) => setComment(e.target.value)} className={stkInput} /></StkField>
       </div>
       <label className="block rounded-2xl border-2 border-dashed border-[#1B4F8C]/30 bg-[#F4F8FC] hover:bg-[#EAF1FA] p-6 text-center cursor-pointer"
-        onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files && e.dataTransfer.files[0]); }}>
-        <input ref={inputRef} type="file" className="hidden" accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.txt" onChange={(e) => onFile(e.target.files && e.target.files[0])} />
+        onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files); }}>
+        <input ref={inputRef} type="file" multiple className="hidden" accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.txt,.pdf" onChange={(e) => onFile(e.target.files)} data-testid="import-files" />
         <FileSpreadsheet size={30} className="mx-auto text-[#1B4F8C]" />
-        <div className="font-bold text-[#123A66] mt-2">{file ? file.name : "Déposer le fichier ici ou cliquer pour le choisir"}</div>
-        {file && <div className="text-xs text-slate-500 mt-1">{(file.size / 1024).toFixed(0)} Ko · cliquer pour changer de fichier</div>}
+        <div className="font-bold text-[#123A66] mt-2">{files.length ? files.map((f) => f.name).join(" · ") : "Déposer le ou les fichiers ici, ou cliquer pour les choisir"}</div>
+        <div className="text-xs text-slate-500 mt-1">{files.length ? `${files.length} fichier(s) · ${(file.size / 1024).toFixed(0)} Ko · cliquer pour changer` : "Plusieurs fichiers possibles pour le même parc : stock, entrées, sorties (Excel ou PDF)"}</div>
       </label>
       {busy && <StkMsg tone="info">{busy}{prog && <div className="mt-2"><StkProgressBar p={prog} size={file && file.size} /></div>}</StkMsg>}
       {err && <StkMsg tone="err">{err}</StkMsg>}
     </StkCard>
 
-    {parsed && !parsed.rows.length && <StkCard className="p-4 md:p-5 space-y-3">
+    {parsed && !parsed.rows.length && hasMoves && <StkCard className="p-4 md:p-5 space-y-3" data-testid="moves-only">
+      <div className="font-bold text-[#0B1F38] text-lg">Entrées et sorties sans état de stock</div>
+      <StkSheetRoles sheets={parsed.sheets} onRole={setRole} />
+      <StkMsg tone="info">Aucune feuille de stock dans {files.length > 1 ? "ces fichiers" : "ce fichier"} : {dm.entrees.length} entrée(s) et {dm.sorties.length} sortie(s) déclarées. Elles seront enregistrées comme des mouvements saisis pour le parc{parcOk ? ` ${parc.toUpperCase()}` : ""}, à leur date (sinon au {stkFmt(date)}). Les sorties avec un n° de déclaration sont notées justifiées.</StkMsg>
+      {moveRes ? <StkMsg tone="ok">{Object.entries(moveRes).map(([k, r]) => <div key={k}>{k === "entree" ? "Entrées" : "Sorties"} : <b>{r.ok}</b> enregistrée(s) sur {r.total}{r.deja_present ? ` · ${r.deja_present} déjà présente(s)` : ""}{r.absents ? ` · ${r.absents} absente(s) du stock` : ""}{r.inconnus ? ` · ${r.inconnus} châssis inconnu(s)` : ""}</div>)}</StkMsg>
+        : <div className="flex gap-2"><StkBtn kind="primary" disabled={!!busy || !parcOk || !stkCan(C, "saisir")} onClick={saveMoves} data-testid="save-moves-only"><StkIc.Check size={16} /> Enregistrer ces mouvements</StkBtn><StkBtn onClick={reset}>Annuler</StkBtn></div>}
+      {!parcOk && <StkMsg tone="warn">Choisissez le parc.</StkMsg>}
+    </StkCard>}
+    {parsed && !parsed.rows.length && !hasMoves && <StkCard className="p-4 md:p-5 space-y-3">
+      {parsed.sheets.length > 0 && <StkSheetRoles sheets={parsed.sheets} onRole={setRole} />}
       <StkMsg tone="warn">Aucun tableau de châssis n'a été reconnu automatiquement. Indiquez l'onglet et la ligne d'en-tête du tableau.</StkMsg>
       <StkManualHeader wb={wb} onApply={(sheet, row) => { const f = { [sheet]: { header_row: row, mapping: null } }; setForced(f); analyse(wb, parc.trim().toUpperCase(), f); }} />
     </StkCard>}
@@ -131,15 +164,7 @@ function StkImport({ preset }) {
     {parsed && parsed.rows.length > 0 && <>
       <StkCard className="p-4 md:p-5 space-y-3">
         <div className="font-bold text-[#0B1F38] text-lg">1. Lecture du fichier</div>
-        <div className="space-y-2">{parsed.sheets.map((s) => <div key={s.name} className="flex flex-wrap items-center gap-2 text-sm bg-[#F4F8FC] rounded-xl px-3 py-2">
-          <b>Onglet « {s.name} »</b>
-          <StkBadge tone={s.role === "stock" ? "bg-[#EAF1FA] text-[#123A66] border-[#C9DBEF]" : "bg-slate-100 text-slate-600 border-slate-200"}>{s.role === "stock" ? "Stock" : s.role === "entrees" ? "Entrées déclarées par le parc" : "Sorties déclarées par le parc"}</StkBadge>
-          <span className="text-slate-600">{s.rows.length} ligne(s) · en-tête ligne {s.headerLine}</span>
-          <StkBadge tone={s.source === "modele" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : s.source === "manuel" ? "bg-amber-50 text-amber-900 border-amber-300" : "bg-sky-50 text-sky-800 border-sky-200"}>{s.source === "modele" ? "Modèle du parc reconnu" : s.source === "manuel" ? "Correspondance corrigée" : "Détection automatique"}</StkBadge>
-          {s.grouped && <span className="text-xs text-slate-500">(navire et date recopiés sur les lignes du même groupe)</span>}
-          <div className="flex-1" />
-          <StkBtn small onClick={() => setEditMap(s)}><StkIc.Edit size={14} /> Vérifier les colonnes</StkBtn>
-        </div>)}</div>
+        <StkSheetRoles sheets={parsed.sheets} onRole={setRole} onEdit={(sh) => setEditMap(sh)} />
         <div className="text-sm font-bold text-slate-600">Aperçu des premières lignes lues</div>
         <div className="overflow-x-auto -mx-4 md:mx-0"><table className="w-full text-xs min-w-[760px]"><thead><tr className="text-left text-slate-500 border-b border-slate-200">{["Ligne", "Châssis", "Marque", "Modèle", "Année", "Navire", "Manifeste", "BL", "Arrivée", "Transfert", "Dépôt"].map((h) => <th key={h} className="py-1.5 px-2">{h}</th>)}</tr></thead>
           <tbody>{parsed.rows.slice(0, 8).map((r, i) => <tr key={i} className="border-b border-slate-100"><td className="py-1.5 px-2 text-slate-400">{r.line}</td><td className="px-2 font-plex-mono font-bold">{r.chassis}</td><td className="px-2">{r.marque}</td><td className="px-2">{r.modele}</td><td className="px-2">{r.annee}</td><td className="px-2">{r.navire}</td><td className="px-2">{r.manifeste}</td><td className="px-2">{r.bl}</td><td className="px-2">{stkFmt(r.date_arrivee)}</td><td className="px-2">{stkFmt(r.date_transfert)}</td><td className="px-2">{stkFmt(stkSit(r, stkToday(), cfg).depot)}</td></tr>)}</tbody></table></div>
@@ -164,7 +189,7 @@ function StkImport({ preset }) {
         {typos.length > 0 && <StkMsg tone="warn"><div className="flex flex-wrap gap-2"><span className="flex-1">{typos.length} entrée(s) ressemblent à une sortie à 1 ou 2 caractères près : probablement le même véhicule mal saisi par le parc. Après l'import, utilisez le Centre des anomalies pour les fusionner (la faute sera corrigée automatiquement ensuite).</span><button className="text-xs font-bold underline" onClick={() => setShowList({ title: "Fautes de frappe probables", items: typos.map((t) => `${t.entree}  ↔  ${t.sortie}  (${t.distance} car.)`) })}>Voir</button></div></StkMsg>}
         {pv.autres_parcs.length > 0 && <StkMsg tone="warn"><div className="flex flex-wrap gap-2"><span className="flex-1">{pv.autres_parcs.length} véhicule(s) figurent encore dans le stock d'un autre parc : ils seront enregistrés comme <b>entrées par transfert</b>, et leur sortie de l'autre parc sera reconnue comme transfert à son prochain import.</span><button className="text-xs font-bold underline" onClick={() => setShowList({ title: "Présents dans un autre parc", items: pv.autres_parcs.map((x) => `${x.chassis} — ${x.parc}`) })}>Voir</button></div></StkMsg>}
         {pv.reapparus.length > 0 && <StkMsg tone="warn"><div className="flex flex-wrap gap-2"><span className="flex-1">{pv.reapparus.length} véhicule(s) déjà sortis réapparaissent dans ce fichier.</span><button className="text-xs font-bold underline" onClick={() => setShowList({ title: "Véhicules sortis qui réapparaissent", items: pv.reapparus })}>Voir</button></div></StkMsg>}
-        <StkDeclaredCheck parsed={parsed} preview={pv} />{preview2 && <div className="text-xs text-slate-500">Chiffres recalculés après vos corrections.</div>}
+        <StkDeclaredCheck parsed={parsed} preview={pv} rows={(applied || parsed).rows} />{preview2 && <div className="text-xs text-slate-500">Chiffres recalculés après vos corrections.</div>}
         {pending.length > 0 && <StkMsg tone="warn">{pending.length} point(s) à vérifier restent à décider (étape 2) : corrigez-les ou indiquez qu'ils sont corrects.</StkMsg>}
         <div className="flex flex-wrap gap-2 pt-1">
           <StkBtn kind="primary" disabled={!!busy || !parcOk || pending.length > 0} onClick={commit} data-testid="import-validate"><StkIc.Check size={16} /> Valider l'import{applied && applied.excluded ? ` (${new Set(applied.rows.map((r) => r.chassis)).size} véhicules)` : ""}</StkBtn>
@@ -176,20 +201,59 @@ function StkImport({ preset }) {
     {showList && <StkModal title={showList.title} onClose={() => setShowList(null)}><div className="font-plex-mono text-sm columns-1 md:columns-2 gap-6">{showList.items.map((x, i) => <div key={i} className="py-0.5 break-all">{x}</div>)}</div></StkModal>}
   </>;
 }
-function StkDeclaredCheck({ parsed, preview }) {
-  if (preview.is_initial) return null;
+// Rôle de chaque feuille (ou tableau d'un PDF) : reconnu automatiquement, modifiable
+const STK_ROLE_LABEL = { stock: "Stock", entrees: "Entrées déclarées", sorties: "Sorties déclarées", ignorer: "Ignorée" };
+const STK_ROLE_TONE = { stock: "bg-[#EAF1FA] text-[#123A66] border-[#C9DBEF]", entrees: "bg-emerald-50 text-emerald-800 border-emerald-200", sorties: "bg-rose-50 text-rose-800 border-rose-200", ignorer: "bg-slate-100 text-slate-500 border-slate-200" };
+function StkSheetRoles({ sheets, onRole, onEdit }) {
+  return <div className="space-y-2" data-testid="sheet-roles">{sheets.map((s) => <div key={s.name} className="flex flex-wrap items-center gap-2 text-sm bg-[#F4F8FC] rounded-xl px-3 py-2">
+    <b className="break-all">{s.name.includes(" › ") ? <>{s.name.split(" › ")[0]} <span className="text-slate-400">›</span> {s.name.split(" › ").slice(1).join(" › ")}</> : <>Onglet « {s.name} »</>}</b>
+    <select value={s.role} onChange={(e) => onRole(s.name, e.target.value)} className={`rounded-lg border-2 px-2 py-1 text-xs font-bold ${STK_ROLE_TONE[s.role]}`} data-testid={"role-" + s.name}>
+      {Object.entries(STK_ROLE_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+    </select>
+    <span className="text-[11px] text-slate-500">{s.roleWhy === "choisi" ? "choisi par vous" : `reconnu par ${s.roleWhy}`}</span>
+    {s.role !== "ignorer" && <span className="text-slate-600">{s.rows.length} ligne(s) · en-tête ligne {s.headerLine}</span>}
+    {s.role !== "ignorer" && s.role !== "stock" && <span className="text-[11px] text-slate-500">{s.mapping.date_mouvement != null ? "date du mouvement lue" : "sans date de mouvement"}{s.mapping.justif_numero != null ? " · n° de déclaration lu" : ""}</span>}
+    {s.role !== "ignorer" && <StkBadge tone={s.source === "modele" ? "bg-emerald-50 text-emerald-800 border-emerald-200" : s.source === "manuel" ? "bg-amber-50 text-amber-900 border-amber-300" : "bg-sky-50 text-sky-800 border-sky-200"}>{s.source === "modele" ? "Modèle du parc reconnu" : s.source === "manuel" ? "Correspondance corrigée" : "Détection automatique"}</StkBadge>}
+    {s.grouped && <span className="text-xs text-slate-500">(navire et date recopiés sur les lignes du même groupe)</span>}
+    <div className="flex-1" />
+    {onEdit && s.role !== "ignorer" && <StkBtn small onClick={() => onEdit(s)}><StkIc.Edit size={14} /> Vérifier les colonnes</StkBtn>}
+  </div>)}</div>;
+}
+// Comparaison des mouvements déclarés par le parc avec ceux constatés, et ce qui sera enregistré
+function StkDeclaredCheck({ parsed, preview, rows }) {
+  const [list, setList] = useState(null);
+  const dm = parsed.declMoves || { entrees: [], sorties: [] };
   const blocks = [];
-  const cmp = (declared, computed, label) => {
-    const D = new Set(declared), Cc = new Set(computed);
-    const onlyD = [...D].filter((x) => !Cc.has(x)), onlyC = [...Cc].filter((x) => !D.has(x));
-    if (!onlyD.length && !onlyC.length) blocks.push(<StkMsg key={label} tone="ok">{label} annoncées par le parc ({D.size}) : concordantes avec le calcul.</StkMsg>);
-    else blocks.push(<StkMsg key={label} tone="warn">{label} annoncées par le parc : {D.size} · calculées : {Cc.size}.{onlyD.length ? ` Annoncées mais non constatées : ${onlyD.join(", ")}.` : ""}{onlyC.length ? ` Constatées mais non annoncées : ${onlyC.join(", ")}.` : ""}</StkMsg>);
-  };
-  if (parsed.declEntrees.length) cmp(parsed.declEntrees, preview.entrees, "Entrées");
-  if (parsed.declSorties.length) cmp(parsed.declSorties, preview.sorties, "Sorties");
+  const inFile = new Set((rows || parsed.rows).map((r) => r.chassis));
+  const L = (title, items) => items.length ? <button className="text-xs font-bold underline ml-1" onClick={() => setList({ title, items })}>voir</button> : null;
+  if (!preview.is_initial && (dm.entrees.length || dm.sorties.length)) {
+    const E = new Set(preview.entrees), S = new Set(preview.sorties);
+    const de = dm.entrees.map((r) => r.chassis), ds = dm.sorties.map((r) => r.chassis);
+    const DE = new Set(de), DS = new Set(ds);
+    const eOk = de.filter((c) => E.has(c)), eAbs = de.filter((c) => !E.has(c) && !inFile.has(c) && !DS.has(c)), eNon = [...E].filter((c) => !DE.has(c));
+    const sOk = ds.filter((c) => S.has(c)), sPres = ds.filter((c) => inFile.has(c)), sAr = ds.filter((c) => !S.has(c) && !inFile.has(c)), sNon = [...S].filter((c) => !DS.has(c));
+    const withDate = (arr) => arr.filter((r) => r.date).length, withNum = dm.sorties.filter((r) => r.justif_numero && S.has(r.chassis)).length;
+    blocks.push(<div key="d" className="rounded-xl border border-slate-200 bg-white p-3 space-y-1.5 text-sm" data-testid="declared-check">
+      <div className="font-bold text-[#0B1F38]">Mouvements déclarés par le parc</div>
+      {dm.entrees.length > 0 && <div><b>Entrées</b> : {dm.entrees.length} déclarée(s) · <span className="text-emerald-700">{eOk.length} confirmée(s)</span>{L("Entrées confirmées", eOk)}
+        {eNon.length > 0 && <> · <span className="text-amber-700">{eNon.length} constatée(s) non déclarée(s)</span>{L("Entrées constatées non déclarées", eNon)}</>}
+        {eAbs.length > 0 && <> · <span className="text-rose-700">{eAbs.length} déclarée(s) mais absente(s) du stock</span>{L("Entrées déclarées absentes du stock", eAbs)}</>}
+        {withDate(dm.entrees) > 0 && <span className="text-slate-500"> · dates réelles lues</span>}</div>}
+      {dm.sorties.length > 0 && <div><b>Sorties</b> : {dm.sorties.length} déclarée(s) · <span className="text-emerald-700">{sOk.length} confirmée(s)</span>{L("Sorties confirmées", sOk)}
+        {sNon.length > 0 && <> · <span className="text-amber-700">{sNon.length} constatée(s) non déclarée(s)</span>{L("Sorties constatées non déclarées", sNon)}</>}
+        {sPres.length > 0 && <> · <span className="text-rose-700">{sPres.length} déclarée(s) mais toujours dans le stock</span>{L("Sorties déclarées toujours dans le stock", sPres)}</>}
+        {sAr.length > 0 && <> · <span className="text-sky-700">{sAr.length} aller(s)-retour(s)</span>{L("Allers-retours (entrés puis sortis entre deux états)", sAr)}</>}</div>}
+      <ul className="text-xs text-slate-600 list-disc pl-5 space-y-0.5">
+        {(withDate(dm.entrees) + withDate(dm.sorties)) > 0 && <li>Les mouvements prendront la date déclarée par le parc (si elle tombe depuis l'état précédent).</li>}
+        {withNum > 0 && <li>{withNum} sortie(s) avec un n° de déclaration seront notées « justifiées (déclarées par le parc) », à valider par un agent.</li>}
+        {sAr.length > 0 && <li>{sAr.length} véhicule(s) entré(s) puis sorti(s) entre les deux états seront enregistrés (entrée et sortie).</li>}
+        {(sPres.length + eAbs.length) > 0 && <li>Les contradictions iront dans l'onglet « À régulariser » du parc.</li>}
+      </ul>
+    </div>);
+  }
   const d = parsed.declared || {};
   if (d.initial != null && d.final != null) blocks.push(<div key="t" className="text-xs text-slate-500">Résumé du parc : stock initial {d.initial} · entrées {d.entrees != null ? d.entrees : "?"} · sorties {d.sorties != null ? d.sorties : "?"} · stock final {d.final}</div>);
-  return <>{blocks}</>;
+  return <>{blocks}{list && <StkModal title={list.title} onClose={() => setList(null)}><div className="font-plex-mono text-sm columns-1 md:columns-2 gap-6">{list.items.map((x, i) => <div key={i} className="py-0.5 break-all">{x}</div>)}</div></StkModal>}</>;
 }
 function StkManualHeader({ wb, onApply }) {
   const [sheet, setSheet] = useState(wb.SheetNames[0]);

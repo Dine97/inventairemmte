@@ -15,6 +15,9 @@ const STK_FIELDS = {
   bl: "N° BL",
   importateur: "Importateur",
   statut: "Statut (fichier)",
+  date_mouvement: "Date d'entrée ou de sortie du parc",
+  justif_numero: "N° de déclaration (sortie)",
+  justif_type: "Type ou motif de sortie",
   ignore: "— Ignorer —"
 };
 const STK_BASE_SYNONYMS = {
@@ -29,7 +32,11 @@ const STK_BASE_SYNONYMS = {
   bl: ["BL", "NBL", "NUMBL", "NUMEROBL", "CONNAISSEMENT", "NCONNAISSEMENT", "NOBL"],
   manifeste: ["MANIFESTE", "NMANIFESTE", "NUMMANIFESTE", "ATP", "NATP"],
   importateur: ["IMPORTATEUR", "PROPRIETAIRE", "CLIENT", "DESTINATAIRE", "CONSIGNATAIRE"],
-  statut: ["STATUT", "ETAT", "SITUATION", "STATUS"]
+  statut: ["STATUT", "ETAT", "SITUATION", "STATUS"],
+  date_mouvement: ["DATESORTIE", "DATEDESORTIE", "DATEDESORTIEDUPARC", "DATESORTIEPARC", "DATEENLEVEMENT", "DATEDENLEVEMENT", "DATEMOUVEMENT", "DATEDUMOUVEMENT",
+    "DATEENTREEPARC", "DATEDENTREEPARC", "DATEENTREEAUPARC", "DATEDENTREEAUPARC", "DATEENTREESURLEPARC", "DATEDENTREESURLEPARC", "DATESORTIEDUPARC", "SORTIELE", "ENTRELE"],
+  justif_numero: ["NDECLARATION", "NUMERODECLARATION", "NUMERODEDECLARATION", "NDEDECLARATION", "DECLARATION", "NDECLA", "NDEC", "DECLARATIONN", "NLIQUIDATION", "LIQUIDATION", "NQUITTANCE", "QUITTANCE", "REFDECLARATION", "REFERENCEDECLARATION"],
+  justif_type: ["TYPEDESORTIE", "TYPESORTIE", "MOTIFSORTIE", "MOTIFDESORTIE", "MOTIF", "REGIME", "TYPEDECLARATION", "NATURESORTIE"]
 };
 const STK_MULTI_BRANDS = ["SEMI REMORQUE", "SEMI RQ", "MASSEY FERGUSON", "MERCEDES BENZ", "LAND ROVER", "RANGE ROVER", "ALFA ROMEO", "ASTON MARTIN", "ROLLS ROYCE", "GREAT WALL", "RENAULT TRUCK", "RENAULT TRUCKS", "MERCEDES-BENZ", "LAND-ROVER"];
 const STK_MONTHS = { JAN: 1, JANV: 1, JANVIER: 1, FEB: 2, FEV: 2, FEVR: 2, FEVRIER: 2, MAR: 3, MARS: 3, APR: 4, AVR: 4, AVRIL: 4, MAY: 5, MAI: 5, JUN: 6, JUIN: 6, JUL: 7, JUIL: 7, JUILLET: 7, AUG: 8, AOU: 8, AOUT: 8, SEP: 9, SEPT: 9, SEPTEMBRE: 9, OCT: 10, OCTOBRE: 10, NOV: 11, NOVEMBRE: 11, DEC: 12, DECEMBRE: 12 };
@@ -104,6 +111,8 @@ function stkFieldForHeader(h, synonyms) {
   if (/CONNAISS|^NBL$|^BL/.test(n)) return "bl";
   if (/IMPORTATEUR|PROPRIETAIRE|CLIENT/.test(n)) return "importateur";
   if (/STATUT|^ETAT/.test(n)) return "statut";
+  if (/DECLARATION|LIQUIDATION|QUITTANCE/.test(n)) return "justif_numero";
+  if (/^DATE.*(SORTIE|ENLEV)|^SORTIELE/.test(n)) return "date_mouvement";
   return null;
 }
 function stkBuildSynonyms(extra) {
@@ -203,13 +212,34 @@ function stkAutoMapping(header, dataRows, synonyms) {
   }
   return map;
 }
-function stkSheetRole(rows, headerRow, sheetName) {
+// Rôle d'une feuille : Stock, Entrées ou Sorties. Indices dans l'ordre : titre au-dessus du tableau, nom de la feuille,
+// colonnes (date de sortie, n° de déclaration → sorties ; date d'entrée au parc → entrées), nom du fichier.
+function stkRoleOfText(t) {
+  if (!t) return null;
+  if (/^STOCKENTREE|^ENTREES?(DE|DU|DES|AU|SUR|PARC|VEHICULE|$)|^LISTEDESENTREES|^ETATDESENTREES|^VEHICULESENTRES|^ENTREE[S]?$|^NOUVELLESENTREES/.test(t)) return "entrees";
+  if (/^STOCKSORTIE|^SORTIES?(DE|DU|DES|PARC|VEHICULE|$)|^LISTEDESSORTIES|^ETATDESSORTIES|^VEHICULESSORTIS|^ENLEVEMENTS?|^SORTIE[S]?$/.test(t)) return "sorties";
+  if (/^STOCK|^ETATDESTOCK|^ETATDUSTOCK|^SITUATIONDUSTOCK|^INVENTAIRE|^LISTEDESVEHICULES|^STOCKACTUEL|^STOCKFINAL/.test(t)) return "stock";
+  return null;
+}
+function stkRoleOfFile(fileName) {
+  const words = String(fileName || "").replace(/\.[a-z0-9]+$/i, "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toUpperCase().split(/[^A-Z0-9]+/);
+  if (words.some((w) => /^ENTREES?$|^ENTRES?$/.test(w))) return "entrees";
+  if (words.some((w) => /^SORTIES?$|^SORTIS?$|^ENLEVEMENTS?$/.test(w))) return "sorties";
+  return null;
+}
+function stkSheetRole(rows, headerRow, sheetName, header, map, fileName) {
   const texts = [];
   for (let i = 0; i < headerRow; i++) (rows[i] || []).forEach((c) => { const t = stkText(c); if (t && isNaN(Number(t))) texts.push(t); });
-  const last = stkNorm(texts.length ? texts[texts.length - 1] : "");
-  const name = stkNorm(sheetName);
-  const role = (t) => /^STOCKENTREE|^ENTREES?(DE|DU|$)|^LISTEDESENTREES/.test(t) ? "entrees" : /^STOCKSORTIE|^SORTIES?(DE|DU|$)|^LISTEDESSORTIES/.test(t) ? "sorties" : null;
-  return role(last) || role(name) || "stock";
+  const fromTitle = texts.slice(-3).reverse().map((t) => stkRoleOfText(stkNorm(t))).find(Boolean);
+  const fromName = stkRoleOfText(stkNorm(sheetName));
+  let fromCols = null;
+  if (header && map) {
+    const h = (j) => stkNorm(header[j]);
+    if (map.justif_numero != null || (map.date_mouvement != null && /SORTIE|ENLEV/.test(h(map.date_mouvement)))) fromCols = "sorties";
+    else if (map.date_mouvement != null && /ENTRE/.test(h(map.date_mouvement))) fromCols = "entrees";
+  }
+  return { role: fromTitle || fromName || fromCols || stkRoleOfFile(fileName) || "stock",
+    why: fromTitle ? "titre" : fromName ? "nom de la feuille" : fromCols ? "colonnes" : stkRoleOfFile(fileName) ? "nom du fichier" : "par défaut" };
 }
 function stkDeclared(rows, headerRow) {
   const out = {};
@@ -270,6 +300,7 @@ function stkReadSheet(rows, headerRow, map, sheetName) {
     }
     const chassis = stkNormChassis(cTxt);
     if (/^(TOTAL|CHASSIS|NBRE|NUMERO)/.test(chassis)) return;
+    if (stkNorm(cTxt) === stkNorm(header[map.chassis])) return; // en-tête répété (nouvelle page d'un PDF, tableau découpé)
     if (!/\d/.test(chassis) || chassis.length < 4) {
       if (r.filter((c) => c != null && stkText(c) !== "").length >= 3) skipped.push({ line, valeur: cTxt });
       return;
@@ -310,6 +341,9 @@ function stkReadSheet(rows, headerRow, map, sheetName) {
     rec.bl = stkText(get("bl")).toUpperCase() || null;
     rec.importateur = stkText(get("importateur")).toUpperCase() || null;
     rec.statut = stkText(get("statut")).toUpperCase() || null;
+    if (map.date_mouvement != null) { const pm = stkParseDate(get("date_mouvement")); rec.date_mouvement = pm ? pm.iso : null; }
+    if (map.justif_numero != null) rec.justif_numero = stkText(get("justif_numero")).toUpperCase() || null;
+    if (map.justif_type != null) rec.justif_type = stkText(get("justif_type")) || null;
     let annee = map.annee != null ? stkText(get("annee")) : "";
     if (/^\d+\.0$/.test(annee)) annee = annee.slice(0, -2);
     if (map.marque_modele != null) {
@@ -357,14 +391,31 @@ function stkParseWorkbook(wb, opts) {
     else map = stkAutoMapping(header, rows.slice(headerRow + 1), synonyms);
     if (map.chassis == null) return;
     map = Object.fromEntries(Object.entries(map).filter(([k, v]) => k !== "ignore" && v != null));
-    const role = stkSheetRole(rows, headerRow, name);
+    const fileName = (opts.fileOf && opts.fileOf[name]) || opts.fileName || "";
+    const auto = stkSheetRole(rows, headerRow, name, header, map, fileName);
+    const forcedRole = opts.roles && opts.roles[name];
+    const role = forcedRole || auto.role;
+    if (role === "ignorer") { sheets.push({ name, role, roleWhy: "choisi", auto: auto.role, headerRow, headerLine: (rows.offset || 0) + headerRow + 1, header: header.map(stkText), mapping: map, source, signature, rows: [], skipped: [], declared: {}, file: fileName }); return; }
+    // Feuille d'entrées ou de sorties : la colonne « Date » (ou « Date d'entrée ») est la date du mouvement
+    if (role !== "stock" && map.date_mouvement == null && map.date_arrivee == null) {
+      const j = header.findIndex((x) => /^DATES?$|^DATEMOUVEMENT$|^LE$/.test(stkNorm(x)));
+      if (j >= 0) map = { ...map, date_mouvement: j };
+    }
+    if (role !== "stock" && map.date_mouvement == null && map.date_arrivee != null && /^DATE$|^DATES$|ENTRE|SORTIE|ENLEV|MOUVEMENT/.test(stkNorm(header[map.date_arrivee]))) {
+      map = { ...map, date_mouvement: map.date_arrivee };
+      if (!/ARRIV|DEBARQ/.test(stkNorm(header[map.date_arrivee]))) delete map.date_arrivee;
+    }
     const read = stkReadSheet(rows, headerRow, map, name);
     if (!read.rows.length) return;
     sheets.push({
-      name, role, headerRow, headerLine: (rows.offset || 0) + headerRow + 1, header: header.map(stkText), mapping: map, source, signature,
+      name, role, roleWhy: forcedRole ? "choisi" : auto.why, auto: auto.role, file: fileName, headerRow, headerLine: (rows.offset || 0) + headerRow + 1, header: header.map(stkText), mapping: map, source, signature,
       rows: read.rows, grouped: read.grouped, skipped: read.skipped, declared: stkDeclared(rows, headerRow)
     });
   });
+  return stkAssemble(sheets);
+}
+// Réunit les feuilles lues (d'un ou de plusieurs fichiers) : stock, doublons, mouvements déclarés, anomalies
+function stkAssemble(sheets) {
   const stockSheets = sheets.filter((s) => s.role === "stock");
   const rows = [];
   stockSheets.forEach((s) => s.rows.forEach((r) => { if (stockSheets.length > 1) r.data.Onglet = s.name; rows.push(r); }));
@@ -379,6 +430,13 @@ function stkParseWorkbook(wb, opts) {
   const declEntrees = [], declSorties = [];
   sheets.filter((s) => s.role === "entrees").forEach((s) => s.rows.forEach((r) => declEntrees.push(r.chassis)));
   sheets.filter((s) => s.role === "sorties").forEach((s) => s.rows.forEach((r) => declSorties.push(r.chassis)));
+  // Mouvements déclarés (gardés avec l'import : date réelle, n° de déclaration, allers-retours, contradictions)
+  const declRow = (r) => { const o = { chassis: r.chassis }; ["chassis_raw", "marque", "modele", "annee", "navire", "manifeste", "bl", "date_arrivee", "importateur", "justif_numero", "justif_type"].forEach((k) => { if (r[k]) o[k] = r[k]; }); if (r.date_mouvement) o.date = r.date_mouvement; return o; };
+  const uniq = (list) => { const m = new Map(); list.forEach((r) => { if (!m.has(r.chassis)) m.set(r.chassis, r); }); return [...m.values()]; };
+  const declMoves = {
+    entrees: uniq([].concat(...sheets.filter((s) => s.role === "entrees").map((s) => s.rows.map(declRow)))),
+    sorties: uniq([].concat(...sheets.filter((s) => s.role === "sorties").map((s) => s.rows.map(declRow))))
+  };
   const count = (f) => rows.filter((r) => r.flags.includes(f)).length;
   const unique = seen.size;
   const anomalies = [];
@@ -392,9 +450,17 @@ function stkParseWorkbook(wb, opts) {
   const announced = declared.final != null ? declared.final : declared.total;
   if (announced != null && announced !== rows.length) anomalies.push({ code: "total_annonce", niveau: "alerte", texte: `Le parc annonce ${announced} véhicules, ${rows.length} lignes lues (${unique} châssis uniques)` });
   return {
-    sheets, rows, unique, duplicates, skipped, declared, declEntrees, declSorties, anomalies,
+    sheets, rows, unique, duplicates, skipped, declared, declEntrees, declSorties, declMoves, anomalies,
     signature: stockSheets[0] ? stockSheets[0].signature : "",
     headerRow: stockSheets[0] ? stockSheets[0].headerRow : null,
     mapping: stockSheets[0] ? stockSheets[0].mapping : null
   };
+}
+
+// Plusieurs fichiers du même parc et de la même date, lus séparément : réunis en une seule lecture
+function stkMergeParsed(list) {
+  const sheets = [];
+  list.forEach(({ parsed, label }) => parsed.sheets.forEach((sh) => sheets.push({ ...sh, name: label + " › " + sh.name,
+    rows: sh.rows.map((r) => ({ ...r, flags: r.flags.filter((f) => f !== "doublon"), data: { ...r.data } })) })));
+  return stkAssemble(sheets);
 }

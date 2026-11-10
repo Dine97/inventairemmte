@@ -81,12 +81,13 @@ function StkManualMoves({ preset }) {
       try { synonyms = (await stkCall("templates", {})).synonyms || []; } catch (e) {}
       let res;
       try { res = await stkParseBook(book, { synonyms }, (p) => setBusy(stkProgressText(p, f.size))); } finally { stkCloseBook(book); }
-      if (!res.rows.length) { setErr("Aucune colonne de châssis reconnue dans ce fichier. Vous pouvez aussi copier la colonne des châssis et la coller dans la zone de texte."); setBusy(""); return; }
       const all = [].concat(...res.sheets.map((s) => s.rows));
+      if (!all.length) { setErr("Aucune colonne de châssis reconnue dans ce fichier. Vous pouvez aussi copier la colonne des châssis et la coller dans la zone de texte."); setBusy(""); return; }
       const seen = new Set();
       const list = all.filter((r) => (seen.has(r.chassis) ? false : seen.add(r.chassis))).map((r) => ({
         chassis: r.chassis, chassis_raw: r.chassis_raw, marque: r.marque, modele: r.modele, annee: r.annee, navire: r.navire,
-        manifeste: r.manifeste, bl: r.bl, date_arrivee: r.date_arrivee, importateur: r.importateur
+        manifeste: r.manifeste, bl: r.bl, date_arrivee: r.date_arrivee, importateur: r.importateur,
+        ...(r.date_mouvement ? { date: r.date_mouvement } : {}), ...(r.justif_numero ? { justif_numero: r.justif_numero } : {})
       }));
       setItems(list); setFileName(f.name);
       if (!parc) { const g = parcNames.find((n) => stkNorm(f.name).includes(stkNorm(n))); if (g) setParc(g); }
@@ -186,7 +187,7 @@ function StkManualMoves({ preset }) {
       </form> : <div className="grid md:grid-cols-2 gap-3">
         <label className="block rounded-2xl border-2 border-dashed border-[#1B4F8C]/30 bg-[#F4F8FC] hover:bg-[#EAF1FA] p-5 text-center cursor-pointer"
           onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files && e.dataTransfer.files[0]); }}>
-          <input type="file" className="hidden" accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.txt" data-testid="move-file" onChange={(e) => { onFile(e.target.files && e.target.files[0]); e.target.value = ""; }} />
+          <input type="file" className="hidden" accept=".xlsx,.xls,.xlsm,.xlsb,.ods,.csv,.txt,.pdf" data-testid="move-file" onChange={(e) => { onFile(e.target.files && e.target.files[0]); e.target.value = ""; }} />
           <FileSpreadsheet size={28} className="mx-auto text-[#1B4F8C]" />
           <div className="font-bold text-[#123A66] mt-2">{fileName || "Fichier Excel des entrées ou des sorties"}</div>
           <div className="text-xs text-slate-500 mt-1">La colonne des châssis est reconnue automatiquement (marque, navire, date d'arrivée aussi si présentes).</div>

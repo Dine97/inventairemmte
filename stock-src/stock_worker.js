@@ -9,14 +9,16 @@ self.onmessage = (e) => {
   const { id, op, key } = e.data || {};
   const reply = (o) => self.postMessage(Object.assign({ id }, o));
   try {
-    if (op === "open") {
+    if (op === "open" || op === "rows") {
       reply({ progress: { phase: "ouverture" } });
-      const book = XLSX.read(e.data.buf, { cellDates: true, type: "array" });
+      // « rows » : tableau déjà extrait (fichier PDF), une feuille par tableau
+      const book = op === "rows" ? { SheetNames: Object.keys(e.data.sheets), Sheets: Object.fromEntries(Object.entries(e.data.sheets).map(([n, r]) => [n, { __rows: r }])) }
+        : XLSX.read(e.data.buf, { cellDates: true, type: "array" });
       const head = {};
       book.SheetNames.forEach((n, i) => {
         reply({ progress: { phase: "onglets", done: i, total: book.SheetNames.length } });
         const ws = book.Sheets[n];
-        const rows = stkSheetRows(ws);
+        const rows = ws.__rows || stkSheetRows(ws);
         ws.__rows = rows;
         const h = rows.slice(0, STK_HEAD);
         head[n] = { rows: h, offset: rows.offset || 0, total: rows.length };
@@ -24,8 +26,19 @@ self.onmessage = (e) => {
       STK_BOOKS.set(key, book);
       reply({ ok: { SheetNames: book.SheetNames, head } });
     } else if (op === "parse") {
-      const book = STK_BOOKS.get(key);
-      if (!book) throw new Error("fichier fermé, sélectionnez-le à nouveau");
+      // Plusieurs fichiers d'un même parc : leurs feuilles sont réunies (nom affiché « fichier › feuille »)
+      const keys = e.data.keys || [key];
+      let book;
+      if (keys.length === 1) { book = STK_BOOKS.get(keys[0]); if (!book) throw new Error("fichier fermé, sélectionnez-le à nouveau"); }
+      else {
+        book = { SheetNames: [], Sheets: {} };
+        keys.forEach((k, i) => {
+          const b = STK_BOOKS.get(k);
+          if (!b) throw new Error("fichier fermé, sélectionnez-le à nouveau");
+          const pre = (e.data.prefixes || [])[i] || ("Fichier " + (i + 1));
+          b.SheetNames.forEach((n) => { const nn = pre + " › " + n; book.SheetNames.push(nn); book.Sheets[nn] = b.Sheets[n]; });
+        });
+      }
       stkProgress = (done, total, sheet) => reply({ progress: { phase: "lignes", done, total, sheet } });
       const res = stkParseWorkbook(book, e.data.opts || {});
       stkProgress = null;

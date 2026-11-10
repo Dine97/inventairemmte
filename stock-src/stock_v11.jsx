@@ -631,7 +631,7 @@ function StkManifestImport({ ptus, ptuId, onClose, onDone }) {
       </div>
       <div className="grid md:grid-cols-2 gap-3">
         <StkCard className="p-4"><div className="font-bold text-[#0B1F38] mb-2">Fichier du manifeste (Excel)</div>
-          <input type="file" accept=".xlsx,.xls,.xlsm,.csv" onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} className="block text-sm" data-testid="f-man-file" />
+          <input type="file" accept=".xlsx,.xls,.xlsm,.csv,.pdf" onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} className="block text-sm" data-testid="f-man-file" />
           {fileName && <div className="text-xs text-slate-500 mt-2">{fileName} · {items.length} véhicule(s) lu(s)</div>}</StkCard>
         <StkCard className="p-4"><div className="font-bold text-[#0B1F38] mb-2">Ou coller les châssis</div>
           <textarea rows={3} value={paste} onChange={(e) => setPaste(e.target.value)} className={stkInput} placeholder="Un châssis par ligne" data-testid="f-man-paste" />

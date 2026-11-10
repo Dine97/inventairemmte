@@ -42,7 +42,109 @@ function stkWorkerCall(msg, onProgress, transfer) {
 }
 // Ouvre un fichier : renvoie un classeur utilisable comme avant (SheetNames, Sheets) ; avec le lecteur en arrière-plan,
 // chaque onglet ne contient que ses premières lignes, la lecture complète se fait avec stkParseBook.
+// ---------- Fichiers PDF : les tableaux sont reconstitués à partir du texte du PDF ----------
+let stkPdfP = null;
+function stkIsPdf(file) { return /\.pdf$/i.test(file.name || "") || file.type === "application/pdf"; }
+function stkLoadPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (stkPdfP) return stkPdfP;
+  stkPdfP = new Promise((resolve, reject) => {
+    const js = document.createElement("script"); js.src = "./lib/pdfjs/pdf.min.js";
+    js.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = "./lib/pdfjs/pdf.worker.min.js"; resolve(window.pdfjsLib); };
+    js.onerror = () => { stkPdfP = null; reject(new Error("lecteur PDF indisponible (connexion ?)")); };
+    document.head.appendChild(js);
+  });
+  return stkPdfP;
+}
+function stkPdfNorm(t) { return String(t || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toUpperCase(); }
+function stkPdfCol(m, cols) { let best = 0; for (let i = 1; i < cols.length; i++) if (m >= (cols[i - 1].m + cols[i].m) / 2) best = i; return best; }
+function stkPdfAssign(its, cols, typical) {
+  const row = new Array(cols.length).fill(null);
+  its.forEach((it) => {
+    let c = stkPdfCol(it.m, cols);
+    if (typical) for (const k in typical) if (Math.abs(typical[k].x - it.x) <= 2) { c = Number(k); break; }
+    row[c] = row[c] == null ? it.s : row[c] + " " + it.s;
+  });
+  return row;
+}
+// Renvoie { "Tableau 1": lignes, "Tableau 2": lignes… } : un tableau par section (stock, entrées, sorties) du PDF.
+// Les colonnes sont calées sur la position des intitulés de la ligne d'en-tête (celle qui contient « Châssis » ou « VIN »).
+async function stkPdfToSheets(file, onProgress) {
+  const lib = await stkLoadPdfJs();
+  const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+  const segs = [];
+  let cur = null, cols = null, chCol = -1, pending = [], nText = 0;
+  const isHeader = (cells) => cells.some((c) => /CHASSIS|(^|\W)VIN(\W|$)/.test(stkPdfNorm(c.s)));
+  for (let p = 1; p <= pdf.numPages; p++) {
+    if (onProgress) onProgress({ phase: "pdf", done: p, total: pdf.numPages });
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    const items = tc.items.filter((it) => it.str && it.str.trim()).map((it) => ({ x: it.transform[4], y: it.transform[5], w: it.width || 0, s: it.str, h: Math.abs(it.transform[3]) || 8 }));
+    nText += items.length;
+    items.sort((a, b) => b.y - a.y || a.x - b.x);
+    const lines = [];
+    items.forEach((it) => { const L = lines.find((l) => Math.abs(l.y - it.y) <= Math.max(2, it.h * 0.45)); if (L) L.items.push(it); else lines.push({ y: it.y, items: [it] }); });
+    lines.sort((a, b) => b.y - a.y);
+    for (const L of lines) {
+      L.items.sort((a, b) => a.x - b.x);
+      const cells = [];
+      L.items.forEach((it) => {
+        const c = cells[cells.length - 1], gap = c ? it.x - c.x2 : 1e9;
+        if (c && gap < Math.max(3, it.h * 0.6)) { c.s += (gap > it.h * 0.12 ? " " : "") + it.s; c.x2 = Math.max(c.x2, it.x + it.w); }
+        else cells.push({ x: it.x, x2: it.x + it.w, s: it.s });
+      });
+      if (isHeader(cells)) {
+        // nouvelle section si un titre (Entrées, Sorties, Stock…) précède cet en-tête
+        const titled = pending.some((t) => stkRoleOfText(stkNorm(t)));
+        if (!cur || (cur.data > 0 && titled)) { cur = { rows: [], data: 0 }; segs.push(cur); }
+        pending.forEach((t) => cur.rows.push([t]));
+        pending = [];
+        cols = cells.map((c) => ({ x: c.x, x2: c.x2, m: (c.x + c.x2) / 2 }));
+        chCol = cells.findIndex((c) => /CHASSIS|(^|\W)VIN(\W|$)/.test(stkPdfNorm(c.s)));
+        cur.rows.push(cells.map((c) => c.s.trim()));
+        continue;
+      }
+      if (!cols) { pending.push(cells.map((c) => c.s).join(" ").trim()); if (pending.length > 6) pending.shift(); continue; }
+      const its = L.items.map((it) => ({ x: it.x, m: it.x + it.w / 2, s: it.s.trim() }));
+      const row = stkPdfAssign(its, cols, null);
+      const cv = chCol >= 0 ? row[chCol] : null;
+      const hasChassis = !!cv && stkLooksChassis(cv) && !/\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}/.test(cv);
+      if (!hasChassis) { pending.push(cells.map((c) => c.s).join(" ").trim()); if (pending.length > 6) pending.shift(); }
+      else { pending = []; cur.data++; }
+      cur.rows.push(row);
+      (cur.raw = cur.raw || []).push({ i: cur.rows.length - 1, its, cols });
+    }
+  }
+  if (!nText) throw new Error("ce PDF est une image (document scanné) : il ne contient pas de texte. Demandez au parc le fichier Excel ou un PDF enregistré depuis Excel ou Word.");
+  if (!segs.length) throw new Error("aucun tableau de châssis trouvé dans ce PDF (pas de colonne « Châssis » ou « VIN »).");
+  // 2e passage : chaque colonne a un début de texte habituel (valeurs alignées à gauche) ; un morceau qui commence
+  // exactement là appartient à cette colonne, même s'il est court (ex. un châssis de 6 chiffres)
+  segs.forEach((g) => {
+    if (!g.raw) return;
+    const starts = new Map();
+    g.raw.forEach((r) => { const row = r.cols; r.its.forEach((it) => { const c = stkPdfCol(it.m, row); const k = c + ":" + Math.round(it.x); starts.set(k, (starts.get(k) || 0) + 1); }); });
+    const typical = {};
+    starts.forEach((n, k) => { const [c, x] = k.split(":").map(Number); if (n >= 3 && (!typical[c] || n > typical[c].n)) typical[c] = { x, n }; });
+    g.raw.forEach((r) => { g.rows[r.i] = stkPdfAssign(r.its, r.cols, typical); });
+  });
+  const out = {};
+  segs.forEach((g, i) => { g.rows.offset = 0; out[segs.length > 1 ? `Tableau ${i + 1}` : "Tableau"] = g.rows; });
+  return out;
+}
 async function stkOpenWorkbook(file, onProgress) {
+  if (stkIsPdf(file)) {
+    const sheets = await stkPdfToSheets(file, onProgress);
+    if (stkWorker()) {
+      try {
+        const key = "f" + stkWkSeq++;
+        const r = await stkWorkerCall({ op: "rows", key, sheets }, onProgress);
+        const Sheets = {};
+        r.SheetNames.forEach((n) => { const h = r.head[n]; const rows = h.rows; rows.offset = h.offset; Sheets[n] = { __rows: rows, __total: h.total }; });
+        return { SheetNames: r.SheetNames, Sheets, __key: key, __size: file.size, __files: [file.name], __pdf: true };
+      } catch (e) { if (!e.infra) throw e; }
+    }
+    return { SheetNames: Object.keys(sheets), Sheets: Object.fromEntries(Object.entries(sheets).map(([n, r]) => [n, { __rows: r }])), __files: [file.name], __pdf: true };
+  }
   if (stkWorker()) {
     try {
       const key = "f" + stkWkSeq++;
@@ -50,26 +152,49 @@ async function stkOpenWorkbook(file, onProgress) {
       const r = await stkWorkerCall({ op: "open", key, buf }, onProgress, [buf]);
       const Sheets = {};
       r.SheetNames.forEach((n) => { const h = r.head[n]; const rows = h.rows; rows.offset = h.offset; Sheets[n] = { __rows: rows, __total: h.total }; });
-      return { SheetNames: r.SheetNames, Sheets, __key: key, __size: file.size };
+      return { SheetNames: r.SheetNames, Sheets, __key: key, __size: file.size, __files: [file.name] };
     } catch (e) { if (!e.infra) throw e; }
   }
   if (onProgress) onProgress({ phase: "ouverture" });
   await new Promise((r) => setTimeout(r, 30)); // laisse l'écran afficher « Ouverture… »
-  return XLSX.read(await file.arrayBuffer(), { cellDates: true, type: "array" });
+  const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true, type: "array" });
+  wb.__files = [file.name];
+  return wb;
+}
+// Plusieurs fichiers d'un même parc (stock, entrées, sorties ; Excel ou PDF) : leurs feuilles sont réunies
+function stkFileLabel(name) { return String(name || "").replace(/\.[a-z0-9]+$/i, ""); }
+async function stkOpenWorkbooks(files, onProgress) {
+  const books = [];
+  try { for (const f of files) books.push(await stkOpenWorkbook(f, onProgress)); }
+  catch (e) { books.forEach(stkCloseBook); throw e; }
+  if (books.length === 1) { const b = books[0]; b.__fileOf = Object.fromEntries(b.SheetNames.map((n) => [n, files[0].name])); return b; }
+  const used = new Set();
+  const prefixes = files.map((f) => { let p = stkFileLabel(f.name), q = p, i = 2; while (used.has(q)) q = `${p} (${i++})`; used.add(q); return q; });
+  const out = { SheetNames: [], Sheets: {}, __parts: books, __prefixes: prefixes, __files: files.map((f) => f.name), __fileOf: {}, __size: files.reduce((a, f) => a + f.size, 0) };
+  books.forEach((b, i) => b.SheetNames.forEach((n) => { const nn = prefixes[i] + " › " + n; out.SheetNames.push(nn); out.Sheets[nn] = b.Sheets[n]; out.__fileOf[nn] = files[i].name; }));
+  if (books.every((b) => b.__key)) out.__keys = books.map((b) => b.__key);
+  return out;
 }
 async function stkParseBook(book, opts, onProgress) {
-  if (book && book.__key) {
-    try { return await stkWorkerCall({ op: "parse", key: book.__key, opts }, onProgress); }
+  opts = { ...opts, fileOf: book && book.__fileOf, fileName: book && book.__files && book.__files.length === 1 ? book.__files[0] : "" };
+  const keys = book && (book.__keys || (book.__key ? [book.__key] : null));
+  if (keys) {
+    try { return await stkWorkerCall({ op: "parse", keys, prefixes: book.__prefixes, opts }, onProgress); }
     catch (e) { if (!e.infra) throw e; throw new Error("la lecture en arrière-plan s'est interrompue, sélectionnez à nouveau le fichier"); }
   }
   return stkParseWorkbook(book, opts);
 }
-function stkCloseBook(book) { if (book && book.__key && stkWk) stkWorkerCall({ op: "close", key: book.__key }).catch(() => {}); }
+function stkCloseBook(book) {
+  if (!book) return;
+  if (book.__parts) { book.__parts.forEach(stkCloseBook); return; }
+  if (book.__key && stkWk) stkWorkerCall({ op: "close", key: book.__key }).catch(() => {});
+}
 // Texte d'avancement : « Ouverture du fichier (1,0 Mo)… », « Lecture des lignes… 6 000 / 15 000 »
 function stkProgressText(p, size) {
   if (!p) return "";
   if (p.phase === "ouverture") return `Ouverture du fichier${size ? ` (${(size / 1048576).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo)` : ""}…`;
   if (p.phase === "onglets") return `Préparation des onglets… ${p.done + 1} / ${p.total}`;
+  if (p.phase === "pdf") return `Lecture du PDF… page ${p.done} / ${p.total}`;
   if (p.phase === "lignes") return `Lecture des lignes… ${Number(p.done).toLocaleString("fr-FR")} / ${Number(p.total).toLocaleString("fr-FR")}`;
   return "Lecture…";
 }

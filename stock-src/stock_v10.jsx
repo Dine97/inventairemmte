@@ -8,6 +8,8 @@ const STK_REG = {
   chassis_proche: { t: "Faute de frappe probable", d: "Entrée et sortie le même jour de deux châssis presque identiques : sans doute le même véhicule mal saisi.", tone: "bg-violet-50 text-violet-800 border-violet-200" },
   sans_date: { t: "Date d'arrivée manquante", d: "Sans date d'arrivée du navire, la date de dépôt ne peut pas être calculée.", tone: "bg-slate-50 text-slate-700 border-slate-300" },
   chassis_atypique: { t: "Châssis atypique", d: "Pas 17 caractères, ou lettres I, O, Q : vérifier la saisie (les engins anciens peuvent être plus courts).", tone: "bg-slate-50 text-slate-700 border-slate-300" },
+  declare_sorti_present: { t: "Déclaré sorti, toujours en stock", d: "Le parc a déclaré ce véhicule sorti, mais il figure encore dans son dernier état de stock.", tone: "bg-rose-50 text-rose-800 border-rose-200" },
+  declare_entre_absent: { t: "Déclaré entré, absent du stock", d: "Le parc a déclaré cette entrée, mais le véhicule n'est pas dans son dernier état de stock.", tone: "bg-amber-50 text-amber-900 border-amber-300" },
   incoherence_vin: { t: "Incohérence VIN (information)", d: "La marque déclarée par le parc ne correspond pas au constructeur indiqué par le numéro de châssis. Simple information : rien n'est modifié.", tone: "bg-[#F7FAFE] text-[#123A66] border-[#9DB9DA]" }
 };
 // Incohérences VIN calculées sur le stock du parc (information seulement)
@@ -25,6 +27,8 @@ function stkRegDetail(r) {
   if (r.motif === "chassis_proche") return `sorti le même jour : ${d.autre_chassis}`;
   if (r.motif === "sans_date") return `dans le parc depuis le ${stkFmt(r.date_ref)}`;
   if (r.motif === "chassis_atypique") return `${r.jours} caractères`;
+  if (r.motif === "declare_sorti_present") return `sortie déclarée${d.date_declaree ? " le " + stkFmt(d.date_declaree) : ""}${d.numero ? " · déclaration " + d.numero : ""}`;
+  if (r.motif === "declare_entre_absent") return `entrée déclarée${d.date_declaree ? " le " + stkFmt(d.date_declaree) : ""}`;
   if (r.motif === "incoherence_vin") return `déclaré ${d.declare}, le numéro indique ${d.constructeur}`;
   return "";
 }
@@ -75,7 +79,7 @@ function StkRegulariser({ parcId, parcName, onChanged, extra }) {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrer : châssis, marque, navire..." className={`${stkInput} flex-1 min-w-[180px]`} />
         <StkExportBar disabled={!list.length} onXlsx={() => exp("x")} onPdf={() => exp("p")} />
       </div>
-      <StkTable rows={list} rowKey={(r) => [r.motif, r.vehicle_id, r.autre_parc, r.date_ref, r.jours, (r.detail || {}).autre_chassis].join("|")} onRow={(r) => openVehicle({ id: r.vehicle_id })} initial={200} empty="Aucun véhicule." columns={[
+      <StkTable rows={list} rowKey={(r) => [r.motif, r.vehicle_id, r.chassis, r.autre_parc, r.date_ref, r.jours, (r.detail || {}).autre_chassis].join("|")} onRow={(r) => r.vehicle_id ? openVehicle({ id: r.vehicle_id }) : openVehicle({ chassis: r.chassis })} initial={200} empty="Aucun véhicule." columns={[
         { key: "motif", label: "Situation", sort: (r) => STK_REG_ORDER.indexOf(r.motif), render: (r) => <StkBadge tone={STK_REG[r.motif].tone}>{STK_REG[r.motif].t}</StkBadge> },
         { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] whitespace-nowrap">{r.chassis}</span> },
         { key: "veh", label: "Véhicule", sort: (r) => stkVeh(r), render: (r) => <span className="text-slate-700">{stkVeh(r) || "—"}</span> },
