@@ -166,8 +166,10 @@ function StkParcIdentity({ parcId, parcName }) {
             {isAdmin && <StkBtn small onClick={() => setEdit(true)} data-testid="btn-edit-identity"><StkIc.Edit size={14} /> Modifier</StkBtn>}
           </div>
           <div className="grid sm:grid-cols-2 gap-2">
-            <Person role="Chef de parc" nom={p.chef_parc_nom} tel={p.chef_parc_tel} />
-            <Person role="Chef trafic" nom={p.chef_trafic_nom} tel={p.chef_trafic_tel} />
+            {isPtu ? <Person role="Chargé des transferts" nom={p.chef_parc_nom} tel={p.chef_parc_tel} /> : <>
+              <Person role="Chef de parc" nom={p.chef_parc_nom} tel={p.chef_parc_tel} />
+              <Person role="Chef trafic" nom={p.chef_trafic_nom} tel={p.chef_trafic_tel} />
+            </>}
           </div>
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
             <div className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500">Adresse et localisation</div>
@@ -252,10 +254,13 @@ function StkIdentityForm({ parc, zones, onClose, onSaved }) {
   return <StkModal title={`Identité du parc ${parc.name}`} onClose={onClose} footer={<><StkBtn onClick={onClose}>Annuler</StkBtn><StkBtn kind="primary" disabled={busy} onClick={save} data-testid="save-identity">Enregistrer</StkBtn></>}>
     <div className="space-y-3">
       <div className="grid sm:grid-cols-2 gap-3">
-        <StkField label="Nom du chef de parc"><input value={f.chef_parc_nom} onChange={set("chef_parc_nom")} className={stkInput} data-testid="f-chef-parc" /></StkField>
-        <StkField label="Téléphone du chef de parc"><input type="tel" value={f.chef_parc_tel} onChange={set("chef_parc_tel")} className={stkInput} placeholder="01 00 00 00 00" /></StkField>
-        <StkField label="Nom du chef trafic"><input value={f.chef_trafic_nom} onChange={set("chef_trafic_nom")} className={stkInput} /></StkField>
-        <StkField label="Téléphone du chef trafic"><input type="tel" value={f.chef_trafic_tel} onChange={set("chef_trafic_tel")} className={stkInput} /></StkField>
+        {/* Pour un PTU, le chargé des transferts est enregistré à la place du chef de parc */}
+        <StkField label={f.type === "ptu" ? "Nom du chargé des transferts" : "Nom du chef de parc"}><input value={f.chef_parc_nom} onChange={set("chef_parc_nom")} className={stkInput} data-testid="f-chef-parc" /></StkField>
+        <StkField label={f.type === "ptu" ? "Téléphone du chargé des transferts" : "Téléphone du chef de parc"}><input type="tel" value={f.chef_parc_tel} onChange={set("chef_parc_tel")} className={stkInput} placeholder="01 00 00 00 00" /></StkField>
+        {f.type !== "ptu" && <>
+          <StkField label="Nom du chef trafic"><input value={f.chef_trafic_nom} onChange={set("chef_trafic_nom")} className={stkInput} /></StkField>
+          <StkField label="Téléphone du chef trafic"><input type="tel" value={f.chef_trafic_tel} onChange={set("chef_trafic_tel")} className={stkInput} /></StkField>
+        </>}
       </div>
       <StkField label="Zone du parc">
         <div className="flex flex-wrap gap-2">{zones.map((z) => <button type="button" key={z} onClick={() => setF((x) => ({ ...x, zone: x.zone === z ? "" : z }))} data-testid={"zone-" + z}
