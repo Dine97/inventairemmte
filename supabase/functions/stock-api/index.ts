@@ -101,6 +101,21 @@ async function auditMany(who: Who, rows: { action: string; entity: string; entit
 }
 function adminOnly(who: Who) { if (!who.isAdmin) throw new ApiError("RESERVE_ADMIN", 403); }
 function agentOnly(who: Who) { if (!who.isAdmin && who.access !== "agent") throw new ApiError("LECTURE_SEULE", 403); }
+// Droits réglables par l'administrateur (Paramètres → Droits) : « agent » = agents et administrateurs, « admin » = administrateurs seulement
+const DROITS_DEF: Record<string, string> = { importer: "agent", saisir: "agent", justifier: "agent", transferts: "agent", relancer: "agent", contacts: "agent", manifestes: "agent", enlevement: "agent" };
+let settingsCache: { at: number; m: Record<string, any> } | null = null;
+async function settingsCached() {
+  if (settingsCache && Date.now() - settingsCache.at < 30e3) return settingsCache.m;
+  const m = await settingsMap();
+  settingsCache = { at: Date.now(), m };
+  return m;
+}
+async function can(who: Who, key: string) {
+  agentOnly(who);
+  if (who.isAdmin) return;
+  const d = (await settingsCached()).droits || {};
+  if ((d[key] || DROITS_DEF[key] || "agent") === "admin") throw new ApiError("RESERVE_ADMIN", 403);
+}
 function pick(o: any, keys: string[]) { const r: any = {}; for (const k of keys) if (o && k in o) r[k] = o[k] === "" ? null : o[k]; return r; }
 const today = () => new Date(Date.now() + 3600e3).toISOString().slice(0, 10); // heure du Bénin
 
@@ -120,6 +135,27 @@ async function dashboard(ref?: string) {
   return must(await sb.rpc("stock_dashboard", { p_ref: ref || today(), p_duree: Number(s.duree_sejour) || 365, p_seuil: Number(s.seuil_alerte) || 30, p_mmte: s.source_depot === "mmte" }));
 }
 
+
+async function parcsMeta() {
+  const [parcs, agr] = await Promise.all([
+    sb.from("parcs").select("id,name,type,zone,photo_path").is("deleted_at", null),
+    sb.from("parc_agrements").select("parc_id,date_echeance").is("deleted_at", null),
+  ]);
+  const last: Record<string, string> = {};
+  for (const a of must(agr) as any[]) if (!last[a.parc_id] || a.date_echeance > last[a.parc_id]) last[a.parc_id] = a.date_echeance;
+  return (must(parcs) as any[]).map((x) => ({ id: x.id, name: x.name, type: x.type, zone: x.zone, photo: !!x.photo_path, agrement: last[x.id] || null }));
+}
+async function parcsUpload(parcId: number, kind: string, b64: string, name: string, type: string) {
+  if (!b64) throw new ApiError("FICHIER_MANQUANT");
+  const bin = Uint8Array.from(atob(String(b64)), (c) => c.charCodeAt(0));
+  if (bin.length > 12 * 1024 * 1024) throw new ApiError("FICHIER_TROP_GROS");
+  const safe = String(name || kind).normalize("NFKD").replace(/[^\w.\-]+/g, "_").slice(-80);
+  const path = `${parcId}/${kind}_${Date.now()}_${safe}`;
+  const up = await sb.storage.from("parcs").upload(path, bin, { contentType: type || "application/octet-stream", upsert: false });
+  if (up.error) throw new ApiError(up.error.message, 500);
+  return { path, name: name || safe, type: type || "", size: bin.length };
+}
+
 const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
   async me(_p, who) { return who; },
 
@@ -132,7 +168,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     }
     const [settings, dash] = await Promise.all([settingsMap(), dashboard(p.ref)]);
     const lastImports = must(await sb.from("imports").select("id,parc_id,stock_date,file_name,nb_chassis,nb_entrees,nb_sorties,nb_transferts,status,created_by_name,created_at,parcs(name)").order("created_at", { ascending: false }).limit(8));
-    return { me: who, settings, dashboard: dash, lastImports, today: today() };
+    return { me: who, settings, dashboard: dash, lastImports, today: today(), parcsMeta: await parcsMeta() };
   },
 
   async dashboard(p) { return dashboard(p.ref); },
@@ -240,7 +276,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
   },
 
   async commit_import(p, who) {
-    agentOnly(who);
+    await can(who, "importer");
     if (!p.parc_name || !p.stock_date || !Array.isArray(p.rows)) throw new ApiError("DONNEES_INCOMPLETES");
     const payload = { ...p, by_uid: who.uid, by_name: who.name };
     delete payload.template;
@@ -298,7 +334,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
 
   // ---- Justification des sorties (facultatif, agents MMTE) ----
   async justify(p, who) {
-    agentOnly(who);
+    await can(who, "justifier");
     const ids: number[] = (p.stay_ids || []).map(Number).filter(Boolean);
     if (!ids.length) throw new ApiError("AUCUNE_SORTIE");
     const f = pick(p, JUSTIF_FIELDS);
@@ -314,7 +350,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return { ok: true, warning };
   },
   async unjustify(p, who) {
-    agentOnly(who);
+    await can(who, "justifier");
     const ids: number[] = (p.stay_ids || []).map(Number).filter(Boolean);
     const cur = must(await sb.from("stays").select("id,justif_status,vehicle_id").in("id", ids)) as any[];
     if (!who.isAdmin && cur.some((c) => c.justif_status === "validee")) throw new ApiError("DEJA_VALIDEE");
@@ -331,7 +367,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return { ok: true };
   },
   async upload_file(p, who) {
-    agentOnly(who);
+    await can(who, "justifier");
     const ids: number[] = (p.stay_ids || []).map(Number).filter(Boolean);
     if (!ids.length || !p.b64) throw new ApiError("FICHIER_MANQUANT");
     const bin = Uint8Array.from(atob(String(p.b64)), (c) => c.charCodeAt(0));
@@ -346,8 +382,10 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     await auditMany(who, cur.map((c) => ({ action: "piece_jointe", entity: "vehicle", entity_id: c.vehicle_id, detail: `Pièce jointe ajoutée : ${file.name}` })));
     return file;
   },
-  async file_url(p) {
-    const r = await sb.storage.from("justificatifs").createSignedUrl(String(p.path), 600);
+  async file_url(p, who) {
+    const bucket = p.bucket === "parcs" ? "parcs" : "justificatifs";
+    if (bucket === "parcs" && !who.isAdmin && (await settingsCached()).identite_visible === "admin") throw new ApiError("RESERVE_ADMIN", 403);
+    const r = await sb.storage.from(bucket).createSignedUrl(String(p.path), 600);
     if (r.error) throw new ApiError(r.error.message, 404);
     return { url: r.data.signedUrl };
   },
@@ -563,6 +601,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     adminOnly(who);
     const before = must(await sb.from("settings").select("value").eq("key", String(p.key)).maybeSingle());
     must(await sb.from("settings").upsert({ key: String(p.key), value: p.value, updated_at: new Date().toISOString(), updated_by: who.name }));
+    settingsCache = null;
     await audit(who, "parametre", "settings", p.key, `Paramètre ${p.key}`, before, { value: p.value });
     return { ok: true };
   },
@@ -638,14 +677,14 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
   async coverage() {
     const since = new Date(Date.now() - 80 * 864e5).toISOString().slice(0, 10);
     const [parcs, imps, rel] = await Promise.all([
-      sb.from("parcs").select("id,name,active,suivi_hebdo,contact_nom,contact_email,contact_tel").is("deleted_at", null).order("name"),
+      sb.from("parcs").select("id,name,active,type,suivi_hebdo,contact_nom,contact_email,contact_tel").is("deleted_at", null).order("name"),
       fetchAll(() => sb.from("imports").select("parc_id,stock_date,created_at").eq("status", "valide").gte("stock_date", since).order("id"), 100000),
       sb.from("stock_relances").select("parc_id,semaine,niveau,canal,by_name,at").gte("semaine", since).order("at", { ascending: false }),
     ]);
     return { today: today(), parcs: must(parcs), imports: imps, relances: must(rel) };
   },
   async parc_contact_set(p, who) {
-    agentOnly(who);
+    await can(who, "contacts");
     const id = Number(p.parc_id);
     if (!id) throw new ApiError("PARC_MANQUANT");
     const cut = (x: unknown, n: number) => (x == null || String(x).trim() === "" ? null : String(x).trim().slice(0, n));
@@ -656,7 +695,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return { ok: true };
   },
   async relance_add(p, who) {
-    agentOnly(who);
+    await can(who, "relancer");
     const list = (Array.isArray(p.items) ? p.items : []).filter((x: any) => Number(x.parc_id) && /^\d{4}-\d{2}-\d{2}$/.test(String(x.semaine))).slice(0, 200);
     if (!list.length) throw new ApiError("AUCUN_PARC");
     must(await sb.from("stock_relances").insert(list.map((x: any) => ({ parc_id: Number(x.parc_id), semaine: x.semaine, niveau: Number(x.niveau) === 2 ? 2 : 1, canal: String(p.canal || "").slice(0, 20) || null, by_uid: who.uid, by_name: who.name }))));
@@ -691,7 +730,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return must(await sb.rpc("stock_transfer_candidates", { p_max_days: 180 }));
   },
   async transfer_decide(p, who) {
-    agentOnly(who);
+    await can(who, "transferts");
     const key = { vehicle_id: Number(p.vehicle_id), from_parc_id: Number(p.depart_id), exit_date: String(p.date_sortie), to_parc_id: Number(p.arrivee_id), entry_date: String(p.date_arrivee) };
     if (!key.vehicle_id || !key.from_parc_id || !key.to_parc_id || !/^\d{4}-\d{2}-\d{2}$/.test(key.exit_date) || !/^\d{4}-\d{2}-\d{2}$/.test(key.entry_date)) throw new ApiError("DONNEES_INCOMPLETES");
     const decision = p.decision === "transfert" ? "transfert" : "distinct";
@@ -726,6 +765,223 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return must(await sb.rpc("stock_regulariser", { p_parc: Number(p.parc_id), p_ref: today(), p_duree: Number(s.duree_sejour) || 365, p_mmte: s.source_depot === "mmte" }));
   },
 
+
+  // ---- Carte d'identité des parcs (modifiable par l'administrateur seulement) ----
+  async parc_identity(p, who) {
+    const id = Number(p.parc_id);
+    if (!id) throw new ApiError("PARC_MANQUANT");
+    const parc = must(await sb.from("parcs").select("id,name,type,zone,adresse,chef_parc_nom,chef_parc_tel,chef_trafic_nom,chef_trafic_tel,gps_lat,gps_lng,gps_at,gps_by,photo_path,identite_at,identite_by,contact_nom,contact_email,contact_tel,note").eq("id", id).maybeSingle()) as any;
+    if (!parc) throw new ApiError("PARC_INCONNU", 404);
+    if (!who.isAdmin && (await settingsCached()).identite_visible === "admin") return { hidden: true, parc: { id: parc.id, name: parc.name, type: parc.type, zone: parc.zone } };
+    const [agr, rap] = await Promise.all([
+      sb.from("parc_agrements").select("*").eq("parc_id", id).is("deleted_at", null).order("date_echeance", { ascending: false }).order("id", { ascending: false }),
+      sb.from("parc_rapports").select("*").eq("parc_id", id).is("deleted_at", null).order("date_rapport", { ascending: false }).order("id", { ascending: false }),
+    ]);
+    return { parc, agrements: must(agr), rapports: must(rap) };
+  },
+  async parc_identity_save(p, who) {
+    adminOnly(who);
+    const id = Number(p.parc_id);
+    if (!id) throw new ApiError("PARC_MANQUANT");
+    const s = await settingsCached();
+    const zones: string[] = Array.isArray(s.zones) ? s.zones : ["Sèkandji", "MIVVO", "RITIS"];
+    const cut = (x: unknown, n: number) => (x == null || String(x).trim() === "" ? null : String(x).trim().slice(0, n));
+    const f: any = {
+      chef_parc_nom: cut(p.chef_parc_nom, 200), chef_parc_tel: cut(p.chef_parc_tel, 100),
+      chef_trafic_nom: cut(p.chef_trafic_nom, 200), chef_trafic_tel: cut(p.chef_trafic_tel, 100),
+      adresse: cut(p.adresse, 1000), zone: cut(p.zone, 100),
+      identite_at: new Date().toISOString(), identite_by: who.name,
+    };
+    if (f.zone && !zones.includes(f.zone)) throw new ApiError("ZONE_INCONNUE");
+    if (p.type === "parc" || p.type === "ptu") { f.type = p.type; if (p.type === "ptu") f.suivi_hebdo = false; }
+    const before = must(await sb.from("parcs").select("name,type,zone,adresse,chef_parc_nom,chef_parc_tel,chef_trafic_nom,chef_trafic_tel").eq("id", id).maybeSingle()) as any;
+    must(await sb.from("parcs").update(f).eq("id", id));
+    await audit(who, "identite_parc", "parc", id, `Identité du parc ${before ? before.name : id} modifiée`, before, f);
+    return { ok: true };
+  },
+  async parc_gps_set(p, who) {
+    adminOnly(who);
+    const id = Number(p.parc_id), lat = Number(p.lat), lng = Number(p.lng);
+    if (!id) throw new ApiError("PARC_MANQUANT");
+    const clear = p.clear === true;
+    if (!clear && (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180)) throw new ApiError("POSITION_INVALIDE");
+    must(await sb.from("parcs").update(clear ? { gps_lat: null, gps_lng: null, gps_at: null, gps_by: null } : { gps_lat: lat, gps_lng: lng, gps_at: new Date().toISOString(), gps_by: who.name }).eq("id", id));
+    await audit(who, "identite_parc", "parc", id, clear ? "Localisation du parc effacée" : `Localisation du parc fixée : ${lat.toFixed(6)}, ${lng.toFixed(6)}${p.accuracy ? " (précision " + Math.round(Number(p.accuracy)) + " m)" : ""}`);
+    return { ok: true };
+  },
+  async parc_photo_upload(p, who) {
+    adminOnly(who);
+    const id = Number(p.parc_id);
+    if (!id) throw new ApiError("PARC_MANQUANT");
+    const cur = must(await sb.from("parcs").select("name,photo_path").eq("id", id).maybeSingle()) as any;
+    if (p.remove) {
+      if (cur?.photo_path) await sb.storage.from("parcs").remove([cur.photo_path]);
+      must(await sb.from("parcs").update({ photo_path: null }).eq("id", id));
+      await audit(who, "identite_parc", "parc", id, `Photo de façade retirée (${cur?.name || id})`);
+      return { ok: true };
+    }
+    const path = await parcsUpload(id, "facade", p.b64, p.name || "facade.jpg", p.type || "image/jpeg");
+    must(await sb.from("parcs").update({ photo_path: path.path }).eq("id", id));
+    if (cur?.photo_path) await sb.storage.from("parcs").remove([cur.photo_path]);
+    await audit(who, "identite_parc", "parc", id, `Photo de façade ajoutée (${cur?.name || id})`);
+    return { path: path.path };
+  },
+  async agrement_save(p, who) {
+    adminOnly(who);
+    const parc_id = Number(p.parc_id);
+    if (!parc_id) throw new ApiError("PARC_MANQUANT");
+    const iso = /^\d{4}-\d{2}-\d{2}$/;
+    if (!iso.test(String(p.date_emission)) || !iso.test(String(p.date_echeance))) throw new ApiError("DATES_AGREMENT");
+    if (String(p.date_echeance) < String(p.date_emission)) throw new ApiError("DATES_AGREMENT");
+    const f: any = { parc_id, numero: p.numero ? String(p.numero).trim().slice(0, 100) : null, date_emission: p.date_emission, date_echeance: p.date_echeance, note: p.note ? String(p.note).slice(0, 1000) : null };
+    if (p.b64) { const u = await parcsUpload(parc_id, "agrement", p.b64, p.file_name || "agrement", p.file_type || ""); Object.assign(f, { file_path: u.path, file_name: u.name, file_type: u.type, file_size: u.size }); }
+    const nm = ((must(await sb.from("parcs").select("name").eq("id", parc_id).maybeSingle()) as any) || {}).name || parc_id;
+    if (p.id) {
+      const before = must(await sb.from("parc_agrements").select("*").eq("id", Number(p.id)).maybeSingle()) as any;
+      must(await sb.from("parc_agrements").update({ ...f, updated_by: who.name, updated_at: new Date().toISOString() }).eq("id", Number(p.id)));
+      if (f.file_path && before?.file_path) await sb.storage.from("parcs").remove([before.file_path]);
+      await audit(who, "agrement", "parc", parc_id, `Agrément ${f.numero || ""} du parc ${nm} modifié (échéance ${f.date_echeance})`, before, f);
+      return { id: p.id };
+    }
+    const r = must(await sb.from("parc_agrements").insert({ ...f, created_by: who.name }).select("id").single()) as any;
+    await audit(who, "agrement", "parc", parc_id, `Agrément ${f.numero || ""} du parc ${nm} ajouté : du ${f.date_emission} au ${f.date_echeance}`);
+    return r;
+  },
+  async agrement_delete(p, who) {
+    adminOnly(who);
+    const a = must(await sb.from("parc_agrements").update({ deleted_at: new Date().toISOString(), updated_by: who.name }).eq("id", Number(p.id)).select("parc_id,numero")) as any[];
+    await audit(who, "suppression", "parc", a[0]?.parc_id, `Agrément ${a[0]?.numero || ""} retiré`);
+    return { ok: true };
+  },
+  async rapport_add(p, who) {
+    adminOnly(who);
+    const parc_id = Number(p.parc_id);
+    if (!parc_id) throw new ApiError("PARC_MANQUANT");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(p.date_rapport))) throw new ApiError("DATE_RAPPORT");
+    if (!p.b64) throw new ApiError("FICHIER_MANQUANT");
+    const u = await parcsUpload(parc_id, "rapport", p.b64, p.file_name || "rapport", p.file_type || "");
+    const r = must(await sb.from("parc_rapports").insert({ parc_id, date_rapport: p.date_rapport, type: p.type ? String(p.type).slice(0, 100) : null, commentaire: p.commentaire ? String(p.commentaire).slice(0, 2000) : null, file_path: u.path, file_name: u.name, file_type: u.type, file_size: u.size, created_by: who.name }).select("id").single()) as any;
+    await audit(who, "rapport_inventaire", "parc", parc_id, `Rapport d'inventaire du ${p.date_rapport} joint : ${u.name}`);
+    return r;
+  },
+  async rapport_delete(p, who) {
+    adminOnly(who);
+    const a = must(await sb.from("parc_rapports").update({ deleted_at: new Date().toISOString() }).eq("id", Number(p.id)).select("parc_id,file_name")) as any[];
+    await audit(who, "suppression", "parc", a[0]?.parc_id, `Rapport d'inventaire retiré : ${a[0]?.file_name || ""}`);
+    return { ok: true };
+  },
+  // Tous les agréments (écran « Agréments »)
+  async agrements(_p, who) {
+    if (!who.isAdmin && (await settingsCached()).identite_visible === "admin") throw new ApiError("RESERVE_ADMIN", 403);
+    const [parcs, agr] = await Promise.all([
+      sb.from("parcs").select("id,name,type,zone,active,contact_nom,contact_email,contact_tel,chef_parc_nom,chef_parc_tel").is("deleted_at", null).order("name"),
+      sb.from("parc_agrements").select("*").is("deleted_at", null).order("date_echeance", { ascending: false }).order("id", { ascending: false }),
+    ]);
+    return { parcs: must(parcs), agrements: must(agr), today: today() };
+  },
+
+  // ---- Parcs tampon uniques (PTU) : stock reçu par manifeste ----
+  async ptu_overview() {
+    const [ptus, man] = await Promise.all([
+      sb.from("parcs").select("id,name,zone").eq("type", "ptu").is("deleted_at", null).order("name"),
+      sb.rpc("stock_ptu_manifestes", { p_ptu: null }),
+    ]);
+    return { ptus: must(ptus), manifestes: must(man), today: today() };
+  },
+  async ptu_vehicules(p) {
+    return must(await sb.rpc("stock_ptu_vehicules", { p_manifeste: p.manifeste_id ? Number(p.manifeste_id) : null, p_ptu: p.ptu_id ? Number(p.ptu_id) : null }));
+  },
+  async ptu_manifest_add(p, who) {
+    await can(who, "manifestes");
+    const ptu = must(await sb.from("parcs").select("id,name,type").eq("id", Number(p.ptu_id)).maybeSingle()) as any;
+    if (!ptu || ptu.type !== "ptu") throw new ApiError("PTU_INCONNU");
+    const numero = String(p.numero || "").trim().toUpperCase().slice(0, 60);
+    if (!numero) throw new ApiError("NUMERO_MANIFESTE");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(p.date_arrivee))) throw new ApiError("DATE_ARRIVEE_MANQUANTE");
+    const items = (Array.isArray(p.items) ? p.items : []).slice(0, 20000);
+    if (!items.length) throw new ApiError("AUCUN_CHASSIS");
+    if (!p.force) {
+      const dup = must(await sb.from("ptu_manifestes").select("id").eq("ptu_id", ptu.id).eq("numero", numero).is("cancelled_at", null).limit(1)) as any[];
+      if (dup.length) throw new ApiError("MANIFESTE_DEJA_IMPORTE");
+    }
+    const navire = p.navire ? String(p.navire).trim().slice(0, 120) : "";
+    const its = items.map((it: any) => ({ ...it, manifeste: it.manifeste || numero, navire: it.navire || navire, date_arrivee: it.date_arrivee || p.date_arrivee }));
+    const r: any = must(await sb.rpc("stock_add_moves", { p: { parc_name: ptu.name, kind: "entree", date: p.date_arrivee, motif: `Manifeste ${numero}`, source: "manifeste", file_name: p.file_name || null, items: its, by_uid: who.uid, by_name: who.name } }));
+    const m = must(await sb.from("ptu_manifestes").insert({ ptu_id: ptu.id, numero, navire: navire || null, date_arrivee: p.date_arrivee, file_name: p.file_name || null, nb: Number(r.total) || items.length, batch_id: r.batch_id, comment: p.comment || null, created_by: who.name }).select("id").single()) as any;
+    await audit(who, "manifeste_ptu", "parc", ptu.id, `${ptu.name} — manifeste ${numero}${navire ? " (" + navire + ")" : ""} du ${p.date_arrivee} : ${r.ok} véhicule(s) enregistré(s) sur ${r.total}`);
+    return { ...r, manifeste_id: m.id };
+  },
+  async ptu_manifest_cancel(p, who) {
+    adminOnly(who);
+    const m = must(await sb.from("ptu_manifestes").select("*").eq("id", Number(p.id)).maybeSingle()) as any;
+    if (!m || m.cancelled_at) throw new ApiError("MANIFESTE_INTROUVABLE");
+    const ids = (must(await sb.from("stock_moves").select("id").eq("batch_id", m.batch_id).is("cancelled_at", null)) as any[]).map((x) => x.id);
+    if (ids.length) must(await sb.rpc("stock_cancel_moves", { p_ids: ids, p_reason: String(p.reason || "Manifeste annulé"), p_by: who.name, p_restore: false }));
+    must(await sb.from("ptu_manifestes").update({ cancelled_at: new Date().toISOString(), cancelled_by: who.name }).eq("id", m.id));
+    await audit(who, "manifeste_ptu_annule", "parc", m.ptu_id, `Manifeste ${m.numero} annulé : ${p.reason || ""}`);
+    return { ok: true };
+  },
+  async ptu_enlevement(p, who) {
+    await can(who, "enlevement");
+    const ptu = must(await sb.from("parcs").select("id,name,type").eq("id", Number(p.ptu_id)).maybeSingle()) as any;
+    if (!ptu || ptu.type !== "ptu") throw new ApiError("PTU_INCONNU");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(p.date))) throw new ApiError("DATE_MOUVEMENT_MANQUANTE");
+    const items = (Array.isArray(p.items) ? p.items : []).slice(0, 5000);
+    if (!items.length) throw new ApiError("AUCUN_CHASSIS");
+    const r: any = must(await sb.rpc("stock_add_moves", { p: { parc_name: ptu.name, kind: "sortie", date: p.date, motif: p.motif || "Enlèvement direct au PTU", justif_type: "Enlèvement direct", justif_numero: p.justif_numero || null, justif_date: p.justif_date || null, justif_bureau: p.justif_bureau || null, source: "saisie", items, by_uid: who.uid, by_name: who.name } }));
+    await audit(who, "enlevement_direct", "parc", ptu.id, `${ptu.name} — enlèvement direct au ${p.date} : ${r.ok} véhicule(s) sur ${r.total}${p.justif_numero ? " — déclaration " + p.justif_numero : ""}`);
+    return r;
+  },
+
+  // ---- Suivis personnels (n'altèrent jamais le stock) ----
+  async suivis_list(_p, who) {
+    const sv = must(await sb.from("stock_suivis").select("id,vehicle_id,liste,created_at").eq("owner_uid", who.uid).order("created_at", { ascending: false }).limit(3000)) as any[];
+    const vu = (must(await sb.from("stock_suivi_vu").select("vu_at").eq("owner_uid", who.uid).maybeSingle()) as any)?.vu_at || null;
+    const ids = [...new Set(sv.map((x) => x.vehicle_id))];
+    let vehicles: any[] = [], stays: any[] = [];
+    for (let i = 0; i < ids.length; i += 300) {
+      const part = ids.slice(i, i + 300);
+      const [v, s] = await Promise.all([
+        sb.from("vehicles").select("id,chassis,marque,modele,annee,navire,manifeste,bl,date_arrivee,mmte_depot_date,current_parc_id,deleted_at").in("id", part),
+        sb.from("stays").select("id,vehicle_id,parc_id,entry_date,entry_kind,from_parc_id,exit_date,exit_kind,to_parc_id,justif_status,created_at,updated_at").in("vehicle_id", part).is("deleted_at", null).order("entry_date"),
+      ]);
+      vehicles = vehicles.concat(must(v) as any[]); stays = stays.concat(must(s) as any[]);
+    }
+    const parcs = must(await sb.from("parcs").select("id,name,type"));
+    return { suivis: sv, vehicles, stays, parcs, vu_at: vu, now: new Date().toISOString(), today: today() };
+  },
+  async suivi_add(p, who) {
+    const liste = String(p.liste || "Mes véhicules").trim().slice(0, 80) || "Mes véhicules";
+    let ids: number[] = (Array.isArray(p.vehicle_ids) ? p.vehicle_ids : []).map(Number).filter(Boolean);
+    let inconnus: string[] = [];
+    const list = [...new Set((Array.isArray(p.chassis) ? p.chassis : []).map((c: string) => String(c).toUpperCase().replace(/[\s\-\.\/_*]/g, "")).filter((c: string) => c.length >= 4))].slice(0, 3000) as string[];
+    if (list.length) {
+      const found: any[] = [];
+      for (let i = 0; i < list.length; i += 500) found.push(...(must(await sb.from("vehicles").select("id,chassis").in("chassis", list.slice(i, i + 500)).is("deleted_at", null)) as any[]));
+      ids = ids.concat(found.map((f) => f.id));
+      const got = new Set(found.map((f) => f.chassis));
+      inconnus = list.filter((c) => !got.has(c));
+    }
+    ids = [...new Set(ids)];
+    if (ids.length) must(await sb.from("stock_suivis").upsert(ids.map((vehicle_id) => ({ owner_uid: who.uid, vehicle_id, liste })), { onConflict: "owner_uid,vehicle_id,liste", ignoreDuplicates: true }));
+    const vu = must(await sb.from("stock_suivi_vu").select("owner_uid").eq("owner_uid", who.uid).maybeSingle());
+    if (!vu) await sb.from("stock_suivi_vu").insert({ owner_uid: who.uid });
+    return { ok: ids.length, inconnus };
+  },
+  async suivi_remove(p, who) {
+    let q = sb.from("stock_suivis").delete().eq("owner_uid", who.uid);
+    if (Array.isArray(p.ids) && p.ids.length) q = q.in("id", p.ids.map(Number));
+    else if (p.vehicle_id) q = q.eq("vehicle_id", Number(p.vehicle_id));
+    else if (p.liste) q = q.eq("liste", String(p.liste));
+    else throw new ApiError("DONNEES_INCOMPLETES");
+    must(await q);
+    return { ok: true };
+  },
+  async suivi_vu(_p, who) {
+    must(await sb.from("stock_suivi_vu").upsert({ owner_uid: who.uid, vu_at: new Date().toISOString() }, { onConflict: "owner_uid" }));
+    return { ok: true };
+  },
+
   // ---- Entrées et sorties saisies (une par une ou par fichier) ----
   async moves_preview(p, who) {
     agentOnly(who);
@@ -733,7 +989,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return must(await sb.rpc("stock_moves_preview", { p_parc_name: String(p.parc_name || ""), p_chassis: list }));
   },
   async moves_add(p, who) {
-    agentOnly(who);
+    await can(who, "saisir");
     if (!p.parc_name) throw new ApiError("PARC_MANQUANT");
     if (!Array.isArray(p.items) || !p.items.length) throw new ApiError("AUCUN_CHASSIS");
     const payload = pick(p, ["parc_name", "kind", "date", "motif", "justif_type", "justif_numero", "justif_date", "justif_bureau", "source", "file_name"]);

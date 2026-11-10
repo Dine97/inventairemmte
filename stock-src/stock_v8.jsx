@@ -105,7 +105,7 @@ function stkCoverageRows(data, dash, L0) {
   const rel = {};
   (data.relances || []).forEach((r) => (rel[r.parc_id] = rel[r.parc_id] || []).push(r));
   const dmap = {}; dash.forEach((d) => (dmap[d.parc_id] = d));
-  return (data.parcs || []).filter((p) => p.active !== false).map((p) => {
+  return (data.parcs || []).filter((p) => p.active !== false && p.type !== "ptu").map((p) => {
     const d = dmap[p.id] || {};
     const dates = (byParc[p.id] || []).slice();
     if (d.last_import) dates.push(d.last_import);
@@ -131,10 +131,18 @@ function stkCoverageRows(data, dash, L0) {
   });
 }
 function stkMailEmails(s) { return String(s || "").split(/[;,\s]+/).map((x) => x.trim()).filter((x) => /.+@.+\..+/.test(x)); }
-function stkRelanceText(r, L0, niveau, signer) {
+// Textes des mails modifiables dans Administration → Paramètres → Textes des mails
+let STK_SETTINGS_NOW = {};
+function stkRelanceText(r, L0, niveau, signer, standard) {
   const sem = stkWeekLabel(L0);
   const lastTxt = r.last ? `Le dernier état reçu est daté du ${stkFmt(r.last)}${r.weeks > 1 ? `, soit ${r.weeks} semaines sans mise à jour` : ""}.` : "Nous n'avons encore reçu aucun état de stock de votre part.";
-  const sign = `\n\nCordialement,\n\n${signer || ""}\nBénin Control — Département MAD-MAE\nSuivi des stocks MAD ROULANTS`;
+  const S = standard ? {} : STK_SETTINGS_NOW || {};
+  const sign = `\n\nCordialement,\n\n${signer || ""}\n${S.signature_mail || "Bénin Control — Département MAD-MAE\nSuivi des stocks MAD ROULANTS"}`;
+  const tpl = S[niveau === 2 ? "texte_relance_2" : "texte_relance_1"];
+  if (tpl) return {
+    subject: niveau === 2 ? `RELANCE — État du stock du parc ${r.parc} non reçu (semaine ${sem})` : `État du stock du parc ${r.parc} — semaine ${sem}`,
+    body: String(tpl).replace(/\{parc\}/g, r.parc).replace(/\{semaine\}/g, sem).replace(/\{dernier_etat\}/g, lastTxt).replace(/\{signataire\}/g, signer || "") + sign
+  };
   if (niveau === 2) return {
     subject: `RELANCE — État du stock du parc ${r.parc} non reçu (semaine ${sem})`,
     body: `Madame, Monsieur,\n\nMalgré nos précédentes demandes, nous n'avons toujours pas reçu l'état du stock des véhicules sous régime suspensif du parc ${r.parc} pour la semaine ${sem}.\n\n${lastTxt}\n\nCe document est indispensable au suivi des véhicules de votre parc. Nous vous prions de nous le transmettre dans les meilleurs délais, au format Excel, en utilisant le modèle joint (une ligne par véhicule présent dans le parc).${sign}`

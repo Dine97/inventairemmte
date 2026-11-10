@@ -16,6 +16,11 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   const [searchPreset, setSearchPreset] = useState(null);
   const [importPreset, setImportPreset] = useState(null);
   const [movePreset, setMovePreset] = useState(null);
+  const [parcTab, setParcTab] = useState(null);
+  const [suivisData, setSuivisData] = useState(null);
+  const loadSuivis = () => stkCall("suivis_list", {}, false, 45e3).then(setSuivisData).catch(() => {});
+  useEffect(() => { loadSuivis(); const t = setInterval(() => { if (document.visibilityState === "visible") loadSuivis(); }, 300e3); return () => clearInterval(t); }, []);
+  const reloadMeta = async () => { try { const b = await stkCall("bootstrap", { names: parcsList }); setBoot(b); } catch (e) {} };
   const load = async () => {
     try {
       setErr("");
@@ -37,16 +42,22 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   if (!boot) return <StkLoading text="Chargement du Suivi des stocks MAD ROULANTS..." />;
   const cfg = stkSettings(boot.settings);
   const dash = boot.dashboard || [];
+  STK_SETTINGS_NOW = boot.settings || {};
+  stkPublishHidden(stkCfgExtra(boot.settings).hidden);
   const ctx = {
-    cfg, settings: boot.settings, dash, isAdmin, me: boot.me, userName,
+    cfg, settings: boot.settings, dash, dashAll: dash, parcsMeta: boot.parcsMeta || [], reloadMeta, isAdmin, me: boot.me, userName,
+    suivis: { data: suivisData, reload: loadSuivis, followed: new Set(((suivisData && suivisData.suivis) || []).map((s) => s.vehicle_id)), unread: stkSuiviUnread(suivisData, cfg) },
     parcName: (id) => (dash.find((d) => d.parc_id === Number(id)) || {}).parc || "",
-    openParc: (id) => { setParcId(Number(id)); setSection("parc"); },
+    openParc: (id, tab) => { setParcTab(tab || null); setParcId(Number(id)); setSection("parc"); },
     openVehicle: (v) => setVehicle(v),
     go: (s, preset) => { if (s === "search") setSearchPreset(preset || null); if (s === "import") setImportPreset(preset || null); if (s === "saisie") setMovePreset(preset || null); setSection(s); },
     reloadDash, reloadAll: load, toast: setToast
   };
   let body = null;
-  if (section === "parc" && parcId) body = <StkParc key={parcId} parcId={parcId} />;
+  if (section === "parc" && parcId) body = <StkParc key={parcId + ":" + (parcTab || "")} parcId={parcId} initialTab={parcTab} />;
+  else if (section === "agrements") body = <StkAgrements />;
+  else if (section === "ptu") body = <StkPtu />;
+  else if (section === "suivis") body = <StkSuivis />;
   else if (section === "search") body = <StkSearch key={JSON.stringify(searchPreset)} preset={searchPreset} />;
   else if (section === "rapport") body = <StkReport />;
   else if (section === "anomalies") body = <StkAnomalies />;
@@ -70,6 +81,7 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
       {boot.fromCache && <div className="no-print flex flex-wrap items-center gap-2 text-xs rounded-xl border border-slate-200 bg-slate-50 text-slate-600 px-3 py-2" data-testid="stk-cache-note">
         {boot.stale ? <>Serveur injoignable : chiffres de votre dernière visite. {err} <button onClick={load} className="font-bold text-[#1B4F8C] underline">Réessayer</button></> : <><span className="w-3 h-3 rounded-full border-2 border-slate-300 border-t-[#1B4F8C] animate-spin" /> Mise à jour des chiffres...</>}
       </div>}
+      <StkBellBar />
       {body}
     </div>
     {vehicle && <StkVehicleModal target={vehicle} onClose={() => setVehicle(null)} />}
@@ -109,7 +121,10 @@ function StkQuickSearch({ big }) {
 
 // ---------------- Tableau de bord ----------------
 function StkDashboard({ lastImports }) {
-  const { dash, openParc, cfg, go, reloadDash } = React.useContext(StkCtx);
+  const DC = React.useContext(StkCtx);
+  const { openParc, cfg, go, reloadDash } = DC;
+  const XA = stkCfgExtra(DC.settings);
+  const dash = DC.dash.filter((d) => !stkIsPtu(DC, d.parc_id));
   const [q, setQ] = useState("");
   const [sort, setSort] = useState("stock");
   const [onlyStock, setOnlyStock] = useState(false);
@@ -133,6 +148,7 @@ function StkDashboard({ lastImports }) {
       <StkKpi label="Sorties non justifiées" value={tot.nj} tone="slate" onClick={() => go("justif")} />
       <StkKpi label="Imports en retard" value={late.length} tone={late.length ? "amber" : "green"} sub="Dernier import > 7 jours" />
     </div>
+    <StkAgrAlert />
     <StkTodo />
     <StkMondayReminder />
     <StkCard className="p-4 md:p-5">
@@ -165,12 +181,15 @@ function StkDashboard({ lastImports }) {
             <div className="flex flex-wrap gap-1.5 mt-2">
               {lateD != null && lateD > 7 && <StkBadge tone="bg-amber-50 text-amber-900 border-amber-300">Pas d'import depuis {lateD} j</StkBadge>}
               {+d.non_justifiees > 0 && <StkBadge>{d.non_justifiees} sortie(s) non justifiée(s)</StkBadge>}
+              {(() => { const m = stkMeta(DC, d.parc_id); const st = stkAgrStatus(m.agrement, today, XA.agr); return st.code === "expire" || st.code === "bientot" ? <StkBadge tone={STK_AGR[st.code].tone}>Agrément : {st.text.toLowerCase()}</StkBadge> : null; })()}
+              {stkMeta(DC, d.parc_id).zone && <StkBadge tone="bg-[#EAF1FA] text-[#123A66] border-[#C9DBEF]">{stkMeta(DC, d.parc_id).zone}</StkBadge>}
             </div>
           </button>;
         })}
       </div>
       {!list.length && <div className="text-sm text-slate-400 py-6 text-center">Aucun parc.</div>}
     </StkCard>
+    <StkPtuCard />
     <StkEvolution title="Évolution du stock total (tous parcs)" />
     {lastImports && lastImports.length > 0 && <StkCard className="p-4 md:p-5">
       <div className="font-bold text-[#0B1F38] text-lg mb-3">Derniers imports</div>
@@ -187,13 +206,14 @@ function StkDashboard({ lastImports }) {
 }
 
 // ---------------- Vue d'un parc ----------------
-function StkParc({ parcId }) {
+function StkParc({ parcId, initialTab }) {
   const C = React.useContext(StkCtx);
   const { cfg, dash, go, openVehicle, isAdmin } = C;
   const info = dash.find((d) => d.parc_id === parcId) || {};
+  const isPtu = stkIsPtu(C, parcId);
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
-  const [tab, setTab] = useState("tous");
+  const [tab, setTab] = useState(initialTab || "tous");
   const [q, setQ] = useState("");
   const [atDate, setAtDate] = useState(null); // { date, rows, lastImport }
   const [askDate, setAskDate] = useState(false);
@@ -205,8 +225,9 @@ function StkParc({ parcId }) {
   };
   useEffect(() => { load(); }, [parcId]);
   const [regN, setRegN] = useState(null);
-  const loadReg = () => stkCall("regulariser", { parc_id: parcId }).then((r) => setRegN(new Set(r.filter((x) => STK_REG[x.motif]).map((x) => x.vehicle_id)).size)).catch(() => setRegN(null));
-  useEffect(() => { loadReg(); }, [parcId]);
+  const vinRows = useMemo(() => stkVinRegRows(data ? data.rows : []), [data]);
+  const loadReg = () => stkCall("regulariser", { parc_id: parcId }).then((r) => setRegN(new Set(r.filter((x) => STK_REG[x.motif]).map((x) => x.vehicle_id).concat(vinRows.map((x) => x.vehicle_id))).size)).catch(() => setRegN(null));
+  useEffect(() => { loadReg(); }, [parcId, vinRows.length]);
   const ref = atDate ? atDate.date : today;
   const rows = atDate ? atDate.rows : (data ? data.rows : []);
   const groups = useMemo(() => {
@@ -222,6 +243,8 @@ function StkParc({ parcId }) {
   ];
   if (groups.sans_date.length) tabs.push({ key: "sans_date", label: "Sans date", count: groups.sans_date.length });
   if (!atDate) tabs.push({ key: "regulariser", label: "À régulariser", count: regN, warn: !!regN });
+  if (!atDate && isPtu && !stkCfgExtra(C.settings).hidden.includes("ptu")) tabs.push({ key: "manifestes", label: "Manifestes" });
+  if (!atDate) tabs.push({ key: "identite", label: "Identité" });
   if (!atDate) tabs.push({ key: "periode", label: "Entrées / sorties" }, { key: "semaines", label: "Par semaine" }, { key: "transferts", label: "Transferts" }, { key: "evolution", label: "Évolution" }, { key: "inventaire", label: "Contrôle inventaire" }, { key: "imports", label: "Imports" });
   const list = tab === "tous" ? rows : groups[tab] || [];
   const filtered = stkFilterRows(list, q);
@@ -237,12 +260,13 @@ function StkParc({ parcId }) {
     <StkPageHead back={() => go("dash")} title={info.parc || "Parc"}
       sub={atDate ? <span className="font-bold text-amber-800">Stock au {stkFmt(atDate.date)} · basé sur l'import du {atDate.lastImport ? stkFmt(atDate.lastImport.stock_date) : "—"} <button className="underline ml-2" onClick={() => { setAtDate(null); setTab("disponible"); }}>Revenir au stock actuel</button></span> : (data && data.lastImport ? `Dernier import : stock du ${stkFmt(data.lastImport.stock_date)} (${data.lastImport.file_name || ""})` : "Aucun import pour ce parc")}
       right={<>
-        {stkCanEdit(C) && <StkBtn onClick={() => go("saisie", { parc: info.parc })}><StkIc.Edit size={16} /> Saisie manuelle</StkBtn>}
-        {stkCanEdit(C) && <StkBtn kind="primary" onClick={() => go("import", { parc: info.parc })}><Upload size={16} /> Importer le stock</StkBtn>}
+        {!isPtu && stkCan(C, "saisir") && <StkBtn onClick={() => go("saisie", { parc: info.parc })}><StkIc.Edit size={16} /> Saisie manuelle</StkBtn>}
+        {!isPtu && stkCan(C, "importer") && <StkBtn kind="primary" onClick={() => go("import", { parc: info.parc })}><Upload size={16} /> Importer le stock</StkBtn>}
         <StkBtn onClick={() => setExpAt(true)} data-testid="btn-extraction"><Download size={16} /> Extraction des données</StkBtn>
         {isAdmin && <StkBtn onClick={() => setAdding(true)}><StkIc.Plus size={16} /> Ajouter un véhicule</StkBtn>}
       </>} />
     {err && <StkMsg tone="err">{err}</StkMsg>}
+    <StkParcIdStrip parcId={parcId} onOpen={() => setTab("identite")} />
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       <StkKpi label="Stock total" value={rows.length} onClick={() => setTab("tous")} />
       <StkKpi label="En délai légal" value={groups.disponible.length} tone="green" onClick={() => setTab("disponible")} />
@@ -250,7 +274,7 @@ function StkParc({ parcId }) {
       <StkKpi label="En dépôt" value={groups.depot.length} tone="rose" onClick={() => setTab("depot")} />
     </div>
     <StkTabs tabs={tabs} value={tab} onChange={setTab} />
-    {tab === "regulariser" ? <StkRegulariser parcId={parcId} parcName={info.parc} onChanged={loadReg} /> : tab === "periode" ? <StkPeriod parcId={parcId} parcName={info.parc} /> : tab === "semaines" ? <StkWeeks parcId={parcId} /> : tab === "transferts" ? <StkTransfers parcId={parcId} /> : tab === "imports" ? <StkImportsList parcId={parcId} /> : tab === "evolution" ? <StkEvolution parcId={parcId} title={`Évolution du stock — ${info.parc}`} /> : tab === "inventaire" ? <StkInventoryCheck parcName={info.parc} /> :
+    {tab === "identite" ? <StkParcIdentity parcId={parcId} parcName={info.parc} /> : tab === "manifestes" ? <StkPtu ptuId={parcId} /> : tab === "regulariser" ? <StkRegulariser parcId={parcId} parcName={info.parc} onChanged={loadReg} extra={vinRows} /> : tab === "periode" ? <StkPeriod parcId={parcId} parcName={info.parc} /> : tab === "semaines" ? <StkWeeks parcId={parcId} /> : tab === "transferts" ? <StkTransfers parcId={parcId} /> : tab === "imports" ? <StkImportsList parcId={parcId} /> : tab === "evolution" ? <StkEvolution parcId={parcId} title={`Évolution du stock — ${info.parc}`} /> : tab === "inventaire" ? <StkInventoryCheck parcName={info.parc} /> :
       <StkCard className="p-4 md:p-5">
         <div className="flex flex-wrap gap-2 items-center mb-3">
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrer : châssis, marque, navire..." className={`${stkInput} flex-1 min-w-[200px]`} />
@@ -473,6 +497,7 @@ function StkVehicleModal({ target, onClose }) {
     footer={v && <>
       {isAdmin && <StkBtn small kind="danger" onClick={() => act("vehicle_delete", { id: v.id }, "Mettre ce véhicule à la corbeille ? (restaurable depuis l'administration)").then(onClose)}><Trash2 size={15} /> Supprimer</StkBtn>}
       {isAdmin && <StkBtn small onClick={() => setEdit(true)}><StkIc.Edit size={15} /> Modifier la fiche</StkBtn>}
+      <StkFollowBtn vehicleId={v.id} />
       <StkBtn small onClick={printFiche}><Printer size={15} /> Imprimer / PDF</StkBtn>
       <StkBtn small kind="primary" onClick={onClose}>Fermer</StkBtn>
     </>}>
@@ -495,6 +520,7 @@ function StkVehicleModal({ target, onClose }) {
         <Info l="Durée de séjour" v={sit.sejour != null ? `${sit.sejour} jours` : ""} />
         {v.chassis_raw && v.chassis_raw !== v.chassis && <Info l="Châssis tel qu'écrit" v={v.chassis_raw} mono />}
       </div>
+      {!stkCfgExtra(C.settings).hidden.includes("vin") && <StkVinBox v={v} />}
       {v.notes && <StkMsg tone="info"><b>Note :</b> {v.notes}</StkMsg>}
       {(v.locked_fields || []).length > 0 && <div className="text-xs text-slate-500">🔒 Champs corrigés et verrouillés (les imports ne les modifient plus) : {v.locked_fields.map((k) => STK_FIELDS[k] || k).join(", ")}</div>}
       <div>

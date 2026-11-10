@@ -7,8 +7,15 @@ const STK_REG = {
   reapparu: { t: "Revenu après sortie", d: "Sorti du parc puis réapparu dans un fichier suivant : la sortie était-elle réelle ?", tone: "bg-amber-50 text-amber-900 border-amber-300" },
   chassis_proche: { t: "Faute de frappe probable", d: "Entrée et sortie le même jour de deux châssis presque identiques : sans doute le même véhicule mal saisi.", tone: "bg-violet-50 text-violet-800 border-violet-200" },
   sans_date: { t: "Date d'arrivée manquante", d: "Sans date d'arrivée du navire, la date de dépôt ne peut pas être calculée.", tone: "bg-slate-50 text-slate-700 border-slate-300" },
-  chassis_atypique: { t: "Châssis atypique", d: "Pas 17 caractères, ou lettres I, O, Q : vérifier la saisie (les engins anciens peuvent être plus courts).", tone: "bg-slate-50 text-slate-700 border-slate-300" }
+  chassis_atypique: { t: "Châssis atypique", d: "Pas 17 caractères, ou lettres I, O, Q : vérifier la saisie (les engins anciens peuvent être plus courts).", tone: "bg-slate-50 text-slate-700 border-slate-300" },
+  incoherence_vin: { t: "Incohérence VIN (information)", d: "La marque déclarée par le parc ne correspond pas au constructeur indiqué par le numéro de châssis. Simple information : rien n'est modifié.", tone: "bg-[#F7FAFE] text-[#123A66] border-[#9DB9DA]" }
 };
+// Incohérences VIN calculées sur le stock du parc (information seulement)
+function stkVinRegRows(rows) {
+  const out = [];
+  (rows || []).forEach((r) => { const i = stkVinIncoherence(r); if (i) out.push({ motif: "incoherence_vin", vehicle_id: r.vehicle_id, chassis: r.chassis, marque: r.marque, modele: r.modele, navire: r.navire, manifeste: r.manifeste, date_ref: r.entry_date, jours: null, autre_parc: null, detail: i }); });
+  return out;
+}
 const STK_REG_ORDER = Object.keys(STK_REG);
 function stkRegDetail(r) {
   const d = r.detail || {};
@@ -18,9 +25,10 @@ function stkRegDetail(r) {
   if (r.motif === "chassis_proche") return `sorti le même jour : ${d.autre_chassis}`;
   if (r.motif === "sans_date") return `dans le parc depuis le ${stkFmt(r.date_ref)}`;
   if (r.motif === "chassis_atypique") return `${r.jours} caractères`;
+  if (r.motif === "incoherence_vin") return `déclaré ${d.declare}, le numéro indique ${d.constructeur}`;
   return "";
 }
-function StkRegulariser({ parcId, parcName, onChanged }) {
+function StkRegulariser({ parcId, parcName, onChanged, extra }) {
   const C = React.useContext(StkCtx);
   const { openVehicle, toast } = C;
   const canEdit = stkCanEdit(C);
@@ -28,7 +36,7 @@ function StkRegulariser({ parcId, parcName, onChanged }) {
   const [err, setErr] = useState("");
   const [motif, setMotif] = useState("");
   const [q, setQ] = useState("");
-  const load = () => { setErr(""); stkCall("regulariser", { parc_id: parcId }).then((r) => setRows(r.filter((x) => STK_REG[x.motif]))).catch((e) => { setErr(stkErrText(e)); setRows([]); }); };
+  const load = () => { setErr(""); stkCall("regulariser", { parc_id: parcId }).then((r) => setRows(r.filter((x) => STK_REG[x.motif]).concat(extra || []))).catch((e) => { setErr(stkErrText(e)); setRows([]); }); };
   useEffect(load, [parcId]);
   const counts = {}; (rows || []).forEach((r) => (counts[r.motif] = (counts[r.motif] || 0) + 1));
   const present = STK_REG_ORDER.filter((k) => counts[k]);

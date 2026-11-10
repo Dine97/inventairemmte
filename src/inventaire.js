@@ -46,7 +46,7 @@ const Globe = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__P
 const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
 const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
 const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
-const APP_VERSION = "6.12.0";
+const APP_VERSION = "6.13.0";
 const firebaseConfig = {
   apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
   authDomain: "benin-control-mmte.firebaseapp.com",
@@ -4022,8 +4022,9 @@ function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setSho
   const inDocs = phase === "docs";
   const inHelp = phase === "help";
   const nav = [];
+  const stkHidden = useStkHidden();
   if (currentAgent && withNav && appMode === "stock") {
-    STK_SECTIONS.filter((x) => !x.admin || isAdmin).forEach((x) => nav.push({ key: "stk-" + x.key, label: x.label, Icon: x.Ic, onClick: () => setStockSection(x.key), active: stockSection === x.key || x.key === "dash" && stockSection === "parc" }));
+    STK_SECTIONS.filter((x) => (!x.admin || isAdmin) && !stkHidden.includes(x.key)).forEach((x) => nav.push({ key: "stk-" + x.key, label: x.label, Icon: x.Ic, onClick: () => setStockSection(x.key), active: stockSection === x.key || x.key === "dash" && stockSection === "parc" }));
   } else if (currentAgent && withNav) {
     nav.push({ key: "home", label: "Inventaire", Icon: Home, onClick: onHome, active: !showAdmin && !inArchives && !inStock && !inDocs && !inHelp });
     if (onOpenArchives) nav.push({ key: "arch", label: "Mes données / Archives", Icon: Archive, onClick: onOpenArchives, active: !showAdmin && inArchives });

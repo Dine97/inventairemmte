@@ -14,7 +14,7 @@
   <link rel="icon" href="./icons/icon-192.png">
 
   <!-- Styles et bibliothèques hébergés avec l'application (plus de dépendance aux CDN au démarrage) -->
-  <link rel="stylesheet" href="./lib/app.css?v=6.12.0">
+  <link rel="stylesheet" href="./lib/app.css?v=6.13.0">
   <script src="./lib/react-18.3.1.production.min.js"></script>
   <script src="./lib/react-dom-18.3.1.production.min.js"></script>
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -77,7 +77,7 @@ const Globe = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__P
 const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
 const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
 const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
-const APP_VERSION = "6.12.0";
+const APP_VERSION = "6.13.0";
 const firebaseConfig = {
   apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
   authDomain: "benin-control-mmte.firebaseapp.com",
@@ -3840,7 +3840,18 @@ const STK_ERR = {
   AUCUN_CHASSIS: "Ajoutez au moins un châssis.",
   DATE_MOUVEMENT_MANQUANTE: "Indiquez la date du mouvement.",
   TYPE_MOUVEMENT_INVALIDE: "Choisissez entrée ou sortie.",
-  PARC_MANQUANT: "Choisissez le parc."
+  PARC_MANQUANT: "Choisissez le parc.",
+  ZONE_INCONNUE: "Zone inconnue : choisissez Sèkandji, MIVVO ou RITIS (liste réglable dans les paramètres).",
+  POSITION_INVALIDE: "Position GPS invalide.",
+  DATES_AGREMENT: "Vérifiez les dates de l'agrément : l'échéance doit suivre la date d'émission.",
+  DATE_RAPPORT: "Indiquez la date du rapport.",
+  FICHIER_MANQUANT: "Choisissez un fichier.",
+  PTU_INCONNU: "Ce parc n'est pas déclaré comme parc tampon unique (PTU).",
+  NUMERO_MANIFESTE: "Indiquez le n° du manifeste.",
+  DATE_ARRIVEE_MANQUANTE: "Indiquez la date d'arrivée du navire.",
+  MANIFESTE_DEJA_IMPORTE: "Ce manifeste a déjà été importé dans ce PTU.",
+  MANIFESTE_INTROUVABLE: "Manifeste introuvable ou déjà annulé.",
+  PARC_INCONNU: "Parc introuvable."
 };
 function stkErrText(e) {
   const m = String(e && e.message || e || "");
@@ -3896,7 +3907,10 @@ const StkIc = {
   Check: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M20 6 9 17l-5-5" })),
   Chev: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "m9 18 6-6-6-6" })),
   Gear: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }), /* @__PURE__ */ React.createElement("path", { d: "M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" })),
-  Apps: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "6", r: "2.2" }), /* @__PURE__ */ React.createElement("circle", { cx: "18", cy: "6", r: "2.2" }), /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "18", r: "2.2" }), /* @__PURE__ */ React.createElement("circle", { cx: "18", cy: "18", r: "2.2" }))
+  Apps: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "6", r: "2.2" }), /* @__PURE__ */ React.createElement("circle", { cx: "18", cy: "6", r: "2.2" }), /* @__PURE__ */ React.createElement("circle", { cx: "6", cy: "18", r: "2.2" }), /* @__PURE__ */ React.createElement("circle", { cx: "18", cy: "18", r: "2.2" })),
+  Award: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "8", r: "6" }), /* @__PURE__ */ React.createElement("path", { d: "M15.5 13.2 17 22l-5-3-5 3 1.5-8.8" })),
+  Anchor: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "5", r: "3" }), /* @__PURE__ */ React.createElement("path", { d: "M12 22V8M5 12H2a10 10 0 0 0 20 0h-3" })),
+  Star: (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" }))
 };
 const STK_SECTIONS = [
   { key: "dash", label: "Tableau de bord", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Grid, { ...p }) },
@@ -3904,6 +3918,9 @@ const STK_SECTIONS = [
   { key: "search", label: "Recherche avancée", Ic: (p) => /* @__PURE__ */ React.createElement(Search, { ...p }) },
   { key: "liste", label: "Recherche par liste", Ic: (p) => /* @__PURE__ */ React.createElement(ClipboardPaste, { ...p }) },
   { key: "manifestes", label: "Vue par manifeste", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Truck, { ...p }) },
+  { key: "ptu", label: "Parcs tampon (PTU)", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Anchor, { ...p }) },
+  { key: "agrements", label: "Agréments des parcs", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Award, { ...p }) },
+  { key: "suivis", label: "Mes suivis", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Star, { ...p }) },
   { key: "import", label: "Importer un stock", Ic: (p) => /* @__PURE__ */ React.createElement(Upload, { ...p }) },
   { key: "bulk", label: "Import groupé du lundi", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Layers, { ...p }) },
   { key: "couverture", label: "Couverture hebdomadaire", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Cal, { ...p }) },
@@ -3918,6 +3935,32 @@ const STK_SECTIONS = [
   { key: "miseenservice", label: "Mise en service", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Check, { ...p }), admin: true },
   { key: "admin", label: "Administration stock", Ic: (p) => /* @__PURE__ */ React.createElement(StkIc.Gear, { ...p }), admin: true }
 ];
+function stkHiddenRead() {
+  try {
+    return JSON.parse(localStorage.getItem("stk-hidden") || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+function stkPublishHidden(list) {
+  const v = JSON.stringify(list || []);
+  try {
+    if (localStorage.getItem("stk-hidden") === v) return;
+    localStorage.setItem("stk-hidden", v);
+  } catch (e) {
+    return;
+  }
+  setTimeout(() => window.dispatchEvent(new Event("stk-hidden")), 0);
+}
+function useStkHidden() {
+  const [h, setH] = useState(stkHiddenRead);
+  useEffect(() => {
+    const f = () => setH(stkHiddenRead());
+    window.addEventListener("stk-hidden", f);
+    return () => window.removeEventListener("stk-hidden", f);
+  }, []);
+  return h;
+}
 let stkLoadPromise = null;
 function stkEnsureLoaded() {
   if (window.STK) return Promise.resolve(window.STK);
@@ -4258,8 +4301,9 @@ function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setSho
   const inDocs = phase === "docs";
   const inHelp = phase === "help";
   const nav = [];
+  const stkHidden = useStkHidden();
   if (currentAgent && withNav && appMode === "stock") {
-    STK_SECTIONS.filter((x) => !x.admin || isAdmin).forEach((x) => nav.push({ key: "stk-" + x.key, label: x.label, Icon: x.Ic, onClick: () => setStockSection(x.key), active: stockSection === x.key || x.key === "dash" && stockSection === "parc" }));
+    STK_SECTIONS.filter((x) => (!x.admin || isAdmin) && !stkHidden.includes(x.key)).forEach((x) => nav.push({ key: "stk-" + x.key, label: x.label, Icon: x.Ic, onClick: () => setStockSection(x.key), active: stockSection === x.key || x.key === "dash" && stockSection === "parc" }));
   } else if (currentAgent && withNav) {
     nav.push({ key: "home", label: "Inventaire", Icon: Home, onClick: onHome, active: !showAdmin && !inArchives && !inStock && !inDocs && !inHelp });
     if (onOpenArchives) nav.push({ key: "arch", label: "Mes données / Archives", Icon: Archive, onClick: onOpenArchives, active: !showAdmin && inArchives });

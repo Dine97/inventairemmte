@@ -256,36 +256,6 @@ function StkAdmin() {
     {tab === "trash" && <StkAdminTrash />}
   </>;
 }
-function StkAdminParams() {
-  const C = React.useContext(StkCtx);
-  const S = C.settings || {};
-  const [f, setF] = useState({ source_depot: S.source_depot === "mmte" ? "mmte" : "parc", duree_sejour: S.duree_sejour || 365, seuil_alerte: S.seuil_alerte || 30, fenetre_transfert: S.fenetre_transfert || 30, afficher_transfert: S.afficher_transfert !== false, types_sortie: (C.cfg.types || []).join("\n") });
-  const [msg, setMsg] = useState("");
-  const save = async () => {
-    try {
-      await stkCall("settings_save", { key: "duree_sejour", value: Number(f.duree_sejour) || 365 });
-      await stkCall("settings_save", { key: "seuil_alerte", value: Number(f.seuil_alerte) || 30 });
-      await stkCall("settings_save", { key: "fenetre_transfert", value: Number(f.fenetre_transfert) || 30 });
-      await stkCall("settings_save", { key: "afficher_transfert", value: !!f.afficher_transfert });
-      await stkCall("settings_save", { key: "source_depot", value: f.source_depot });
-      await stkCall("settings_save", { key: "types_sortie", value: f.types_sortie.split("\n").map((x) => x.trim()).filter(Boolean) });
-      setMsg("Paramètres enregistrés."); C.reloadAll();
-    } catch (e) { setMsg(stkErrText(e)); }
-  };
-  const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
-  return <StkCard className="p-4 md:p-5 space-y-4 max-w-2xl">
-    <div className="grid md:grid-cols-3 gap-3">
-      <StkField label="Durée de séjour (jours)" hint="Passage au statut dépôt après cette durée, depuis la date d'arrivée du navire"><input type="number" value={f.duree_sejour} onChange={set("duree_sejour")} className={stkInput} /></StkField>
-      <StkField label="Alerte « bientôt en dépôt » (jours)"><input type="number" value={f.seuil_alerte} onChange={set("seuil_alerte")} className={stkInput} /></StkField>
-      <StkField label="Fenêtre de détection des transferts (jours)" hint="Sortie d'un parc puis entrée dans un autre dans ce délai = transfert"><input type="number" value={f.fenetre_transfert} onChange={set("fenetre_transfert")} className={stkInput} /></StkField>
-    </div>
-    <StkField label="Date de dépôt utilisée" hint="La date MMTE est connue après un « Contrôle avec MMTE ». Sans elle, la date calculée reste utilisée."><select value={f.source_depot} onChange={set("source_depot")} className={stkInput}><option value="parc">Calculée : date d'arrivée du fichier du parc + durée de séjour</option><option value="mmte">Date de dépôt MMTE quand elle est connue (sinon calculée)</option></select></StkField>
-    <label className="flex items-center gap-3 text-sm font-semibold text-slate-700"><input type="checkbox" checked={f.afficher_transfert} onChange={set("afficher_transfert")} /> Afficher la date de transfert dans les listes, fiches et exports</label>
-    <StkField label="Types de sortie (un par ligne)"><textarea rows={6} value={f.types_sortie} onChange={set("types_sortie")} className={stkInput} /></StkField>
-    {msg && <StkMsg tone={/Erreur|réservée/.test(msg) ? "err" : "ok"}>{msg}</StkMsg>}
-    <StkBtn kind="primary" onClick={save}>Enregistrer</StkBtn>
-  </StkCard>;
-}
 function StkAdminParcs() {
   const C = React.useContext(StkCtx);
   const [rows, setRows] = useState(null);

@@ -26,7 +26,18 @@ const STK_ERR = {
   AUCUN_CHASSIS: "Ajoutez au moins un châssis.",
   DATE_MOUVEMENT_MANQUANTE: "Indiquez la date du mouvement.",
   TYPE_MOUVEMENT_INVALIDE: "Choisissez entrée ou sortie.",
-  PARC_MANQUANT: "Choisissez le parc."
+  PARC_MANQUANT: "Choisissez le parc.",
+  ZONE_INCONNUE: "Zone inconnue : choisissez Sèkandji, MIVVO ou RITIS (liste réglable dans les paramètres).",
+  POSITION_INVALIDE: "Position GPS invalide.",
+  DATES_AGREMENT: "Vérifiez les dates de l'agrément : l'échéance doit suivre la date d'émission.",
+  DATE_RAPPORT: "Indiquez la date du rapport.",
+  FICHIER_MANQUANT: "Choisissez un fichier.",
+  PTU_INCONNU: "Ce parc n'est pas déclaré comme parc tampon unique (PTU).",
+  NUMERO_MANIFESTE: "Indiquez le n° du manifeste.",
+  DATE_ARRIVEE_MANQUANTE: "Indiquez la date d'arrivée du navire.",
+  MANIFESTE_DEJA_IMPORTE: "Ce manifeste a déjà été importé dans ce PTU.",
+  MANIFESTE_INTROUVABLE: "Manifeste introuvable ou déjà annulé.",
+  PARC_INCONNU: "Parc introuvable."
 };
 function stkErrText(e) {
   const m = String((e && e.message) || e || "");
@@ -78,7 +89,10 @@ const StkIc = {
   Check: (p) => <Icon {...p}><path d="M20 6 9 17l-5-5" /></Icon>,
   Chev: (p) => <Icon {...p}><path d="m9 18 6-6-6-6" /></Icon>,
   Gear: (p) => <Icon {...p}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></Icon>,
-  Apps: (p) => <Icon {...p}><circle cx="6" cy="6" r="2.2" /><circle cx="18" cy="6" r="2.2" /><circle cx="6" cy="18" r="2.2" /><circle cx="18" cy="18" r="2.2" /></Icon>
+  Apps: (p) => <Icon {...p}><circle cx="6" cy="6" r="2.2" /><circle cx="18" cy="6" r="2.2" /><circle cx="6" cy="18" r="2.2" /><circle cx="18" cy="18" r="2.2" /></Icon>,
+  Award: (p) => <Icon {...p}><circle cx="12" cy="8" r="6" /><path d="M15.5 13.2 17 22l-5-3-5 3 1.5-8.8" /></Icon>,
+  Anchor: (p) => <Icon {...p}><circle cx="12" cy="5" r="3" /><path d="M12 22V8M5 12H2a10 10 0 0 0 20 0h-3" /></Icon>,
+  Star: (p) => <Icon {...p}><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z" /></Icon>
 };
 
 const STK_SECTIONS = [
@@ -87,6 +101,9 @@ const STK_SECTIONS = [
   { key: "search", label: "Recherche avancée", Ic: (p) => <Search {...p} /> },
   { key: "liste", label: "Recherche par liste", Ic: (p) => <ClipboardPaste {...p} /> },
   { key: "manifestes", label: "Vue par manifeste", Ic: (p) => <StkIc.Truck {...p} /> },
+  { key: "ptu", label: "Parcs tampon (PTU)", Ic: (p) => <StkIc.Anchor {...p} /> },
+  { key: "agrements", label: "Agréments des parcs", Ic: (p) => <StkIc.Award {...p} /> },
+  { key: "suivis", label: "Mes suivis", Ic: (p) => <StkIc.Star {...p} /> },
   { key: "import", label: "Importer un stock", Ic: (p) => <Upload {...p} /> },
   { key: "bulk", label: "Import groupé du lundi", Ic: (p) => <StkIc.Layers {...p} /> },
   { key: "couverture", label: "Couverture hebdomadaire", Ic: (p) => <StkIc.Cal {...p} /> },
@@ -101,6 +118,19 @@ const STK_SECTIONS = [
   { key: "miseenservice", label: "Mise en service", Ic: (p) => <StkIc.Check {...p} />, admin: true },
   { key: "admin", label: "Administration stock", Ic: (p) => <StkIc.Gear {...p} />, admin: true }
 ];
+
+// Fonctions masquées par l'administrateur (Paramètres → Fonctions affichées), mémorisées pour le menu
+function stkHiddenRead() { try { return JSON.parse(localStorage.getItem("stk-hidden") || "[]"); } catch (e) { return []; } }
+function stkPublishHidden(list) {
+  const v = JSON.stringify(list || []);
+  try { if (localStorage.getItem("stk-hidden") === v) return; localStorage.setItem("stk-hidden", v); } catch (e) { return; }
+  setTimeout(() => window.dispatchEvent(new Event("stk-hidden")), 0);
+}
+function useStkHidden() {
+  const [h, setH] = useState(stkHiddenRead);
+  useEffect(() => { const f = () => setH(stkHiddenRead()); window.addEventListener("stk-hidden", f); return () => window.removeEventListener("stk-hidden", f); }, []);
+  return h;
+}
 
 // ---------- Chargement à la demande du module ----------
 let stkLoadPromise = null;
