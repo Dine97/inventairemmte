@@ -103,6 +103,7 @@ function StkParcIdentity({ parcId, parcName }) {
   const [edit, setEdit] = useState(false);
   const [agr, setAgr] = useState(null);
   const [rap, setRap] = useState(false);
+  const [loc, setLoc] = useState(null);
   const [busy, setBusy] = useState("");
   const load = async () => {
     try { setErr(""); const r = await stkCall("parc_identity", { parc_id: parcId }); setD(r);
@@ -181,6 +182,8 @@ function StkParcIdentity({ parcId, parcName }) {
                 <a className="inline-flex items-center gap-1 text-xs font-bold text-[#1B4F8C] border-2 border-[#1B4F8C]/25 rounded-lg px-2 py-1" target="_blank" rel="noopener" href={`https://www.google.com/maps/dir/?api=1&destination=${p.gps_lat},${p.gps_lng}`}><StkIdIc.Nav size={13} /> Itinéraire</a>
               </> : <span className="text-xs text-slate-400">Position GPS non fixée</span>}
               {isAdmin && <StkBtn small onClick={fixGps} data-testid="btn-gps"><StkIdIc.Pin size={14} /> {p.gps_lat != null ? "Refixer la position ici" : "Fixer la position ici"}</StkBtn>}
+              {isAdmin && <StkBtn small onClick={() => setLoc("carte")} data-testid="btn-loc-carte"><StkIdIc.Nav size={14} /> Choisir sur la carte</StkBtn>}
+              {isAdmin && <StkBtn small onClick={() => setLoc("coller")} data-testid="btn-loc-coller"><StkIc.Edit size={14} /> Coller l'emplacement</StkBtn>}
               {isAdmin && p.gps_lat != null && <button className="text-xs text-rose-700 underline" onClick={() => act("parc_gps_set", { parc_id: parcId, clear: true }, "Effacer la localisation du parc ?", "Localisation effacée")}>Effacer</button>}
             </div>
             {p.gps_at && <div className="text-[11px] text-slate-400 mt-1">Fixée le {stkFmtTs(p.gps_at)}{p.gps_by ? ` par ${p.gps_by}` : ""}</div>}
@@ -239,6 +242,7 @@ function StkParcIdentity({ parcId, parcName }) {
         </div>)}</div>}
     </StkCard>
 
+    {loc && <StkLocationModal parc={p} mode={loc} onClose={() => setLoc(null)} onSaved={() => { setLoc(null); after("Localisation du parc enregistrée"); }} />}
     {edit && <StkIdentityForm parc={p} zones={X.zones} onClose={() => setEdit(false)} onSaved={() => { setEdit(false); after("Identité du parc enregistrée"); }} />}
     {agr && <StkAgrementForm parcId={parcId} parcName={p.name} init={agr} onClose={() => setAgr(null)} onSaved={() => { setAgr(null); after("Caution bancaire enregistrée"); }} />}
     {rap && <StkRapportForm parcId={parcId} types={X.typesRapport} onClose={() => setRap(false)} onSaved={() => { setRap(false); after("Rapport joint"); }} />}
@@ -768,6 +772,110 @@ function StkCautionBulk({ rows, onClose, onDone }) {
           return <span className="text-sm whitespace-nowrap">{p.agr.numero || "sans n°"} · {stkFmt(p.agr.date_echeance)}{p.agr.file_path ? <span className="text-slate-500"> · remplace l'acte joint</span> : ""}</span>; } },
         { key: "how", label: "", sortable: false, render: (r) => dup[r.parc_id] > 1 ? <StkBadge tone="bg-amber-50 text-amber-900 border-amber-300">Parc choisi deux fois</StkBadge> : r.how ? <span className="text-[11px] text-slate-400">{r.how}</span> : null }
       ]} />}
+    </div>
+  </StkModal>;
+}
+
+// ---------- Localisation : choisir sur la carte ou coller un emplacement ----------
+// Accepte : « 6.3654, 2.4183 », « 6°21'55.4"N 2°25'05.9"E », liens Google Maps (…/@6.36,2.41,17z, ?q=6.36,2.41, !3d6.36!4d2.41), liens OpenStreetMap (mlat/mlon, #map=17/6.36/2.41)
+function stkParseLocation(txt) {
+  const t = String(txt || "").trim();
+  if (!t) return null;
+  const ok = (lat, lng) => (isFinite(lat) && isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat: +lat, lng: +lng } : null);
+  let m;
+  if ((m = t.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/))) return ok(+m[1], +m[2]);
+  if ((m = t.match(/@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/))) return ok(+m[1], +m[2]);
+  if ((m = t.match(/[?&](?:q|query|ll|destination|center)=(-?\d+(?:\.\d+)?)(?:,|%2C)\s*(-?\d+(?:\.\d+)?)/i))) return ok(+m[1], +m[2]);
+  if ((m = t.match(/mlat=(-?\d+(?:\.\d+)?).*?mlon=(-?\d+(?:\.\d+)?)/i))) return ok(+m[1], +m[2]);
+  if ((m = t.match(/#map=\d+\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)/))) return ok(+m[1], +m[2]);
+  const dms = [...t.matchAll(/(\d+(?:[.,]\d+)?)\s*°\s*(?:(\d+(?:[.,]\d+)?)\s*['′’]\s*)?(?:(\d+(?:[.,]\d+)?)\s*(?:"|″|”|''))?\s*([NSEWO])/gi)];
+  if (dms.length >= 2) {
+    const v = dms.slice(0, 2).map((x) => { const n = (y) => parseFloat(String(y || 0).replace(",", ".")); let d = n(x[1]) + n(x[2]) / 60 + n(x[3]) / 3600; if (/[SWO]/i.test(x[4])) d = -d; return { d, axe: /[NS]/i.test(x[4]) ? "lat" : "lng" }; });
+    const lat = (v.find((x) => x.axe === "lat") || v[0]).d, lng = (v.find((x) => x.axe === "lng") || v[1]).d;
+    return ok(lat, lng);
+  }
+  if ((m = t.match(/(-?\d{1,2}[.,]\d+)\s*[,;\s]\s*(-?\d{1,3}[.,]\d+)/))) return ok(parseFloat(m[1].replace(",", ".")), parseFloat(m[2].replace(",", ".")));
+  return null;
+}
+let stkLeafletP = null;
+function stkLoadLeaflet() {
+  if (window.L && window.L.map) return Promise.resolve(window.L);
+  if (stkLeafletP) return stkLeafletP;
+  stkLeafletP = new Promise((resolve, reject) => {
+    const css = document.createElement("link"); css.rel = "stylesheet"; css.href = "./lib/leaflet/leaflet.css"; document.head.appendChild(css);
+    const js = document.createElement("script"); js.src = "./lib/leaflet/leaflet.js";
+    js.onload = () => resolve(window.L); js.onerror = () => { stkLeafletP = null; reject(new Error("Carte indisponible : vérifiez la connexion.")); };
+    document.head.appendChild(js);
+  });
+  return stkLeafletP;
+}
+function StkLocationModal({ parc, mode, onClose, onSaved }) {
+  const [tab, setTab] = useState(mode || "carte");
+  const [pos, setPos] = useState(parc.gps_lat != null ? { lat: +parc.gps_lat, lng: +parc.gps_lng } : null);
+  const [txt, setTxt] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sat, setSat] = useState(true);
+  const box = useRef(null), mapRef = useRef(null), mkRef = useRef(null), layers = useRef({});
+  const parsed = stkParseLocation(txt);
+  const short = /goo\.gl|maps\.app/i.test(txt) && !parsed;
+  useEffect(() => {
+    if (tab !== "carte") return;
+    let dead = false;
+    stkLoadLeaflet().then((L) => {
+      if (dead || !box.current) return;
+      L.Icon.Default.imagePath = "./lib/leaflet/images/";
+      const center = pos || { lat: 6.3565, lng: 2.4280 };
+      const map = L.map(box.current, { zoomControl: true }).setView([center.lat, center.lng], pos ? 18 : 13);
+      layers.current.plan = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" });
+      layers.current.sat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Imagerie © Esri" });
+      (sat ? layers.current.sat : layers.current.plan).addTo(map);
+      const place = (ll) => {
+        if (!mkRef.current) { mkRef.current = L.marker(ll, { draggable: true }).addTo(map); mkRef.current.on("dragend", () => { const p = mkRef.current.getLatLng(); setPos({ lat: p.lat, lng: p.lng }); }); }
+        else mkRef.current.setLatLng(ll);
+        setPos({ lat: ll.lat, lng: ll.lng });
+      };
+      if (pos) place(L.latLng(pos.lat, pos.lng));
+      map.on("click", (e) => place(e.latlng));
+      mapRef.current = map;
+      setTimeout(() => map.invalidateSize(), 150);
+    }).catch((e) => setErr(e.message));
+    return () => { dead = true; if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; mkRef.current = null; } };
+  }, [tab]);
+  useEffect(() => {
+    const map = mapRef.current; if (!map) return;
+    const a = sat ? layers.current.sat : layers.current.plan, b = sat ? layers.current.plan : layers.current.sat;
+    if (map.hasLayer(b)) map.removeLayer(b); if (!map.hasLayer(a)) a.addTo(map);
+  }, [sat]);
+  const target = tab === "carte" ? pos : parsed;
+  const save = async () => {
+    if (!target) { setErr(tab === "carte" ? "Cliquez sur la carte pour placer le parc." : "Emplacement non reconnu."); return; }
+    setBusy(true); setErr("");
+    try { await stkCall("parc_gps_set", { parc_id: parc.id, lat: target.lat, lng: target.lng }); onSaved(); }
+    catch (e) { setErr(stkErrText(e)); setBusy(false); }
+  };
+  return <StkModal wide title={`Localisation du parc ${parc.name}`} onClose={onClose} footer={<><StkBtn onClick={onClose}>Annuler</StkBtn><StkBtn kind="primary" disabled={busy || !target} onClick={save} data-testid="save-loc">Enregistrer cette position</StkBtn></>}>
+    <div className="space-y-3">
+      <StkTabs tabs={[{ key: "carte", label: "Choisir sur la carte" }, { key: "coller", label: "Coller l'emplacement" }]} value={tab} onChange={(k) => { setErr(""); setTab(k); }} />
+      {tab === "carte" ? <>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+          <span className="flex-1 min-w-[200px]">Cliquez sur l'entrée du parc pour y placer le repère ; vous pouvez ensuite le déplacer.</span>
+          <div className="inline-flex rounded-lg border-2 border-slate-200 overflow-hidden text-xs font-bold">
+            <button className={`px-3 py-1.5 ${sat ? "bg-[#123A66] text-white" : "bg-white text-slate-600"}`} onClick={() => setSat(true)}>Satellite</button>
+            <button className={`px-3 py-1.5 ${!sat ? "bg-[#123A66] text-white" : "bg-white text-slate-600"}`} onClick={() => setSat(false)}>Plan</button>
+          </div>
+        </div>
+        <div ref={box} data-testid="loc-map" className="w-full h-[52vh] min-h-[300px] rounded-xl border border-slate-200 bg-slate-100 overflow-hidden" />
+      </> : <>
+        <StkField label="Coordonnées ou lien Google Maps" hint="Exemples : « 6.36542, 2.41831 » · « 6°21'55.5&quot;N 2°25'05.9&quot;E » · un lien Google Maps complet (dans Google Maps : appui long sur le lieu, puis copier les coordonnées).">
+          <textarea rows={3} value={txt} onChange={(e) => setTxt(e.target.value)} className={stkInput} placeholder="Collez ici" data-testid="f-loc-txt" />
+        </StkField>
+        {parsed && <StkMsg tone="ok">Position reconnue : <b className="font-plex-mono">{parsed.lat.toFixed(6)}, {parsed.lng.toFixed(6)}</b> · <a className="underline font-bold" target="_blank" rel="noopener" href={`https://www.google.com/maps?q=${parsed.lat},${parsed.lng}`}>vérifier sur la carte</a></StkMsg>}
+        {short && <StkMsg tone="warn">Les liens courts (maps.app.goo.gl) ne contiennent pas les coordonnées. Ouvrez le lien, puis copiez les coordonnées affichées (ou le lien complet de la barre d'adresse).</StkMsg>}
+        {txt && !parsed && !short && <StkMsg tone="warn">Emplacement non reconnu. Collez des coordonnées (latitude, longitude) ou un lien Google Maps complet.</StkMsg>}
+      </>}
+      {target && tab === "carte" && <div className="text-xs text-slate-500 font-plex-mono">{target.lat.toFixed(6)}, {target.lng.toFixed(6)}</div>}
+      {err && <StkMsg tone="err">{err}</StkMsg>}
     </div>
   </StkModal>;
 }
