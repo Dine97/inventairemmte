@@ -30,6 +30,7 @@ insert into public.stock_secrets(key, value) values ('cron', encode(extensions.g
 create or replace function public.stock_specs_pending(p_limit int)
 returns table(vehicle_id bigint, vin text)
 language plpgsql security definer set search_path = public as $$
+#variable_conflict use_column
 begin
   insert into vehicle_specs(vehicle_id, vin, status)
   select v.id, v.chassis, 'non_decodable' from vehicles v
@@ -82,7 +83,7 @@ grant execute on function public.stock_specs_pending(int), public.stock_specs_ov
 
 -- Reprise chaque nuit (1 h à 5 h, heure du Bénin = 0 h à 4 h UTC) : jusqu'à 300 châssis par passage, 5 passages
 create extension if not exists pg_net;
-create extension if not exists pg_cron;
+create extension if not exists pg_cron with schema pg_catalog;
 do $$
 begin
   perform cron.unschedule('specs-nuit') where exists (select 1 from cron.job where jobname = 'specs-nuit');
