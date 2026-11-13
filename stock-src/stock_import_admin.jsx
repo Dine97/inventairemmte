@@ -113,7 +113,7 @@ function StkImport({ preset }) {
     setBusy("Enregistrement de l'import..."); setErr("");
     try {
       const res = await stkCall("commit_import", stkCommitPayload({ parsed, parcName: parc, date, file, comment, forced, synonyms: tpl.synonyms, applied }));
-      setResult(res); setBusy("");
+      setResult(res); setBusy(""); if (typeof stkSpecsKick === "function") stkSpecsKick();
       reloadDash();
     } catch (e) { setBusy(""); setErr(stkErrText(e)); }
   };

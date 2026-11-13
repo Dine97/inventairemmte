@@ -373,7 +373,7 @@ function StkMmteCheck() {
 }
 
 // ---------- Filtres de recherche enregistrés ----------
-function StkSavedFilters({ current, onApply }) {
+function StkSavedFilters({ current, onApply, tech }) {
   const C = React.useContext(StkCtx);
   const [list, setList] = useState([]);
   const load = () => stkCall("filters_list", {}).then(setList).catch(() => {});
@@ -382,12 +382,12 @@ function StkSavedFilters({ current, onApply }) {
     const name = window.prompt("Nom de ce filtre (ex. « Dépôt dans moins de 30 jours ») :");
     if (!name) return;
     const shared = window.confirm("Partager ce filtre avec toute l'équipe ?\n\nOK = partagé · Annuler = pour moi seulement");
-    try { await stkCall("filter_save", { name, params: current, shared }); load(); } catch (e) { alert(stkErrText(e)); }
+    try { await stkCall("filter_save", { name, params: tech ? { ...current, _tech: true } : current, shared }); load(); } catch (e) { alert(stkErrText(e)); }
   };
   const del = async (f) => { if (!window.confirm(`Supprimer le filtre « ${f.name} » ?`)) return; try { await stkCall("filter_delete", { id: f.id }); load(); } catch (e) { alert(stkErrText(e)); } };
   return <div className="flex flex-wrap gap-2 items-center">
     <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Filtres enregistrés</span>
-    {list.map((f) => <span key={f.id} className="inline-flex items-center rounded-lg border-2 border-[#1B4F8C]/20 bg-white overflow-hidden">
+    {list.filter((f) => !!(f.params && f.params._tech) === !!tech).map((f) => <span key={f.id} className="inline-flex items-center rounded-lg border-2 border-[#1B4F8C]/20 bg-white overflow-hidden">
       <button className="px-3 py-1 text-sm font-semibold text-[#123A66] hover:bg-[#EAF1FA]" onClick={() => onApply(f.params)} title={f.shared ? `Partagé par ${f.owner_name}` : "Personnel"}>{f.name}{f.shared ? " ·" : ""}</button>
       {(f.owner_uid === (C.me && C.me.uid) || C.isAdmin) && <button className="px-2 text-slate-400 hover:text-rose-600" onClick={() => del(f)} aria-label="Supprimer">✕</button>}
     </span>)}

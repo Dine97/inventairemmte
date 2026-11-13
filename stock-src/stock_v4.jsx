@@ -226,7 +226,7 @@ function StkBulkImport() {
       } catch (e) { g.forEach((it) => upd(it.id, { status: "echec", err: stkErrText(e) })); }
     }
     setRunning(false); setDone(true);
-    reloadDash();
+    reloadDash(); if (typeof stkSpecsKick === "function") stkSpecsKick();
   };
   const retryFailed = () => setItems((xs) => xs.map((x) => (x.status === "echec" ? { ...x, status: "pret", err: "" } : x)));
 

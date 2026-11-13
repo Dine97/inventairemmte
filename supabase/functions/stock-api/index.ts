@@ -156,6 +156,63 @@ async function parcsUpload(parcId: number, kind: string, b64: string, name: stri
   return { path, name: name || safe, type: type || "", size: bin.length };
 }
 
+
+// ---- Recherche technique : décodage des châssis par la base NHTSA (lots de 50), à part du stock ----
+function specsEnergie(d: Record<string, string>) {
+  const e = String(d.ElectrificationLevel || ""), f = String(d.FuelTypePrimary || "");
+  if (/BEV|Battery Electric/i.test(e) || (/^Electric/i.test(f) && !d.FuelTypeSecondary)) return "electrique";
+  if (/HEV|Hybrid/i.test(e)) return "hybride";
+  if (/Diesel/i.test(f)) return "diesel";
+  if (/Gasoline|Petrol|Flexible/i.test(f)) return "essence";
+  if (/CNG|LPG|Natural Gas|Propane/i.test(f)) return "gaz";
+  return f ? "autre" : null;
+}
+async function specsEnrich(maxVins: number) {
+  const pend = must(await sb.rpc("stock_specs_pending", { p_limit: maxVins })) as { vehicle_id: number; vin: string }[];
+  let done = 0, failed = 0;
+  for (let i = 0; i < pend.length; i += 50) {
+    const part = pend.slice(i, i + 50);
+    let results: any[] = [];
+    try {
+      const r = await fetch("https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValuesBatch/", {
+        method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "format=json&data=" + encodeURIComponent(part.map((x) => x.vin).join(";")), signal: AbortSignal.timeout(45000),
+      });
+      results = ((await r.json()).Results || []) as any[];
+    } catch (_e) {
+      const ids = part.map((x) => x.vehicle_id);
+      const cur = must(await sb.from("vehicle_specs").select("vehicle_id,attempts").in("vehicle_id", ids)) as any[];
+      const att: Record<number, number> = {}; cur.forEach((c) => (att[c.vehicle_id] = c.attempts));
+      await sb.from("vehicle_specs").upsert(part.map((x) => ({ vehicle_id: x.vehicle_id, vin: x.vin, status: "erreur", attempts: (att[x.vehicle_id] || 0) + 1, decoded_at: new Date().toISOString() })), { onConflict: "vehicle_id" });
+      failed += part.length;
+      continue;
+    }
+    const byVin: Record<string, any> = {};
+    results.forEach((x) => { if (x && x.VIN) byVin[String(x.VIN).toUpperCase()] = x; });
+    const rows = part.map((x) => {
+      const raw = byVin[x.vin] || {};
+      const d: Record<string, string> = {};
+      Object.entries(raw).forEach(([k, v]) => { if (v != null && String(v).trim() !== "" && String(v) !== "Not Applicable") d[k] = String(v).trim(); });
+      const num = (v?: string) => (v && isFinite(Number(v)) ? Number(v) : null);
+      const ok = !!(d.Make || d.Model);
+      return {
+        vehicle_id: x.vehicle_id, vin: x.vin, status: ok ? "ok" : "inconnu",
+        make: d.Make || null, model: d.Model || null, model_year: num(d.ModelYear), series: [d.Series, d.Trim].filter(Boolean).join(" · ") || null,
+        vehicle_type: d.VehicleType || null, body_class: d.BodyClass || null, doors: num(d.Doors),
+        fuel: d.FuelTypePrimary || null, fuel2: d.FuelTypeSecondary || null, electrification: d.ElectrificationLevel || null, energie: ok ? specsEnergie(d) : null,
+        displacement_l: num(d.DisplacementL) != null ? Math.round(Number(d.DisplacementL) * 10) / 10 : null, cylinders: num(d.EngineCylinders), hp: num(d.EngineHP),
+        drive: d.DriveType || null, transmission: d.TransmissionStyle || null,
+        plant_country: d.PlantCountry || null, plant_city: d.PlantCity || null, plant_company: d.PlantCompanyName || null, manufacturer: d.Manufacturer || null, gvwr: d.GVWR || null,
+        error_code: d.ErrorCode || null, raw: d, attempts: 0, decoded_at: new Date().toISOString(),
+      };
+    });
+    must(await sb.from("vehicle_specs").upsert(rows, { onConflict: "vehicle_id" }));
+    done += rows.length;
+  }
+  const remaining = (must(await sb.rpc("stock_specs_pending", { p_limit: 1000 })) as any[]).length;
+  return { done, failed, remaining };
+}
+
 const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
   async me(_p, who) { return who; },
 
@@ -982,6 +1039,44 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return { ok: true };
   },
 
+
+  // ---- Recherche technique ----
+  async specs_enrich(p, who) {
+    agentOnly(who);
+    return await specsEnrich(Math.min(Number(p.max) || 200, 400));
+  },
+  async specs_overview() {
+    return must(await sb.rpc("stock_specs_overview"));
+  },
+  async specs_search(p) {
+    const arr = (x: unknown) => (Array.isArray(x) ? x.filter((y) => y != null && y !== "") : []);
+    const rows = await fetchAll(() => {
+      let q = sb.from("v_vehicle_specs").select("*").eq("status", "ok");
+      if (arr(p.pays).length) q = q.in("plant_country", arr(p.pays));
+      if (arr(p.marques).length) q = q.in("make", arr(p.marques));
+      if (p.modele) q = q.ilike("model", `%${String(p.modele).replace(/[%,()]/g, " ").trim()}%`);
+      if (p.annee_min) q = q.gte("model_year", Number(p.annee_min));
+      if (p.annee_max) q = q.lte("model_year", Number(p.annee_max));
+      if (arr(p.types).length) q = q.in("vehicle_type", arr(p.types));
+      if (arr(p.carrosseries).length) q = q.in("body_class", arr(p.carrosseries));
+      if (arr(p.energies).length) q = q.in("energie", arr(p.energies));
+      if (p.cyl_min) q = q.gte("displacement_l", Number(p.cyl_min));
+      if (p.cyl_max) q = q.lte("displacement_l", Number(p.cyl_max));
+      const cy = arr(p.cylindres).map(Number);
+      if (cy.length) { const exact = cy.filter((n) => n < 8); q = cy.includes(8) ? q.or([...(exact.length ? [`cylinders.in.(${exact.join(",")})`] : []), "cylinders.gte.8"].join(",")) : q.in("cylinders", exact); }
+      if (p.hp_min) q = q.gte("hp", Number(p.hp_min));
+      if (p.hp_max) q = q.lte("hp", Number(p.hp_max));
+      if (arr(p.transmissions).length) q = q.in("drive", arr(p.transmissions));
+      if (p.parc_id) q = q.eq("current_parc_id", Number(p.parc_id));
+      if (p.statut === "present") q = q.not("current_parc_id", "is", null);
+      if (p.statut === "sorti") q = q.is("current_parc_id", null);
+      if (p.depot_from) q = q.gte("date_arrivee", p.depot_from);
+      if (p.depot_to) q = q.lte("date_arrivee", p.depot_to);
+      return q.order("chassis");
+    }, 20000);
+    return rows;
+  },
+
   // ---- Entrées et sorties saisies (une par une ou par fichier) ----
   async moves_preview(p, who) {
     agentOnly(who);
@@ -1057,6 +1152,12 @@ Deno.serve(async (req) => {
   try {
     // Le corps est envoyé en text/plain pour éviter la requête OPTIONS (gain d'un aller-retour)
     const body = await req.text().then((t) => (t ? JSON.parse(t) : {})).catch(() => ({}));
+    // Tâche de nuit (pg_cron) : reprise du décodage des châssis, protégée par une clé privée gardée dans la base
+    if (body.action === "specs_cron") {
+      const k = (must(await sb.from("stock_secrets").select("value").eq("key", "cron").maybeSingle()) as any)?.value;
+      if (!k || body.key !== k) throw new ApiError("NON_AUTORISE", 403);
+      return json({ ok: true, data: await specsEnrich(300) });
+    }
     const who = await identify(req, body.token);
     const fn = actions[String(body.action || "")];
     if (!fn) throw new ApiError("ACTION_INCONNUE");

@@ -58,6 +58,7 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   else if (section === "agrements") body = <StkAgrements />;
   else if (section === "ptu") body = <StkPtu />;
   else if (section === "suivis") body = <StkSuivis />;
+  else if (section === "technique") body = <StkTechSearch />;
   else if (section === "search") body = <StkSearch key={JSON.stringify(searchPreset)} preset={searchPreset} />;
   else if (section === "rapport") body = <StkReport />;
   else if (section === "anomalies") body = <StkAnomalies />;
@@ -381,7 +382,7 @@ function StkPeriod({ parcId, parcName }) {
 
 // ---------------- Recherche avancée ----------------
 function StkSearch({ preset }) {
-  const { cfg, dash, openVehicle } = React.useContext(StkCtx);
+  const { cfg, dash, openVehicle, settings, go } = React.useContext(StkCtx);
   const [f, setF] = useState({ q: "", field: "", parc_id: "", statut: "", navire: "", marque: "", arr_from: "", arr_to: "", situation: "", sans_date: false, ...(preset || {}) });
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -428,7 +429,7 @@ function StkSearch({ preset }) {
     else stkPrintPdf("Résultat de recherche", meta, c.filter((x) => !["Manifeste / ATP", "N° BL", "Importateur"].includes(x.h)), rows);
   };
   return <>
-    <StkPageHead title="Recherche avancée" sub="Retrouvez un véhicule et tout son historique : marque, parc actuel, entrée, transfert, navire, date de dépôt..." />
+    <StkPageHead title="Recherche avancée" sub="Retrouvez un véhicule et tout son historique : marque, parc actuel, entrée, transfert, navire, date de dépôt..." right={!stkCfgExtra(settings).hidden.includes("technique") && <StkBtn onClick={() => go("technique")} data-testid="btn-tech"><StkIc.Gear size={16} /> Recherche technique</StkBtn>} />
     <StkCard className="p-4 md:p-5">
       <form onSubmit={(e) => { e.preventDefault(); run(); }} className="space-y-3">
         <div className="flex gap-2">

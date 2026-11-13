@@ -100,6 +100,7 @@ const STK_SECTIONS = [
   { key: "rapport", label: "Rapport hebdomadaire", Ic: (p) => <FileSpreadsheet {...p} /> },
   { key: "search", label: "Recherche avancée", Ic: (p) => <Search {...p} /> },
   { key: "liste", label: "Recherche par liste", Ic: (p) => <ClipboardPaste {...p} /> },
+  { key: "technique", label: "Recherche technique", Ic: (p) => <StkIc.Gear {...p} /> },
   { key: "manifestes", label: "Vue par manifeste", Ic: (p) => <StkIc.Truck {...p} /> },
   { key: "ptu", label: "Parcs tampon (PTU)", Ic: (p) => <StkIc.Anchor {...p} /> },
   { key: "agrements", label: "Cautions bancaires", Ic: (p) => <StkIc.Award {...p} /> },
