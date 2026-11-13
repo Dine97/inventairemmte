@@ -100,24 +100,79 @@ function stkVinIncoherence(row) {
   if (fam.some((f) => decl.includes(f) || (decl.length >= 3 && f.startsWith(decl)))) return null;
   return { constructeur: d.constructeur, declare: row.marque };
 }
+// Base mondiale des VIN de la NHTSA (États-Unis), gratuite : marque, modèle, année, carrosserie, usine.
+// Interrogée depuis le navigateur à l'ouverture de la fiche ; réponse gardée sur l'appareil. Information seulement.
+const STK_NHTSA_FR = {
+  "PASSENGER CAR": "Voiture particulière", "MULTIPURPOSE PASSENGER VEHICLE (MPV)": "Véhicule multi-usages (SUV, 4x4, monospace)", TRUCK: "Camion",
+  "INCOMPLETE VEHICLE": "Véhicule incomplet (châssis-cabine)", BUS: "Bus", TRAILER: "Remorque", MOTORCYCLE: "Moto", "LOW SPEED VEHICLE (LSV)": "Véhicule lent",
+  "Sedan/Saloon": "Berline", "Hatchback/Liftback/Notchback": "Bicorps (hayon)", "Sport Utility Vehicle (SUV)/Multi-Purpose Vehicle (MPV)": "SUV / 4x4",
+  "Pickup": "Pick-up", "Coupe": "Coupé", "Wagon": "Break", "Minivan": "Monospace", "Van": "Fourgon", "Cargo Van": "Fourgon utilitaire", "Convertible/Cabriolet": "Cabriolet",
+  "Truck-Tractor": "Tracteur routier", "Truck": "Camion", "Bus": "Bus", "Crossover Utility Vehicle (CUV)": "Crossover (CUV)",
+  Gasoline: "Essence", Diesel: "Diesel", Electric: "Électrique", "Flexible Fuel Vehicle (FFV)": "Flex-fuel (essence / éthanol)", "Compressed Natural Gas (CNG)": "Gaz naturel (GNV)"
+};
+const stkFr = (x) => (x && STK_NHTSA_FR[x]) || x;
+function stkNhtsaCache(vin, val) {
+  try {
+    const k = "stk-vin-" + vin;
+    if (val === undefined) { const t = localStorage.getItem(k); return t ? JSON.parse(t) : null; }
+    localStorage.setItem(k, JSON.stringify(val));
+  } catch (e) { return null; }
+}
+async function stkNhtsaDecode(vin) {
+  const c = stkNhtsaCache(vin);
+  if (c) return c;
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 12000);
+  try {
+    const r = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${encodeURIComponent(vin)}?format=json`, { signal: ctl.signal });
+    const d = ((await r.json()).Results || [])[0] || {};
+    const out = { marque: d.Make || "", modele: d.Model || "", annee: d.ModelYear || "", carrosserie: d.BodyClass || "", type: d.VehicleType || "", pays: d.PlantCountry || "",
+      usine: [d.PlantCity, d.PlantCountry].filter(Boolean).join(", "), constructeur: d.Manufacturer || "", cylindree: d.DisplacementL ? Number(d.DisplacementL).toFixed(1) + " L" : "",
+      carburant: d.FuelTypePrimary || "", transmission: d.DriveType || "", erreur: String(d.ErrorCode || "0") !== "0" ? (d.ErrorText || "") : "" };
+    if (out.marque || out.modele) stkNhtsaCache(vin, out);
+    return out;
+  } finally { clearTimeout(t); }
+}
 function StkVinBox({ v }) {
   const d = stkVinDecode(v.chassis);
+  const [nh, setNh] = useState(null);
+  const [nhErr, setNhErr] = useState("");
+  useEffect(() => {
+    if (!d.ok) return;
+    let dead = false;
+    stkNhtsaDecode(d.vin).then((r) => !dead && setNh(r)).catch(() => !dead && setNhErr("Base mondiale des VIN injoignable (connexion) : décodage local seulement."));
+    return () => { dead = true; };
+  }, [v.chassis]);
   if (!d.ok && !d.raison) return null;
-  const inc = d.ok ? stkVinIncoherence(v) : null;
+  const mq = nh && nh.marque ? nh.marque : null;
+  // Incohérences (information) : la marque et l'année de la base mondiale priment sur le décodage local
+  let inc = d.ok ? stkVinIncoherence(v) : null;
+  if (mq && v.marque) {
+    const decl = stkNormMarque(v.marque), m = stkNormMarque(mq);
+    const fam = STK_MARQUE_FAM[mq.charAt(0) + mq.slice(1).toLowerCase()] || [m];
+    inc = fam.some((f) => decl.includes(f) || (decl.length >= 3 && f.startsWith(decl))) || decl.includes(m) || m.includes(decl) ? null : { constructeur: mq, declare: v.marque };
+  }
   const yr = v.annee ? String(v.annee).match(/\d{4}/) : null;
-  const yInc = d.ok && d.annee && yr && Math.abs(+yr[0] - d.annee) > 1 && !(d.anneeAlt && Math.abs(+yr[0] - d.anneeAlt) <= 1);
+  const ny = nh && /^\d{4}$/.test(nh.annee) ? +nh.annee : null;
+  const yInc = yr && (ny ? Math.abs(+yr[0] - ny) > 1 : d.ok && d.annee && Math.abs(+yr[0] - d.annee) > 1 && !(d.anneeAlt && Math.abs(+yr[0] - d.anneeAlt) <= 1));
+  const Item = ({ l, x }) => x ? <span>{l} : <b className="text-[#0B1F38]">{x}</b></span> : null;
   return <div className="rounded-xl border border-dashed border-[#9DB9DA] bg-[#F7FAFE] px-4 py-3" data-testid="vin-box">
     <div className="flex flex-wrap items-center gap-2 mb-1"><div className="text-[11px] font-bold uppercase tracking-wider text-[#1B4F8C]">D'après le numéro de châssis</div><span className="text-[11px] text-slate-400">information seulement — les données du parc ne sont pas modifiées</span></div>
     {!d.ok ? <div className="text-sm text-slate-600">{d.raison}</div> : <>
       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-        <span>Constructeur : <b className="text-[#0B1F38]">{d.constructeur || "non identifié"}</b></span>
-        <span>Pays de fabrication : <b className="text-[#0B1F38]">{d.pays || "non identifié"}</b></span>
-        <span>Année probable : <b className="text-[#0B1F38]">{d.annee || "—"}</b>{d.anneeAlt ? <span className="text-slate-500"> (ou {d.anneeAlt})</span> : ""}</span>
+        <Item l="Marque" x={mq || d.constructeur || "non identifiée"} />
+        <Item l="Modèle" x={nh && nh.modele} />
+        <span>Année : <b className="text-[#0B1F38]">{ny || d.annee || "—"}</b>{!ny && d.anneeAlt ? <span className="text-slate-500"> (ou {d.anneeAlt})</span> : ""}{!ny ? <span className="text-slate-400"> (probable)</span> : ""}</span>
+        <Item l="Type" x={nh && stkFr(nh.type)} />
+        <Item l="Carrosserie" x={nh && stkFr(nh.carrosserie)} />
+        <Item l="Moteur" x={nh && [nh.cylindree, stkFr(nh.carburant)].filter(Boolean).join(" · ")} />
+        <Item l="Fabriqué" x={(nh && nh.usine) || d.pays} />
+        {nh && nh.constructeur && <Item l="Constructeur" x={nh.constructeur} />}
         {d.cle != null && <span>Clé de contrôle : <b className={d.cle ? "text-emerald-700" : "text-rose-700"}>{d.cle ? "cohérente" : "incohérente"}</b></span>}
       </div>
+      <div className="text-[11px] text-slate-400 mt-1" data-testid="vin-source">{nh && (nh.marque || nh.modele) ? "Source : base mondiale des VIN (NHTSA, États-Unis)" + (nh.erreur ? " — décodage partiel pour ce numéro" : "") : nhErr || (nh ? "Numéro absent de la base mondiale : décodage local (constructeur, pays, année probable)." : "Interrogation de la base mondiale des VIN…")}</div>
       {(inc || yInc) && <div className="mt-2 text-sm text-amber-900 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
         {inc && <div>Le parc a déclaré la marque <b>{inc.declare}</b>, le numéro correspond plutôt à <b>{inc.constructeur}</b>.</div>}
-        {yInc && <div>Le parc a déclaré l'année <b>{yr[0]}</b>, le numéro indique plutôt <b>{d.annee}</b>.</div>}
+        {yInc && <div>Le parc a déclaré l'année <b>{yr[0]}</b>, le numéro indique plutôt <b>{ny || d.annee}</b>.</div>}
         <div className="text-[11px] text-amber-800 mt-0.5">À vérifier sur le terrain si besoin. Aucune correction automatique.</div>
       </div>}
     </>}
