@@ -120,63 +120,141 @@ function stkNhtsaCache(vin, val) {
 }
 async function stkNhtsaDecode(vin) {
   const c = stkNhtsaCache(vin);
-  if (c) return c;
+  if (c && c.v === 2) return c;
   const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 12000);
   try {
     const r = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${encodeURIComponent(vin)}?format=json`, { signal: ctl.signal });
     const d = ((await r.json()).Results || [])[0] || {};
-    const out = { marque: d.Make || "", modele: d.Model || "", annee: d.ModelYear || "", carrosserie: d.BodyClass || "", type: d.VehicleType || "", pays: d.PlantCountry || "",
-      usine: [d.PlantCity, d.PlantCountry].filter(Boolean).join(", "), constructeur: d.Manufacturer || "", cylindree: d.DisplacementL ? Number(d.DisplacementL).toFixed(1) + " L" : "",
-      carburant: d.FuelTypePrimary || "", transmission: d.DriveType || "", erreur: String(d.ErrorCode || "0") !== "0" ? (d.ErrorText || "") : "" };
-    if (out.marque || out.modele) stkNhtsaCache(vin, out);
+    const keep = {};
+    Object.entries(d).forEach(([k, x]) => { if (x != null && String(x).trim() !== "" && String(x) !== "Not Applicable") keep[k] = String(x).trim(); });
+    const out = { v: 2, at: new Date().toISOString(), d: keep };
+    if (keep.Make || keep.Model) stkNhtsaCache(vin, out);
     return out;
   } finally { clearTimeout(t); }
 }
+// Mise en forme française des valeurs de la base NHTSA
+const STK_NH = {
+  drive: (x) => { const t = String(x || ""); if (/AWD|All-Wheel/i.test(t)) return "Intégrale (AWD)"; if (/4WD|4x4|4-Wheel/i.test(t)) return "4x4"; if (/FWD|Front/i.test(t)) return "Traction avant"; if (/RWD|Rear/i.test(t)) return "Propulsion"; if (/4x2/i.test(t)) return "Deux roues motrices (4x2)"; if (/6x4/i.test(t)) return "6x4"; return t; },
+  config: (x) => ({ "In-Line": "en ligne", "V-Shaped": "en V", "W-Shaped": "en W", "Horizontally opposed (boxer)": "à plat (boxer)", Rotary: "rotatif" }[x] || x || ""),
+  boite: (x) => { const t = String(x || ""); if (/Continuously|CVT/i.test(t)) return "À variation continue"; if (/Automated Manual|DCT|Dual/i.test(t)) return "Robotisée"; if (/Auto/i.test(t)) return "Automatique"; if (/Manual|Standard/i.test(t)) return "Manuelle"; return t; },
+  energie: (d) => {
+    const e = String(d.ElectrificationLevel || ""), f = stkFr(d.FuelTypePrimary || ""), f2 = stkFr(d.FuelTypeSecondary || "");
+    if (/BEV|Battery Electric/i.test(e)) return "Électrique";
+    if (/PHEV|Plug-in/i.test(e)) return `Hybride rechargeable (${(f || "essence").toLowerCase()}-électrique)`;
+    if (/Mild/i.test(e)) return `Hybride léger ${(f || "").toLowerCase()}`.trim();
+    if (/HEV|Hybrid/i.test(e)) return `Hybride ${(f || "essence").toLowerCase()}-électrique`;
+    return [f, f2 && f2 !== f ? f2.toLowerCase() : ""].filter(Boolean).join(" / ");
+  },
+  ptac: (x) => { const m = String(x || "").match(/Class\s*([\w]+)[^()]*\(([^)]*)\)/i); if (!m) return x || ""; const or = /or less/i.test(m[2]); return `Classe ${m[1]} : ${or ? "≤ " : ""}${m[2].replace(/\s*or less/i, "").replace(/\s*-\s*/, " à ").replace(/(\d),(\d{3})/g, "$1 $2")}`; },
+  airbags: (d) => [["AirBagLocFront", "frontaux"], ["AirBagLocSide", "latéraux"], ["AirBagLocCurtain", "rideaux"], ["AirBagLocKnee", "genoux"], ["AirBagLocSeatCushion", "assise"]].filter(([k]) => d[k]).map(([, l]) => l).join(", "),
+  oui: (x) => ({ Standard: "de série", Optional: "en option", Direct: "direct", Indirect: "indirect", Manual: "manuelles", Automatic: "automatiques", Yes: "oui", No: "non" }[x] || x || "")
+};
+function stkNhCyl(d) { return [d.DisplacementL ? String(Number(d.DisplacementL).toFixed(1)).replace(".", ",") + " L" : "", d.EngineCylinders ? `${d.EngineCylinders} cylindres` : ""].filter(Boolean).join(" · "); }
+function stkNhSections(d) {
+  const S = (title, rows) => ({ title, rows: rows.filter((r) => r[1]) });
+  return [
+    S("Identification", [["Marque", d.Make], ["Modèle", d.Model], ["Année-modèle", d.ModelYear], ["Série / version", [d.Series, d.Trim].filter(Boolean).join(" · ")], ["Type", stkFr(d.VehicleType)], ["Carrosserie", stkFr(d.BodyClass)], ["Portes", d.Doors], ["Places", d.Seats]]),
+    S("Moteur et transmission", [["Énergie", STK_NH.energie(d)], ["Cylindrée", d.DisplacementL ? `${String(Number(d.DisplacementL).toFixed(1)).replace(".", ",")} L${d.DisplacementCC ? ` (${Math.round(Number(d.DisplacementCC)).toLocaleString("fr-FR")} cm³)` : ""}` : ""], ["Cylindres", [d.EngineCylinders, STK_NH.config(d.EngineConfiguration)].filter(Boolean).join(" ")], ["Puissance", d.EngineHP ? `${Math.round(Number(d.EngineHP))} ch` : ""], ["Code moteur", d.EngineModel], ["Transmission", STK_NH.drive(d.DriveType)], ["Boîte de vitesses", [STK_NH.boite(d.TransmissionStyle), d.TransmissionSpeeds ? `${d.TransmissionSpeeds} rapports` : ""].filter(Boolean).join(", ")]]),
+    S("Poids et sécurité", [["Poids total (PTAC)", STK_NH.ptac(d.GVWR)], ["Airbags", STK_NH.airbags(d)], ["Ceintures", STK_NH.oui(d.SeatBeltsAll)], ["ABS", STK_NH.oui(d.ABS)], ["Contrôle de stabilité (ESP)", STK_NH.oui(d.ESC)], ["Contrôle pression pneus", STK_NH.oui(d.TPMS)]]),
+    S("Fabrication", [["Constructeur", stkTitle(d.Manufacturer)], ["Usine", d.PlantCompanyName ? d.PlantCompanyName.replace(/^.*\s-\s*/, "").replace(/\s*(Plant|Factory|Assembly Plant)$/i, "") : ""], ["Ville", [d.PlantCity, d.PlantState].filter(Boolean).map(stkTitle).join(", ")], ["Pays", stkPaysNom(d.PlantCountry)]])
+  ].filter((x) => x.rows.length);
+}
+const STK_VI = {
+  fuel: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16M3 21h13M15 10h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3M7 8h5" /></svg>,
+  gear: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" /></svg>,
+  pin: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z" /><circle cx="12" cy="10" r="2.5" /></svg>,
+  key: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="15" r="4" /><path d="M11 12l9-9M17 6l3 3M15 8l2 2" /></svg>
+};
+const STK_PAYS_FR = { "UNITED STATES (USA)": "aux États-Unis", JAPAN: "au Japon", GERMANY: "en Allemagne", FRANCE: "en France", "SOUTH KOREA": "en Corée du Sud", CANADA: "au Canada", MEXICO: "au Mexique", CHINA: "en Chine", "UNITED KINGDOM (UK)": "au Royaume-Uni", SPAIN: "en Espagne", ITALY: "en Italie", BELGIUM: "en Belgique", SWEDEN: "en Suède", BRAZIL: "au Brésil", INDIA: "en Inde", THAILAND: "en Thaïlande", TURKEY: "en Turquie", "SOUTH AFRICA": "en Afrique du Sud", "CZECH REPUBLIC": "en Tchéquie", HUNGARY: "en Hongrie", SLOVAKIA: "en Slovaquie", AUSTRIA: "en Autriche", PORTUGAL: "au Portugal", ARGENTINA: "en Argentine", INDONESIA: "en Indonésie", TAIWAN: "à Taïwan", NETHERLANDS: "aux Pays-Bas", FINLAND: "en Finlande", POLAND: "en Pologne", ROMANIA: "en Roumanie", RUSSIA: "en Russie" };
+const stkTitle = (x) => String(x || "").toLowerCase().replace(/(^|[\s\-'(])([a-zà-ÿ])/g, (m, p, c) => p + c.toUpperCase());
+const stkPaysNom = (x) => { if (!x) return ""; const f = STK_PAYS_FR[x]; return f ? f.replace(/^(aux|au|en|à) /, "").replace(/^./, (c) => c.toUpperCase()) : stkTitle(x); };
+const stkPaysPhrase = (nhPays, localPays) => nhPays ? (STK_PAYS_FR[nhPays] ? "Fabriqué " + STK_PAYS_FR[nhPays] : "Fabriqué : " + nhPays.charAt(0) + nhPays.slice(1).toLowerCase()) : localPays ? "Fabriqué : " + localPays : "";
+function stkPrintFiche(vin, sections, src) {
+  const w = window.open("", "_blank");
+  if (!w) return;
+  const esc = (x) => String(x || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Fiche technique ${esc(vin)}</title><style>body{font-family:Arial,sans-serif;color:#0B1F38;margin:28px}h1{font-size:18px;margin:0}h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#1B4F8C;margin:18px 0 6px}table{border-collapse:collapse;width:100%}td{border-bottom:1px solid #DDE6F0;padding:5px 4px;font-size:13px}td:first-child{color:#64748B;width:40%}.s{font-size:11px;color:#64748B;margin-top:16px}</style></head><body><h1>Fiche technique — châssis ${esc(vin)}</h1><div class="s">Suivi des stocks MAD ROULANTS · Bénin Control · édité le ${esc(stkFmt(stkToday()))}</div>${sections.map((s) => `<h2>${esc(s.title)}</h2><table>${s.rows.map((r) => `<tr><td>${esc(r[0])}</td><td><b>${esc(r[1])}</b></td></tr>`).join("")}</table>`).join("")}<div class="s">${esc(src)} — information seulement.</div><script>setTimeout(()=>print(),300)<\/script></body></html>`);
+  w.document.close();
+}
 function StkVinBox({ v }) {
+  const C = React.useContext(StkCtx);
   const d = stkVinDecode(v.chassis);
   const [nh, setNh] = useState(null);
-  const [nhErr, setNhErr] = useState("");
+  const [nhErr, setNhErr] = useState(false);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!d.ok) return;
     let dead = false;
-    stkNhtsaDecode(d.vin).then((r) => !dead && setNh(r)).catch(() => !dead && setNhErr("Base mondiale des VIN injoignable (connexion) : décodage local seulement."));
+    setNh(null); setNhErr(false);
+    stkNhtsaDecode(d.vin).then((r) => !dead && setNh(r)).catch(() => !dead && setNhErr(true));
     return () => { dead = true; };
   }, [v.chassis]);
   if (!d.ok && !d.raison) return null;
-  const mq = nh && nh.marque ? nh.marque : null;
-  // Incohérences (information) : la marque et l'année de la base mondiale priment sur le décodage local
-  let inc = d.ok ? stkVinIncoherence(v) : null;
-  if (mq && v.marque) {
-    const decl = stkNormMarque(v.marque), m = stkNormMarque(mq);
-    const fam = STK_MARQUE_FAM[mq.charAt(0) + mq.slice(1).toLowerCase()] || [m];
-    inc = fam.some((f) => decl.includes(f) || (decl.length >= 3 && f.startsWith(decl))) || decl.includes(m) || m.includes(decl) ? null : { constructeur: mq, declare: v.marque };
+  const Box = ({ warn, children }) => <div className={`rounded-xl border-[1.5px] border-dashed px-4 py-3 ${warn ? "border-amber-300 bg-[#FFFDF5]" : "border-[#9DB9DA] bg-[#F7FAFE]"}`} data-testid="vin-box">{children}</div>;
+  const Title = ({ right }) => <div className="flex flex-wrap items-center gap-2 mb-1"><div className="text-[11px] font-extrabold uppercase tracking-wider text-[#1B4F8C]">D'après le numéro de châssis</div><div className="ml-auto">{right}</div></div>;
+  // 17 caractères impossibles
+  if (!d.ok) {
+    const n = String(v.chassis || "").replace(/[^A-Za-z0-9]/g, "").length;
+    return <Box><Title />
+      <div className="font-bold text-[#0B1F38]">Non décodable <span className="font-normal text-slate-600 text-sm">· {n} caractère{n > 1 ? "s" : ""}</span></div>
+      <div className="text-sm text-slate-600 mt-0.5">{d.raison}</div>
+      <div className="mt-2"><StkBadge tone="bg-slate-100 text-slate-600 border-slate-300">Châssis atypique</StkBadge></div>
+    </Box>;
+  }
+  const D = (nh && nh.d) || {};
+  const has = !!(D.Make || D.Model);
+  const mq = D.Make || d.constructeur || "";
+  // alertes (information) : la base mondiale prime sur le décodage local
+  let inc = stkVinIncoherence(v);
+  if (has && D.Make && v.marque) {
+    const decl = stkNormMarque(v.marque), m = stkNormMarque(D.Make);
+    const fam = STK_MARQUE_FAM[D.Make.charAt(0) + D.Make.slice(1).toLowerCase()] || [m];
+    inc = fam.some((f) => decl.includes(f) || (decl.length >= 3 && f.startsWith(decl))) || decl.includes(m) || m.includes(decl) ? null : { constructeur: D.Make, declare: v.marque };
   }
   const yr = v.annee ? String(v.annee).match(/\d{4}/) : null;
-  const ny = nh && /^\d{4}$/.test(nh.annee) ? +nh.annee : null;
-  const yInc = yr && (ny ? Math.abs(+yr[0] - ny) > 1 : d.ok && d.annee && Math.abs(+yr[0] - d.annee) > 1 && !(d.anneeAlt && Math.abs(+yr[0] - d.anneeAlt) <= 1));
-  const Item = ({ l, x }) => x ? <span>{l} : <b className="text-[#0B1F38]">{x}</b></span> : null;
-  return <div className="rounded-xl border border-dashed border-[#9DB9DA] bg-[#F7FAFE] px-4 py-3" data-testid="vin-box">
-    <div className="flex flex-wrap items-center gap-2 mb-1"><div className="text-[11px] font-bold uppercase tracking-wider text-[#1B4F8C]">D'après le numéro de châssis</div><span className="text-[11px] text-slate-400">information seulement — les données du parc ne sont pas modifiées</span></div>
-    {!d.ok ? <div className="text-sm text-slate-600">{d.raison}</div> : <>
-      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-        <Item l="Marque" x={mq || d.constructeur || "non identifiée"} />
-        <Item l="Modèle" x={nh && nh.modele} />
-        <span>Année : <b className="text-[#0B1F38]">{ny || d.annee || "—"}</b>{!ny && d.anneeAlt ? <span className="text-slate-500"> (ou {d.anneeAlt})</span> : ""}{!ny ? <span className="text-slate-400"> (probable)</span> : ""}</span>
-        <Item l="Type" x={nh && stkFr(nh.type)} />
-        <Item l="Carrosserie" x={nh && stkFr(nh.carrosserie)} />
-        <Item l="Moteur" x={nh && [nh.cylindree, stkFr(nh.carburant)].filter(Boolean).join(" · ")} />
-        <Item l="Fabriqué" x={(nh && nh.usine) || d.pays} />
-        {nh && nh.constructeur && <Item l="Constructeur" x={nh.constructeur} />}
-        {d.cle != null && <span>Clé de contrôle : <b className={d.cle ? "text-emerald-700" : "text-rose-700"}>{d.cle ? "cohérente" : "incohérente"}</b></span>}
+  const ny = /^\d{4}$/.test(D.ModelYear || "") ? +D.ModelYear : null;
+  const yInc = !!yr && (ny ? Math.abs(+yr[0] - ny) > 1 : !!d.annee && Math.abs(+yr[0] - d.annee) > 1 && !(d.anneeAlt && Math.abs(+yr[0] - d.anneeAlt) <= 1));
+  const cleBad = d.na && d.cle === false;
+  const warn = !!inc || yInc || cleBad;
+  const cap = (x) => (x ? x.charAt(0) + x.slice(1).toLowerCase() : "");
+  const titre = has ? [cap(D.Make), D.Model, D.ModelYear].filter(Boolean).join(" ") : [mq].filter(Boolean).join(" ");
+  const sous = has ? [stkFr(D.VehicleType), stkFr(D.BodyClass)].filter(Boolean).join(" · ") : (d.annee ? `année probable ${d.annee}${d.anneeAlt ? ` (ou ${d.anneeAlt})` : ""}` : "");
+  const moteur = has ? [STK_NH.energie(D), stkNhCyl(D)].filter(Boolean).join(" · ") : "";
+  const trans = has && D.DriveType ? STK_NH.drive(D.DriveType) : "";
+  const pays = stkPaysPhrase(has ? D.PlantCountry : "", d.pays);
+  const cle = d.na ? (d.cle ? "Clé de contrôle cohérente" : "Clé de contrôle incohérente") : "Clé de contrôle : non obligatoire hors Amérique du Nord";
+  const sections = has ? stkNhSections(D) : [];
+  const src = has ? "Source : base mondiale des VIN (NHTSA, États-Unis)" : nhErr ? "Base mondiale des VIN injoignable : décodage de l'outil seulement. Un châssis déjà consulté garde sa fiche complète." : nh ? "Numéro absent de la base mondiale : décodage de l'outil seulement." : "Interrogation de la base mondiale des VIN…";
+  const copy = () => { try { navigator.clipboard.writeText(d.vin); C.toast && C.toast("Châssis copié"); } catch (e) {} };
+  const right = has ? <button className="text-[13px] font-extrabold text-[#1B4F8C] whitespace-nowrap" onClick={() => setOpen(!open)} data-testid="vin-toggle">{open ? "Masquer ▾" : "Fiche technique complète ▸"}</button>
+    : <span className="text-[12px] font-bold text-slate-400">{nhErr ? "Fiche technique indisponible hors ligne" : ""}</span>;
+  const Item = ({ ic, children, red }) => children ? <span className={`inline-flex items-center gap-1.5 ${red ? "text-rose-700" : ""}`}><span className={red ? "text-rose-700" : "text-[#1B4F8C]"}>{ic}</span>{children}</span> : null;
+  return <Box warn={warn}>
+    <Title right={right} />
+    <div className="flex flex-wrap items-baseline gap-x-2"><span className="text-base font-bold text-[#0B1F38]" data-testid="vin-titre">{titre || "Constructeur non identifié"}</span>{sous && <span className="text-sm text-slate-600">· {sous}</span>}</div>
+    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-slate-700 mt-1.5">
+      <Item ic={STK_VI.fuel}>{moteur}</Item>
+      <Item ic={STK_VI.gear}>{trans}</Item>
+      <Item ic={STK_VI.pin}>{pays}</Item>
+      <Item ic={STK_VI.key} red={cleBad}>{cle}</Item>
+    </div>
+    {warn && <div className="flex flex-wrap gap-1.5 mt-2" data-testid="vin-alertes">
+      {inc && <StkBadge tone="bg-amber-50 text-amber-900 border-amber-300">Marque à vérifier : déclarée {inc.declare}{has ? "" : `, le numéro indique ${inc.constructeur}`}</StkBadge>}
+      {yInc && <StkBadge tone="bg-amber-50 text-amber-900 border-amber-300">Année à vérifier : déclarée {yr[0]}</StkBadge>}
+      {cleBad && <StkBadge tone="bg-rose-50 text-rose-800 border-rose-200">Clé incohérente : lecture du châssis à vérifier</StkBadge>}
+    </div>}
+    {open && has && <div className="mt-3 pt-2 border-t border-dashed border-[#C9DBEF]" data-testid="vin-fiche">
+      {sections.map((sec) => <div key={sec.title} className="mt-2">
+        <div className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">{sec.title}</div>
+        <div className="grid sm:grid-cols-2 gap-x-5">{sec.rows.map(([k, x]) => <div key={k} className="flex justify-between gap-3 border-b border-dotted border-[#D5E0EC] py-1 text-[13px]"><span className="text-slate-500">{k}</span><b className="font-semibold text-right">{x}</b></div>)}</div>
+      </div>)}
+      <div className="flex flex-wrap gap-2 mt-3">
+        <StkBtn small onClick={copy}>Copier le châssis</StkBtn>
+        <StkBtn small onClick={() => stkPrintFiche(d.vin, sections, src)}><Printer size={14} /> Imprimer la fiche technique</StkBtn>
       </div>
-      <div className="text-[11px] text-slate-400 mt-1" data-testid="vin-source">{nh && (nh.marque || nh.modele) ? "Source : base mondiale des VIN (NHTSA, États-Unis)" + (nh.erreur ? " — décodage partiel pour ce numéro" : "") : nhErr || (nh ? "Numéro absent de la base mondiale : décodage local (constructeur, pays, année probable)." : "Interrogation de la base mondiale des VIN…")}</div>
-      {(inc || yInc) && <div className="mt-2 text-sm text-amber-900 bg-amber-50 border border-amber-300 rounded-lg px-3 py-2">
-        {inc && <div>Le parc a déclaré la marque <b>{inc.declare}</b>, le numéro correspond plutôt à <b>{inc.constructeur}</b>.</div>}
-        {yInc && <div>Le parc a déclaré l'année <b>{yr[0]}</b>, le numéro indique plutôt <b>{ny || d.annee}</b>.</div>}
-        <div className="text-[11px] text-amber-800 mt-0.5">À vérifier sur le terrain si besoin. Aucune correction automatique.</div>
-      </div>}
-    </>}
-  </div>;
+    </div>}
+    <div className="text-[11px] text-slate-400 mt-2" data-testid="vin-source">{src}{has ? " · information seulement, rien n'est corrigé" : ""}</div>
+  </Box>;
 }
 
 // Châssis cherché mais absent du suivi des stocks : on le décode quand même (information seulement)
