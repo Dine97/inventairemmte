@@ -3,7 +3,7 @@
 // Écran à part : la Recherche avancée ne change pas. Les caractéristiques sont gardées à part du stock (information seulement).
 // ============================================================
 const STK_ENERGIE = { essence: "Essence", diesel: "Diesel", hybride: "Hybride", electrique: "Électrique", gaz: "Gaz", autre: "Autre" };
-const STK_TECH_EMPTY = { pays: [], marques: [], modele: "", annee_min: "", annee_max: "", types: [], carrosseries: [], energies: [], cyl_min: "", cyl_max: "", cylindres: [], hp_min: "", hp_max: "", transmissions: [], parc_id: "", statut: "present", situation: "", ecart: "" };
+const STK_TECH_EMPTY = { pays: [], marques: [], modele: "", annee_min: "", annee_max: "", types: [], carrosseries: [], energies: [], moteurs: [], cyl_min: "", cyl_max: "", cylindres: [], hp_min: "", hp_max: "", transmissions: [], parc_id: "", statut: "present", situation: "", ecart: "" };
 // Lance le décodage des nouveaux châssis en arrière-plan (après un import)
 function stkSpecsKick() { try { stkCall("specs_enrich", { max: 200 }, false, 120e3).catch(() => {}); } catch (e) {} }
 
@@ -44,6 +44,7 @@ function stkTechMarqueInc(r) {
   return !(fam.some((f) => decl.includes(f) || (decl.length >= 3 && f.startsWith(decl))) || decl.includes(m) || m.includes(decl));
 }
 function stkTechAnneeInc(r) { const y = r.annee ? String(r.annee).match(/\d{4}/) : null; return !!(y && r.model_year && Math.abs(+y[0] - r.model_year) > 1); }
+const stkMoteurFmt = (v) => String(Number(v).toFixed(1)).replace(".", ",") + " L";
 const stkTechVeh = (r) => [stkTitle(r.make), r.model, r.model_year].filter(Boolean).join(" ");
 const stkTechMoteur = (r) => [STK_ENERGIE[r.energie] || "", r.displacement_l ? String(r.displacement_l).replace(".", ",") + " L" : "", r.cylinders ? r.cylinders + " cyl." : ""].filter(Boolean).join(" · ");
 
@@ -87,6 +88,8 @@ function StkTechSearch() {
       if (p.situation) params.statut = "present";
       let r = await stkCall("specs_search", params, false, 90e3);
       r = r.map((x) => ({ ...x, parcName: x.parc, incMarque: stkTechMarqueInc(x), incAnnee: stkTechAnneeInc(x) }));
+      const mo = (p.moteurs || []).map((x) => Number(x).toFixed(1));
+      if (mo.length) r = r.filter((x) => x.displacement_l != null && mo.includes(Number(x.displacement_l).toFixed(1)));
       if (p.ecart === "marque") r = r.filter((x) => x.incMarque);
       if (p.ecart === "annee") r = r.filter((x) => x.incAnnee);
       if (p.ecart === "tout") r = r.filter((x) => x.incMarque || x.incAnnee);
@@ -101,7 +104,7 @@ function StkTechSearch() {
     if (!rows || !rows.length) return null;
     const cnt = (fn) => { const m = {}; rows.forEach((r) => { const k = fn(r); if (k) m[k] = (m[k] || 0) + 1; }); return Object.entries(m).sort((a, b) => b[1] - a[1]); };
     const hp = rows.filter((r) => r.hp); const yr = rows.filter((r) => r.model_year);
-    return { energies: cnt((r) => STK_ENERGIE[r.energie]), pays: cnt((r) => stkPaysNom(r.plant_country)), marques: cnt((r) => stkTitle(r.make)),
+    return { energies: cnt((r) => STK_ENERGIE[r.energie]), moteurs: cnt((r) => r.displacement_l ? stkMoteurFmt(r.displacement_l) : null), pays: cnt((r) => stkPaysNom(r.plant_country)), marques: cnt((r) => stkTitle(r.make)),
       hp: hp.length ? Math.round(hp.reduce((a, r) => a + Number(r.hp), 0) / hp.length) : null, yr: yr.length ? Math.round(yr.reduce((a, r) => a + r.model_year, 0) / yr.length) : null,
       inc: rows.filter((r) => r.incMarque || r.incAnnee).length };
   }, [rows]);
@@ -139,7 +142,7 @@ function StkTechSearch() {
         <Sep>Moteur</Sep>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div className="col-span-2"><StkChips label="Énergie" options={Object.entries(STK_ENERGIE).filter(([k]) => k !== "autre")} value={f.energies} onChange={set("energies")} testid="t-energies" /></div>
-          <Rng k1="cyl_min" k2="cyl_max" label="Cylindrée (L)" step="0.1" />
+          <StkMultiSelect label="Moteur (cylindrée)" options={O.moteurs || []} value={f.moteurs} onChange={set("moteurs")} fmt={stkMoteurFmt} testid="t-moteurs" />
           <StkChips label="Cylindres" options={cylOpts} value={f.cylindres} onChange={set("cylindres")} testid="t-cylindres" />
           <Rng k1="hp_min" k2="hp_max" label="Puissance (ch)" />
           <StkMultiSelect label="Transmission" options={O.transmissions || []} value={f.transmissions} onChange={set("transmissions")} fmt={STK_NH.drive} />
@@ -168,7 +171,7 @@ function StkTechSearch() {
           <StkKpi label="Année-modèle moyenne" value={stats.yr ? String(stats.yr) : "—"} />
           <StkKpi label="Écart à vérifier" value={stats.inc} tone={stats.inc ? "amber" : undefined} onClick={stats.inc ? () => { setF((x) => ({ ...x, ecart: "tout" })); run({ ecart: "tout" }); } : undefined} />
         </div>
-        <div className="grid md:grid-cols-3 gap-4"><StkBars title="Par pays de fabrication" data={stats.pays} /><StkBars title="Par marque" data={stats.marques} /><StkBars title="Par énergie" data={stats.energies} /></div>
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4"><StkBars title="Par pays de fabrication" data={stats.pays} /><StkBars title="Par marque" data={stats.marques} /><StkBars title="Par moteur" data={stats.moteurs} /><StkBars title="Par énergie" data={stats.energies} /></div>
       </>}
       <StkTable rows={rows} rowKey={(r) => r.id} onRow={(r) => openVehicle({ id: r.id })} empty="Aucun véhicule ne correspond." columns={[
         { key: "chassis", label: "Châssis", render: (r) => <span className="font-plex-mono font-bold text-[#0B1F38] whitespace-nowrap">{r.chassis}</span> },
