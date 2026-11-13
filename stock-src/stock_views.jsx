@@ -387,6 +387,7 @@ function StkSearch({ preset }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [scan, setScan] = useState(false);
+  const [lastQ, setLastQ] = useState("");
   const today = stkToday();
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e && e.target ? (e.target.type === "checkbox" ? e.target.checked : e.target.value) : e }));
   const run = async (over) => {
@@ -400,6 +401,7 @@ function StkSearch({ preset }) {
       if (p.situation === "disponible") params.depot_from = stkAddDays(today, -cfg.duree + cfg.seuil + 1);
       if (p.situation) params.statut = "present";
       const r = await stkCall("search", params);
+      setLastQ(p.field === "chassis" || !p.navire ? p.q || "" : "");
       setRows(r.map((x) => ({ ...x, parcName: x.parc ? x.parc.name : null })));
       if (r.length === 1 && p.q && !over) openVehicle({ id: r[0].id });
     } catch (e) { setErr(stkErrText(e)); }
@@ -453,6 +455,7 @@ function StkSearch({ preset }) {
       <div className="pt-3 mt-3 border-t border-slate-100"><StkSavedFilters current={f} onApply={applySaved} /></div>
     </StkCard>
     {err && <StkMsg tone="err">{err}</StkMsg>}
+    {rows && (() => { const c = stkNormChassis(lastQ); return c.length >= 6 && /\d/.test(c) && !rows.some((r) => r.chassis === c) ? <StkUnknownChassis chassis={c} partial={rows.length} /> : null; })()}
     {rows && <StkCard className="p-4 md:p-5">
       <div className="flex items-center gap-2 mb-3"><div className="font-bold text-[#0B1F38] flex-1">{rows.length.toLocaleString("fr-FR")} véhicule(s){rows.length >= 2000 ? " (2 000 premiers — affinez la recherche)" : ""}</div><StkExportBar disabled={!rows.length} onXlsx={() => exp("x")} onPdf={() => exp("p")} /></div>
       <StkTable columns={cols} rows={rows} rowKey={(r) => r.id} onRow={(r) => openVehicle({ id: r.id })} empty="Aucun véhicule ne correspond." />
@@ -471,11 +474,13 @@ function StkVehicleModal({ target, onClose }) {
   const [editStay, setEditStay] = useState(null);
   const [justif, setJustif] = useState(null);
   const [raw, setRaw] = useState(false);
+  const [unknown, setUnknown] = useState(false);
   const today = stkToday();
   const load = async () => {
     try { setErr(""); setD(await stkCall("vehicle", target.id ? { id: target.id } : { chassis: target.chassis })); }
     catch (e) {
       if (target.fallbackSearch && String(e.message) === "VEHICULE_INTROUVABLE") { onClose(); C.go("search", { q: target.chassis }); return; }
+      setUnknown(String(e.message) === "VEHICULE_INTROUVABLE" && !!target.chassis);
       setErr(stkErrText(e));
     }
   };
@@ -502,7 +507,7 @@ function StkVehicleModal({ target, onClose }) {
       <StkBtn small onClick={printFiche}><Printer size={15} /> Imprimer / PDF</StkBtn>
       <StkBtn small kind="primary" onClick={onClose}>Fermer</StkBtn>
     </>}>
-    {err && <StkMsg tone="err">{err}</StkMsg>}
+    {err && (unknown ? <StkUnknownChassis chassis={stkNormChassis(target.chassis)} /> : <StkMsg tone="err">{err}</StkMsg>)}
     {!d && !err && <StkLoading />}
     {v && <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">

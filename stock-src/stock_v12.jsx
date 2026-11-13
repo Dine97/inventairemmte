@@ -179,6 +179,18 @@ function StkVinBox({ v }) {
   </div>;
 }
 
+// Châssis cherché mais absent du suivi des stocks : on le décode quand même (information seulement)
+function StkUnknownChassis({ chassis, partial }) {
+  return <StkCard className="p-4 md:p-5 space-y-3" data-testid="unknown-chassis">
+    <div className="flex flex-wrap items-center gap-2">
+      <StkBadge tone="bg-rose-50 text-rose-800 border-rose-200">Non trouvé dans le stock</StkBadge>
+      <span className="font-plex-mono font-bold text-[#0B1F38] break-all">{chassis}</span>
+    </div>
+    <div className="text-sm text-slate-600">Ce châssis n'a été déclaré par aucun parc ni aucun manifeste dans le suivi des stocks{partial ? ` (${partial} autre(s) véhicule(s) au châssis approchant ci-dessous)` : ""}. Voici ce que son numéro permet d'en savoir.</div>
+    <StkVinBox v={{ chassis }} />
+  </StkCard>;
+}
+
 // ---------- Suivis personnels ----------
 function stkSuiviEvents(data, cfg) {
   if (!data) return [];
