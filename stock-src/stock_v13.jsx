@@ -3,12 +3,13 @@
 // Écran à part : la Recherche avancée ne change pas. Les caractéristiques sont gardées à part du stock (information seulement).
 // ============================================================
 const STK_ENERGIE = { essence: "Essence", diesel: "Diesel", hybride: "Hybride", electrique: "Électrique", gaz: "Gaz", autre: "Autre" };
-const STK_TECH_EMPTY = { pays: [], marques: [], modele: "", annee_min: "", annee_max: "", types: [], carrosseries: [], energies: [], moteurs: [], cyl_min: "", cyl_max: "", cylindres: [], hp_min: "", hp_max: "", transmissions: [], parc_id: "", statut: "present", situation: "", ecart: "" };
+const STK_TECH_EMPTY = { pays: [], marques: [], modeles: [], modele: "", annee_min: "", annee_max: "", types: [], carrosseries: [], energies: [], moteurs: [], cyl_min: "", cyl_max: "", cylindres: [], hp_min: "", hp_max: "", transmissions: [], parc_id: "", statut: "present", situation: "", ecart: "" };
 // Lance le décodage des nouveaux châssis en arrière-plan (après un import)
 function stkSpecsKick() { try { stkCall("specs_enrich", { max: 200 }, false, 120e3).catch(() => {}); } catch (e) {} }
 
-function StkMultiSelect({ label, options, value, onChange, fmt, testid }) {
+function StkMultiSelect({ label, options, value, onChange, fmt, testid, empty }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
   const ref = useRef(null);
   useEffect(() => { const f = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }; document.addEventListener("mousedown", f); return () => document.removeEventListener("mousedown", f); }, []);
   const F = fmt || ((x) => x);
@@ -16,9 +17,10 @@ function StkMultiSelect({ label, options, value, onChange, fmt, testid }) {
   return <div className="relative" ref={ref}>
     <StkField label={label}><button type="button" onClick={() => setOpen(!open)} className={`${stkInput} text-left truncate`} data-testid={testid}>{txt} <span className="float-right text-slate-400">▾</span></button></StkField>
     {open && <div className="absolute z-30 mt-1 w-full min-w-[220px] max-h-72 overflow-auto rounded-xl border border-slate-200 bg-white shadow-lg p-1">
+      {options.length > 12 && <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher..." className={`${stkInput} mb-1`} data-testid={testid ? testid + "-q" : undefined} />}
       {value.length > 0 && <button type="button" className="w-full text-left px-3 py-1.5 text-xs font-bold text-[#1B4F8C]" onClick={() => onChange([])}>Tout effacer</button>}
-      {!options.length && <div className="px-3 py-2 text-sm text-slate-400">Aucune valeur</div>}
-      {options.map((o) => <label key={o.v} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-[#F4F8FC] rounded-lg cursor-pointer">
+      {!options.length && <div className="px-3 py-2 text-sm text-slate-400">{empty || "Aucune valeur"}</div>}
+      {options.filter((o) => !q || stkNormMarque(F(o.v)).includes(stkNormMarque(q))).map((o) => <label key={o.v} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-[#F4F8FC] rounded-lg cursor-pointer">
         <input type="checkbox" checked={value.includes(o.v)} onChange={(e) => onChange(e.target.checked ? [...value, o.v] : value.filter((x) => x !== o.v))} />
         <span className="flex-1">{F(o.v)}</span><span className="text-xs text-slate-400 font-plex-mono">{o.n}</span>
       </label>)}
@@ -77,6 +79,10 @@ function StkTechSearch() {
   useEffect(() => { loadOv().then(() => {}); }, []);
   useEffect(() => { if (ov && ov.total > ov.ok + ov.inconnu + ov.non_decodable && !enr) enrich(); }, [ov && ov.total]);
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v && v.target ? v.target.value : v }));
+  // Modèles proposés : ceux des marques choisies (tous si aucune marque), d'après le châssis
+  const modOpts = (((ov || {}).modeles) || []).filter((x) => !f.marques.length || f.marques.includes(x.m)).map((x) => ({ v: x.m + "|" + x.v, n: x.n }));
+  const modFmt = (v) => { const [m, mo] = String(v).split("|"); return f.marques.length === 1 ? mo : `${mo} (${stkTitle(m)})`; };
+  const setMarques = (v) => setF((x) => ({ ...x, marques: v, modeles: (x.modeles || []).filter((k) => !v.length || v.includes(String(k).split("|")[0])) }));
   const run = async (over) => {
     const p = { ...f, ...(over || {}) };
     setBusy(true); setErr("");
@@ -88,6 +94,8 @@ function StkTechSearch() {
       if (p.situation) params.statut = "present";
       let r = await stkCall("specs_search", params, false, 90e3);
       r = r.map((x) => ({ ...x, parcName: x.parc, incMarque: stkTechMarqueInc(x), incAnnee: stkTechAnneeInc(x) }));
+      const md = p.modeles || [];
+      if (md.length) r = r.filter((x) => md.includes(x.make + "|" + x.model));
       const mo = (p.moteurs || []).map((x) => Number(x).toFixed(1));
       if (mo.length) r = r.filter((x) => x.displacement_l != null && mo.includes(Number(x.displacement_l).toFixed(1)));
       if (p.ecart === "marque") r = r.filter((x) => x.incMarque);
@@ -133,8 +141,8 @@ function StkTechSearch() {
         <Sep>Caractéristiques du véhicule</Sep>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <StkMultiSelect label="Pays de fabrication" options={O.pays || []} value={f.pays} onChange={set("pays")} fmt={stkPaysNom} testid="t-pays" />
-          <StkMultiSelect label="Marque (d'après le châssis)" options={O.marques || []} value={f.marques} onChange={set("marques")} fmt={stkTitle} testid="t-marques" />
-          <StkField label="Modèle"><input value={f.modele} onChange={set("modele")} placeholder="ex. Corolla" className={stkInput} /></StkField>
+          <StkMultiSelect label="Marque (d'après le châssis)" options={O.marques || []} value={f.marques} onChange={setMarques} fmt={stkTitle} testid="t-marques" />
+          <StkMultiSelect label="Modèle" options={modOpts} value={f.modeles || []} onChange={set("modeles")} fmt={modFmt} testid="t-modeles" />
           <Rng k1="annee_min" k2="annee_max" label="Année-modèle" />
           <StkMultiSelect label="Type" options={O.types || []} value={f.types} onChange={set("types")} fmt={stkFr} />
           <StkMultiSelect label="Carrosserie" options={O.carrosseries || []} value={f.carrosseries} onChange={set("carrosseries")} fmt={stkFr} />
