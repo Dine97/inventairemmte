@@ -313,7 +313,7 @@ function StkAgrementForm({ parcId, parcName, init, onClose, onSaved }) {
       </div>
       <label className="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={!autoEch} onChange={(e) => { setAutoEch(!e.target.checked); if (e.target.checked) setF((x) => ({ ...x, date_echeance: ech })); }} /> Saisir une autre date d'échéance</label>
       <StkField label={base.file_path ? "Remplacer l'acte (facultatif)" : "Acte de caution (PDF ou photo)"}>
-        <input type="file" accept="application/pdf,image/*" onChange={(e) => setFile(e.target.files[0] || null)} className="block text-sm" data-testid="f-agr-file" />
+        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,.xls,.xlsx" onChange={(e) => setFile(e.target.files[0] || null)} className="block text-sm" data-testid="f-agr-file" />
       </StkField>
       <StkField label="Note"><input value={f.note} onChange={(e) => setF((x) => ({ ...x, note: e.target.value }))} className={stkInput} /></StkField>
       {err && <StkMsg tone="err">{err}</StkMsg>}
@@ -339,7 +339,7 @@ function StkRapportForm({ parcId, types, onClose, onSaved }) {
         <StkField label="Date du rapport"><input type="date" value={f.date_rapport} onChange={(e) => setF((x) => ({ ...x, date_rapport: e.target.value }))} className={stkInput} /></StkField>
         <StkField label="Type"><select value={f.type} onChange={(e) => setF((x) => ({ ...x, type: e.target.value }))} className={stkInput}>{types.map((t) => <option key={t}>{t}</option>)}</select></StkField>
       </div>
-      <StkField label="Fichier (PDF, Word, Excel ou photo — 12 Mo maximum)"><input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,image/*" onChange={(e) => setFile(e.target.files[0] || null)} className="block text-sm" data-testid="f-rap-file" /></StkField>
+      <StkField label="Fichier (PDF, Word, Excel ou photo — 12 Mo maximum)"><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,.xls,.xlsx" onChange={(e) => setFile(e.target.files[0] || null)} className="block text-sm" data-testid="f-rap-file" /></StkField>
       <StkField label="Commentaire"><textarea rows={3} value={f.commentaire} onChange={(e) => setF((x) => ({ ...x, commentaire: e.target.value }))} className={stkInput} /></StkField>
       {err && <StkMsg tone="err">{err}</StkMsg>}
     </div>
@@ -761,7 +761,7 @@ function StkCautionBulk({ rows, onClose, onDone }) {
   return <StkModal wide title="Joindre des actes de caution en lot" onClose={busy ? () => {} : onClose} footer={<><StkBtn onClick={onClose} disabled={busy}>Annuler</StkBtn><StkBtn kind="primary" disabled={busy || !ready.length} onClick={run} data-testid="save-bulk">{busy ? "Envoi..." : `Joindre ${ready.length} acte(s)`}</StkBtn></>}>
     <div className="space-y-3">
       <StkMsg tone="info">Sélectionnez tous les PDF d'un coup. Le parc est reconnu d'après le nom du fichier (par exemple « CAUTION_ATLANTIC.pdf »). Vérifiez la colonne « Parc », corrigez si besoin, puis validez. Chaque acte est joint à la caution actuelle du parc ; un acte déjà joint est remplacé.</StkMsg>
-      <input type="file" multiple accept="application/pdf,image/*" onChange={(e) => pick(e.target.files)} className="block text-sm" data-testid="f-bulk" disabled={busy} />
+      <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,.xls,.xlsx" onChange={(e) => pick(e.target.files)} className="block text-sm" data-testid="f-bulk" disabled={busy} />
       {prog && <StkMsg tone="info">{prog}</StkMsg>}
       {items.length > 0 && <StkTable rows={items.map((x, i) => ({ ...x, i }))} rowKey={(r) => r.i} initial={200} columns={[
         { key: "file", label: "Fichier", sort: (r) => r.file.name, render: (r) => <span className="text-sm break-all">{r.file.name}</span> },

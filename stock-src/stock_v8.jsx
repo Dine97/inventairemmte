@@ -71,7 +71,8 @@ function stkPdfAssign(its, cols, typical) {
 // Les colonnes sont calées sur la position des intitulés de la ligne d'en-tête (celle qui contient « Châssis » ou « VIN »).
 async function stkPdfToSheets(file, onProgress) {
   const lib = await stkLoadPdfJs();
-  const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+  // isEvalSupported:false : aucune génération de code à la lecture d'un PDF reçu de l'extérieur (faille CVE-2024-4367)
+  const pdf = await lib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
   const segs = [];
   let cur = null, cols = null, chCol = -1, pending = [], nText = 0;
   const isHeader = (cells) => cells.some((c) => /CHASSIS|(^|\W)VIN(\W|$)/.test(stkPdfNorm(c.s)));

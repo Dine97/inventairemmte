@@ -17,8 +17,13 @@ service cloud.firestore {
     // liste config/admins (nouvelle liste protégée), OU dans l'ancienne
     // liste config/app.adminEmails (conservée le temps de la migration :
     // enregistrer le panneau admin une fois la déplace automatiquement).
+    // 6.17 : un e-mail ne vaut que s'il est vérifié (sinon n'importe qui pourrait créer le compte d'un administrateur)
+    function emailVerified() {
+      return isSignedIn() && request.auth.token.get('email_verified', false) == true;
+    }
+
     function isAdminToken() {
-      return isSignedIn() && (
+      return emailVerified() && (
         tokenEmail() in ['nourouloka@gmail.com'] ||
         (exists(/databases/$(database)/documents/config/admins) &&
          tokenEmail() in get(/databases/$(database)/documents/config/admins).data.emails) ||
@@ -176,24 +181,27 @@ service cloud.firestore {
       // Agents et admins : tout. Invités : uniquement les inventaires en cours.
       allow read: if isStaff() ||
         (isGuestOk() && resource.data.status == 'in_progress');
-      allow create: if isStaff();
-      // Les agents ne touchent pas à la corbeille ; seul l'administrateur
-      // met un inventaire à la corbeille, le restaure ou le supprime.
+      // 6.17 : lancer un inventaire (avec sa liste MMTE) est réservé aux administrateurs.
+      allow create: if isAdminToken();
+      // Un agent peut seulement clôturer un inventaire en cours (statut « terminé » et chiffres de clôture) ;
+      // corbeille, réouverture, parc et dates restent à l'administrateur.
       allow update: if isAdminToken() ||
         (isApprovedAgent()
-          && resource.data.status != 'trashed'
-          && request.resource.data.status != 'trashed');
+          && resource.data.status == 'in_progress'
+          && request.resource.data.status == 'completed'
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'completedAt', 'completedByName', 'completedByUid', 'stats']));
       allow delete: if isAdminToken();
 
       // Liste MMTE (nouveau format : blocs de 300 châssis)
       match /mmteChunks/{chunkId} {
         allow read: if canWorkOn(invId);
-        allow write: if isStaff();
+        allow write: if isAdminToken();
       }
       // Liste MMTE (ancien format : un document par châssis)
       match /mmte/{chassisId} {
         allow read: if canWorkOn(invId);
-        allow write: if isStaff();
+        allow write: if isAdminToken();
       }
 
       match /scans/{chassisId} {
@@ -212,7 +220,8 @@ service cloud.firestore {
           || (canWorkOn(invId) && resource.data.deleted == true && validScan())
           // 3) l'administrateur peut tout corriger
           || isAdminToken();
-        allow delete: if isStaff();
+        // 6.17 : suppression définitive réservée à l'administrateur (les agents marquent « supprimé », la trace reste)
+        allow delete: if isAdminToken();
       }
 
       // Photos : document séparé, chargé à la demande

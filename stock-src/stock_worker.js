@@ -1,7 +1,7 @@
 // ---------------- Lecture des fichiers Excel en arrière-plan ----------------
 // Fichier exécuté dans un « Web Worker » : l'ouverture et la lecture d'un gros fichier (12 000 véhicules et plus)
 // ne bloquent plus l'écran. Le classeur reste ici ; la page ne reçoit que les premières lignes et le résultat de la lecture.
-importScripts("https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js");
+importScripts("./xlsx-0.20.3.full.min.js"); // 6.17 : hébergée dans l'application (plus de site externe)
 /*@@PARSER@@*/
 const STK_BOOKS = new Map();
 const STK_HEAD = 150; // lignes envoyées à la page pour l'aperçu, le choix de la ligne d'en-tête et la reconnaissance du parc

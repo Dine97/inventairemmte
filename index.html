@@ -14,10 +14,10 @@
   <link rel="icon" href="./icons/icon-192.png">
 
   <!-- Styles et bibliothèques hébergés avec l'application (plus de dépendance aux CDN au démarrage) -->
-  <link rel="stylesheet" href="./lib/app.css?v=6.16.2">
+  <link rel="stylesheet" href="./lib/app.css?v=6.17.0">
   <script src="./lib/react-18.3.1.production.min.js"></script>
   <script src="./lib/react-dom-18.3.1.production.min.js"></script>
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="./lib/xlsx-0.20.3.full.min.js"></script>
 
   <!-- Firebase (authentification + base de données partagée) -->
   <script src="./lib/firebase-app-compat-10.14.1.js"></script>
@@ -77,7 +77,7 @@ const Globe = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__P
 const LogOut = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" }), /* @__PURE__ */ React.createElement("polyline", { points: "16 17 21 12 16 7" }), /* @__PURE__ */ React.createElement("line", { x1: "21", y1: "12", x2: "9", y2: "12" }));
 const Eye = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" }), /* @__PURE__ */ React.createElement("circle", { cx: "12", cy: "12", r: "3" }));
 const EyeOff = (p) => /* @__PURE__ */ React.createElement(Icon, { ...p }, /* @__PURE__ */ React.createElement("path", { d: "M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94" }), /* @__PURE__ */ React.createElement("path", { d: "M9.9 4.24A9.1 9.1 0 0 1 12 4c6.4 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19" }), /* @__PURE__ */ React.createElement("path", { d: "M14.12 14.12a3 3 0 1 1-4.24-4.24" }), /* @__PURE__ */ React.createElement("line", { x1: "1", y1: "1", x2: "23", y2: "23" }));
-const APP_VERSION = "6.16.2";
+const APP_VERSION = "6.17.0";
 const firebaseConfig = {
   apiKey: "AIzaSyB5lnVggyoKye_7Eyk6vhl5I51zIr-fyEw",
   authDomain: "benin-control-mmte.firebaseapp.com",
@@ -2551,7 +2551,10 @@ function InventaireMMTEApp() {
     ...remoteAdmins,
     ...remoteConfig && Array.isArray(remoteConfig.adminEmails) ? remoteConfig.adminEmails : []
   ].map((x) => String(x).toLowerCase())));
-  const isAdmin = !isGuest && isAdminEmail(authUser && authUser.email, ADMIN_EMAILS);
+  // 6.17 : droits d'administrateur seulement avec une adresse e-mail vérifiée (sinon n'importe qui pourrait créer le compte)
+  const emailVerified = !!(authUser && authUser.emailVerified);
+  const isAdmin = !isGuest && emailVerified && isAdminEmail(authUser && authUser.email, ADMIN_EMAILS);
+  const adminUnverified = !!authUser && !isGuest && !emailVerified && isAdminEmail(authUser.email, ADMIN_EMAILS);
   const [localDisplayName, setLocalDisplayName] = useState("");
   useEffect(() => {
     if (!authUser || isGuest || !isAdmin || remoteConfig === null) return;
@@ -2593,7 +2596,7 @@ function InventaireMMTEApp() {
           setUserDoc(snap.data());
         } else {
           if (!adminCheckDone) return;
-          const approved = isAdminEmail(authUser.email, ADMIN_EMAILS);
+          const approved = !!authUser.emailVerified && isAdminEmail(authUser.email, ADMIN_EMAILS);
           const data = {
             email: authUser.email,
             displayName: authUser.displayName || "",
@@ -2891,8 +2894,11 @@ function InventaireMMTEApp() {
       await batch.commit();
     }
   };
+  // 6.17 : lancer, remplacer ou rouvrir un inventaire (liste MMTE) est réservé aux administrateurs
+  const INV_ADMIN_ONLY = "Seul un administrateur peut lancer, remplacer ou rouvrir un inventaire (chargement de la liste MMTE). Les agents rejoignent l\u2019inventaire en cours.";
   const startInventory = async () => {
     if (!parcName.trim() || !invDate) return;
+    if (!isAdmin) { setImportError(INV_ADMIN_ONLY); return; }
     if (mmteMap.size === 0) {
       setImportError("Merci d'importer la liste des châssis MMTE avant de démarrer.");
       return;
@@ -2956,6 +2962,7 @@ function InventaireMMTEApp() {
   };
   const reopenClosedInventory = async () => {
     if (!existingClosedInv) return;
+    if (!isAdmin) { setImportError(INV_ADMIN_ONLY); return; }
     setStarting(true);
     setImportError("");
     try {
@@ -2986,6 +2993,7 @@ function InventaireMMTEApp() {
   };
   const replaceClosedInventory = async () => {
     if (!existingClosedInv || mmteMap.size === 0) return;
+    if (!isAdmin) { setImportError(INV_ADMIN_ONLY); return; }
     setStarting(true);
     setImportError("");
     try {
@@ -3407,6 +3415,7 @@ function InventaireMMTEApp() {
     return expired.length;
   };
   const reopenArchived = async (inv) => {
+    if (!isAdmin && inv.status === "completed") { setArchiveError(INV_ADMIN_ONLY); return; }
     if (!confirmT(`Rouvrir l'inventaire « ${inv.parcName} » du ${String(inv.invDate || "").split("-").reverse().join("/")} ?
 
 Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) return;
@@ -3676,7 +3685,7 @@ Il redeviendra « en cours » et les agents pourront de nouveau pointer.`)) retu
       guestFailure,
       onReset: handlePasswordReset
     }
-  ), authUser && !isGuest && (userDoc === void 0 || !isApproved && !adminCheckDone) && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Chargement du profil..."), authUser && isGuest && guestOk === void 0 && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Vérification de l'accès invité..."), authUser && !isGuest && !isApproved && userDoc !== void 0 && adminCheckDone && /* @__PURE__ */ React.createElement(PendingApprovalScreen, { onLogout: handleLogout, status: userDoc && userDoc.status }), invVisible && authUser && isApproved && isAdmin && showAdmin && /* @__PURE__ */ React.createElement(
+  ), authUser && !isGuest && (userDoc === void 0 || !isApproved && !adminCheckDone) && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Chargement du profil..."), authUser && isGuest && guestOk === void 0 && /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center text-slate-400 text-sm" }, "Vérification de l'accès invité..."), authUser && !isGuest && !isApproved && userDoc !== void 0 && adminCheckDone && /* @__PURE__ */ React.createElement(PendingApprovalScreen, { onLogout: handleLogout, status: userDoc && userDoc.status, verify: adminUnverified }), authUser && !isGuest && isApproved && adminUnverified && /* @__PURE__ */ React.createElement(EmailVerifyNotice, { compact: true }), invVisible && authUser && isApproved && isAdmin && showAdmin && /* @__PURE__ */ React.createElement(
     AdminPanel,
     {
       onClose: () => setShowAdmin(false),
@@ -3851,7 +3860,12 @@ const STK_ERR = {
   DATE_ARRIVEE_MANQUANTE: "Indiquez la date d'arrivée du navire.",
   MANIFESTE_DEJA_IMPORTE: "Ce manifeste a déjà été importé dans ce PTU.",
   MANIFESTE_INTROUVABLE: "Manifeste introuvable ou déjà annulé.",
-  PARC_INCONNU: "Parc introuvable."
+  PARC_INCONNU: "Parc introuvable.",
+  FORMAT_REFUSE: "Type de fichier non accepté : PDF, photo (JPEG, PNG, WebP, HEIC), Word ou Excel seulement.",
+  ENVOI_FICHIER_IMPOSSIBLE: "Le fichier n'a pas pu être enregistré. Réessayez.",
+  PIECE_INTROUVABLE: "Cette pièce n'appartient pas à ce mouvement.",
+  DATE_INVALIDE: "Date invalide.",
+  ERREUR_SERVEUR: "Une erreur est survenue sur le serveur des stocks. Réessayez ; si elle persiste, signalez-la à l'administrateur."
 };
 function stkErrText(e) {
   const m = String(e && e.message || e || "");
@@ -4321,7 +4335,30 @@ function AppHeader({ currentAgent, onLogout, isAdmin, isGuest, showAdmin, setSho
 function AppFooter() {
   return /* @__PURE__ */ React.createElement("footer", { className: "no-print max-w-3xl mx-auto px-5 py-3 mt-2" }, /* @__PURE__ */ React.createElement("div", { className: "text-center text-[10px] text-slate-300", "aria-hidden": "true" }, " "));
 }
-function PendingApprovalScreen({ onLogout, status }) {
+// 6.17 : adresse e-mail à confirmer pour activer les droits d'administrateur
+function EmailVerifyNotice({ compact }) {
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const u = auth.currentUser;
+  const resend = async () => {
+    setBusy(true);
+    try { await u.sendEmailVerification(); setMsg("Lien envoyé à " + u.email + ". Ouvrez-le, puis cliquez sur « J'ai confirmé »."); }
+    catch (e) { setMsg(e && e.code === "auth/too-many-requests" ? "Trop de demandes : patientez quelques minutes avant de renvoyer le lien." : "Envoi impossible pour le moment. Réessayez."); }
+    setBusy(false);
+  };
+  const done = async () => {
+    setBusy(true);
+    try { await u.reload(); if (auth.currentUser.emailVerified) { await auth.currentUser.getIdToken(true); location.reload(); return; } setMsg("Adresse pas encore confirmée : ouvrez le lien reçu par e-mail (pensez aux courriers indésirables)."); }
+    catch (e) { setMsg("Vérification impossible pour le moment. Réessayez."); }
+    setBusy(false);
+  };
+  const btns = /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2 " + (compact ? "" : "justify-center mt-4") }, /* @__PURE__ */ React.createElement("button", { onClick: resend, disabled: busy, className: "px-3 py-1.5 rounded-lg text-sm font-bold text-white", style: { background: BLUE_DEEP } }, "Renvoyer le lien"), /* @__PURE__ */ React.createElement("button", { onClick: done, disabled: busy, "data-testid": "email-verified-done", className: "px-3 py-1.5 rounded-lg text-sm font-bold border-2 border-[#1B4F8C] text-[#1B4F8C] bg-white" }, "J'ai confirmé"));
+  const text = "Pour des raisons de sécurité, les droits d'administrateur ne s'activent qu'après confirmation de votre adresse e-mail" + (u && u.email ? " (" + u.email + ")" : "") + ".";
+  if (compact) return /* @__PURE__ */ React.createElement("div", { "data-testid": "email-verify-banner", className: "max-w-5xl mx-auto mt-3 mx-3 rounded-xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 space-y-2" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("b", null, "Confirmez votre adresse e-mail. "), text), btns, msg && /* @__PURE__ */ React.createElement("div", { className: "font-semibold" }, msg));
+  return /* @__PURE__ */ React.createElement("div", { "data-testid": "email-verify-screen", className: "max-w-sm mx-auto px-5 py-16 text-center" }, /* @__PURE__ */ React.createElement("div", { className: "mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center bg-amber-100" }, /* @__PURE__ */ React.createElement(ShieldCheck, { size: 26, className: "text-amber-600" })), /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-extrabold", style: { color: BLUE_DEEP } }, "Confirmez votre adresse e-mail"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mt-2" }, text), btns, msg && /* @__PURE__ */ React.createElement("p", { className: "text-sm font-semibold text-amber-800 mt-3" }, msg));
+}
+function PendingApprovalScreen({ onLogout, status, verify }) {
+  if (verify && status !== "disabled" && status !== "rejected") return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(EmailVerifyNotice, null), /* @__PURE__ */ React.createElement("div", { className: "text-center -mt-8" }, /* @__PURE__ */ React.createElement("button", { onClick: onLogout, className: "text-sm font-semibold text-[#1B4F8C] hover:underline" }, "Se déconnecter")));
   const disabled = status === "disabled";
   const rejected = status === "rejected" || disabled;
   return /* @__PURE__ */ React.createElement("div", { className: "max-w-sm mx-auto px-5 py-16 text-center" }, /* @__PURE__ */ React.createElement("div", { className: `mx-auto mb-4 w-14 h-14 rounded-full flex items-center justify-center ${rejected ? "bg-rose-100" : "bg-amber-100"}` }, rejected ? /* @__PURE__ */ React.createElement(XCircle, { size: 26, className: "text-rose-600" }) : /* @__PURE__ */ React.createElement(ShieldCheck, { size: 26, className: "text-amber-600" })), /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-extrabold", style: { color: BLUE_DEEP } }, disabled ? "Compte désactivé" : rejected ? "Accès refusé" : "Compte en attente de validation"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-500 mt-2" }, disabled ? "Votre compte a été désactivé par un administrateur. Contactez le service MAD-MAE pour le réactiver." : rejected ? "Votre demande de compte agent n'a pas été approuvée. Contactez un administrateur MAD-MAE si vous pensez qu'il s'agit d'une erreur." : "Un administrateur doit approuver votre compte avant que vous puissiez accéder à l'application. Contactez le service MAD-MAE si l'attente se prolonge."), /* @__PURE__ */ React.createElement("button", { onClick: onLogout, className: "mt-6 text-sm font-semibold text-[#1B4F8C] hover:underline" }, "Se déconnecter"));
@@ -4509,7 +4546,7 @@ function AdminPanel({ onClose, parcsList, currentUserEmail, currentUid, activeIn
   };
   const saveGuestCode = async () => {
     const code = codeInput.trim().toUpperCase();
-    if (code.length < 4) return flash("Le code doit contenir au moins 4 caractères.", "err");
+    if (code.length < 8) return flash("Le code doit contenir au moins 8 caractères (le bouton « Générer » en crée un sûr).", "err");
     try {
       const data = { code, enabled: guestEnabled };
       data.expiresAtMs = expiryInput ? (/* @__PURE__ */ new Date(expiryInput + "T23:59:59")).getTime() : FieldValue.delete();

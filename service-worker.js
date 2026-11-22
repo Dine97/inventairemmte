@@ -1,13 +1,13 @@
-const CACHE_NAME = "inventaire-mmte-v75";
+const CACHE_NAME = "inventaire-mmte-v76";
 // Bibliothèques (noms de fichiers versionnés) : servies depuis l'appareil sans attendre le réseau.
-const LIB_CACHE = "inventaire-mmte-lib-v1";
+const LIB_CACHE = "inventaire-mmte-lib-v2";
 const LIBS = [
   "./lib/react-18.3.1.production.min.js",
   "./lib/react-dom-18.3.1.production.min.js",
   "./lib/firebase-app-compat-10.14.1.js",
   "./lib/firebase-auth-compat-10.14.1.js",
   "./lib/firebase-firestore-compat-10.14.1.js",
-  "https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js",
+  "./lib/xlsx-0.20.3.full.min.js",
 ];
 // Moteur de lecture du texte (gros fichiers) : cache à part, conservé d'une version à l'autre.
 const OCR_CACHE = "inventaire-mmte-ocr-v1";
@@ -19,9 +19,9 @@ const APP_SHELL = [
   "./icons/icon-512.png",
   "./lib/jszip.min.js",
   "./lib/img/mad-roulants-nuit.jpg",
-  "./lib/app.css?v=6.16.2",
-  "./lib/stock.js?v=6.16.2",
-  "./lib/stock-worker.js?v=6.16.2",
+  "./lib/app.css?v=6.17.0",
+  "./lib/stock.js?v=6.17.0",
+  "./lib/stock-worker.js?v=6.17.0",
 ];
 
 self.addEventListener("install", (event) => {
@@ -59,7 +59,7 @@ self.addEventListener("fetch", (event) => {
         cache.match(event.request).then((hit) =>
           hit ||
           fetch(event.request).then((resp) => {
-            if (resp && (resp.status === 200 || resp.type === "opaque")) cache.put(event.request, resp.clone());
+            if (resp && resp.ok) cache.put(event.request, resp.clone()); // jamais une réponse en erreur ou opaque
             return resp;
           })
         )
@@ -80,6 +80,8 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
+  // 6.17 : rien d'extérieur n'est gardé sur l'appareil (tuiles de carte, liens vers les pièces, services Google) — le navigateur s'en charge
+  if (url.origin !== self.location.origin) return;
   if (url.pathname.includes("/ocr/")) {
     event.respondWith(
       caches.open(OCR_CACHE).then((cache) =>

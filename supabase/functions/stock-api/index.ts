@@ -5,7 +5,9 @@ import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 import { createRemoteJWKSet, jwtVerify } from "npm:jose@5.9.6";
 
 const FIREBASE_PROJECT = "benin-control-mmte";
-const FALLBACK_ADMINS = ["nourouloka@gmail.com"];
+// Administrateurs de secours : plus écrits dans le code (6.17). Liste d'e-mails séparés par des virgules,
+// dans le secret ADMINS_SECOURS de la fonction (Supabase → Edge Functions → Secrets).
+const FALLBACK_ADMINS = String(Deno.env.get("ADMINS_SECOURS") || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
 const JWKS = createRemoteJWKSet(new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"));
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const FS = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents`;
@@ -53,11 +55,13 @@ async function identify(req: Request, bodyToken?: string): Promise<Who> {
   const uid = String(payload.sub);
   const email = String(payload.email || "").toLowerCase();
   const c = roleCache.get(uid);
-  if (c && Date.now() - c.at < 120e3) return c.role;
-  const fallback = FALLBACK_ADMINS.includes(email);
+  if (c && Date.now() - c.at < 30e3) return c.role;
+  // 6.17 : un administrateur n'est reconnu à son e-mail que si cet e-mail est vérifié (sinon n'importe qui pourrait créer le compte)
+  const verified = payload.email_verified === true;
+  const fallback = verified && FALLBACK_ADMINS.includes(email);
   const [adm, app, user, suRes] = await Promise.all([
-    fallback ? null : fsGet("config/admins", token),
-    fallback ? null : fsGet("config/app", token),
+    fallback || !verified ? null : fsGet("config/admins", token),
+    fallback || !verified ? null : fsGet("config/app", token),
     fsGet(`users/${uid}`, token),
     sb.from("stock_users").select("access").eq("uid", uid).maybeSingle(),
   ]);
@@ -116,6 +120,19 @@ async function can(who: Who, key: string) {
   const d = (await settingsCached()).droits || {};
   if ((d[key] || DROITS_DEF[key] || "agent") === "admin") throw new ApiError("RESERVE_ADMIN", 403);
 }
+const isoDate = (x: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(x || ""));
+// Types de fichiers acceptés (pièces justificatives, actes de caution, rapports, photos) : déduits de l'extension, jamais du navigateur
+const FILE_TYPES: Record<string, string> = {
+  pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", heic: "image/heic", heif: "image/heif",
+  doc: "application/msword", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+};
+function fileType(name: unknown) {
+  const ext = String(name || "").toLowerCase().split(".").pop() || "";
+  const t = FILE_TYPES[ext];
+  if (!t) throw new ApiError("FORMAT_REFUSE");
+  return t;
+}
 function pick(o: any, keys: string[]) { const r: any = {}; for (const k of keys) if (o && k in o) r[k] = o[k] === "" ? null : o[k]; return r; }
 const today = () => new Date(Date.now() + 3600e3).toISOString().slice(0, 10); // heure du Bénin
 
@@ -147,13 +164,15 @@ async function parcsMeta() {
 }
 async function parcsUpload(parcId: number, kind: string, b64: string, name: string, type: string) {
   if (!b64) throw new ApiError("FICHIER_MANQUANT");
+  const ctype = fileType(name || (type === "image/jpeg" ? "photo.jpg" : ""));
+  if (String(b64).length > 17 * 1024 * 1024) throw new ApiError("FICHIER_TROP_GROS");
   const bin = Uint8Array.from(atob(String(b64)), (c) => c.charCodeAt(0));
   if (bin.length > 12 * 1024 * 1024) throw new ApiError("FICHIER_TROP_GROS");
   const safe = String(name || kind).normalize("NFKD").replace(/[^\w.\-]+/g, "_").slice(-80);
   const path = `${parcId}/${kind}_${Date.now()}_${safe}`;
-  const up = await sb.storage.from("parcs").upload(path, bin, { contentType: type || "application/octet-stream", upsert: false });
-  if (up.error) throw new ApiError(up.error.message, 500);
-  return { path, name: name || safe, type: type || "", size: bin.length };
+  const up = await sb.storage.from("parcs").upload(path, bin, { contentType: ctype, upsert: false });
+  if (up.error) throw new ApiError("ENVOI_FICHIER_IMPOSSIBLE", 500);
+  return { path, name: name || safe, type: ctype, size: bin.length };
 }
 
 
@@ -178,7 +197,10 @@ async function specsEnrich(maxVins: number) {
         method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "format=json&data=" + encodeURIComponent(part.map((x) => x.vin).join(";")), signal: AbortSignal.timeout(45000),
       });
+      // 6.17 : une réponse en erreur (panne, surcharge) ou vide est un échec à réessayer, jamais un « inconnu » définitif
+      if (!r.ok) throw new Error("NHTSA_" + r.status);
       results = ((await r.json()).Results || []) as any[];
+      if (!results.length) throw new Error("NHTSA_VIDE");
     } catch (_e) {
       const ids = part.map((x) => x.vehicle_id);
       const cur = must(await sb.from("vehicle_specs").select("vehicle_id,attempts").in("vehicle_id", ids)) as any[];
@@ -217,8 +239,9 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
   async me(_p, who) { return who; },
 
   async bootstrap(p, who) {
-    const names: string[] = Array.isArray(p.names) ? p.names.map((n: string) => String(n).trim().toUpperCase()).filter(Boolean) : [];
-    if (names.length) {
+    // Création des parcs connus de l'inventaire : administrateurs seulement (6.17), 300 noms de 80 caractères au plus
+    const names: string[] = Array.isArray(p.names) ? p.names.slice(0, 300).map((n: string) => String(n).trim().toUpperCase().slice(0, 80)).filter(Boolean) : [];
+    if (names.length && who.isAdmin) {
       const existing = new Set((must(await sb.from("parcs").select("name")) as any[]).map((r) => r.name));
       const missing = [...new Set(names)].filter((n) => !existing.has(n));
       if (missing.length) must(await sb.from("parcs").insert(missing.map((name) => ({ name }))));
@@ -240,6 +263,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
       pid = hit.id;
     }
     if (!pid) throw new ApiError("PARC_MANQUANT");
+    if (p.date && !isoDate(p.date)) throw new ApiError("DATE_INVALIDE");
     const rows = await fetchAll(() => {
       let q = sb.from("v_stays").select(LIST_COLS).eq("parc_id", pid);
       if (p.date) q = q.lte("entry_date", p.date).or(`exit_date.is.null,exit_date.gt.${p.date}`);
@@ -397,7 +421,9 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     const f = pick(p, JUSTIF_FIELDS);
     const cur = must(await sb.from("stays").select("id,justif_status,vehicle_id").in("id", ids)) as any[];
     if (!who.isAdmin && cur.some((c) => c.justif_status === "validee")) throw new ApiError("DEJA_VALIDEE");
-    must(await sb.from("stays").update({ ...f, justif_status: "justifiee", justif_by: who.name, justif_at: new Date().toISOString(), valide_by: null, valide_at: null, updated_at: new Date().toISOString() }).in("id", ids));
+    let uq = sb.from("stays").update({ ...f, justif_status: "justifiee", justif_by: who.name, justif_at: new Date().toISOString(), valide_by: null, valide_at: null, updated_at: new Date().toISOString() }).in("id", ids);
+    if (!who.isAdmin) uq = uq.neq("justif_status", "validee"); // une validation arrivée entre-temps n'est jamais écrasée
+    must(await uq);
     let warning: any[] = [];
     if (f.justif_numero) {
       const others = must(await sb.from("v_stays").select("chassis,parc,exit_date").eq("justif_numero", f.justif_numero).not("stay_id", "in", `(${ids.join(",")})`).limit(20)) as any[];
@@ -411,7 +437,9 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     const ids: number[] = (p.stay_ids || []).map(Number).filter(Boolean);
     const cur = must(await sb.from("stays").select("id,justif_status,vehicle_id").in("id", ids)) as any[];
     if (!who.isAdmin && cur.some((c) => c.justif_status === "validee")) throw new ApiError("DEJA_VALIDEE");
-    must(await sb.from("stays").update({ justif_status: "non_justifiee", valide_by: null, valide_at: null, updated_at: new Date().toISOString() }).in("id", ids));
+    let uq = sb.from("stays").update({ justif_status: "non_justifiee", valide_by: null, valide_at: null, updated_at: new Date().toISOString() }).in("id", ids);
+    if (!who.isAdmin) uq = uq.neq("justif_status", "validee");
+    must(await uq);
     await auditMany(who, cur.map((c) => ({ action: "retrait_justification", entity: "vehicle", entity_id: c.vehicle_id, detail: "Justification retirée" })));
     return { ok: true };
   },
@@ -427,15 +455,18 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     await can(who, "justifier");
     const ids: number[] = (p.stay_ids || []).map(Number).filter(Boolean);
     if (!ids.length || !p.b64) throw new ApiError("FICHIER_MANQUANT");
+    const ctype = fileType(p.name);
+    if (String(p.b64).length > 12 * 1024 * 1024) throw new ApiError("FICHIER_TROP_GROS");
     const bin = Uint8Array.from(atob(String(p.b64)), (c) => c.charCodeAt(0));
     if (bin.length > 8 * 1024 * 1024) throw new ApiError("FICHIER_TROP_GROS");
     const safe = String(p.name || "fichier").normalize("NFKD").replace(/[^\w.\-]+/g, "_").slice(-80);
     const path = `${new Date().toISOString().slice(0, 7)}/${ids[0]}_${Date.now()}_${safe}`;
-    const up = await sb.storage.from("justificatifs").upload(path, bin, { contentType: p.type || "application/octet-stream", upsert: false });
-    if (up.error) throw new ApiError(up.error.message, 500);
-    const file = { path, name: p.name || safe, type: p.type || "", size: bin.length, at: new Date().toISOString(), by: who.name };
-    const cur = must(await sb.from("stays").select("id,justif_files,vehicle_id").in("id", ids)) as any[];
-    await Promise.all(cur.map(async (c) => must(await sb.from("stays").update({ justif_files: [...(c.justif_files || []), file], updated_at: new Date().toISOString() }).eq("id", c.id))));
+    const up = await sb.storage.from("justificatifs").upload(path, bin, { contentType: ctype, upsert: false });
+    if (up.error) throw new ApiError("ENVOI_FICHIER_IMPOSSIBLE", 500);
+    const file = { path, name: p.name || safe, type: ctype, size: bin.length, at: new Date().toISOString(), by: who.name };
+    const cur = must(await sb.from("stays").select("id,vehicle_id").in("id", ids)) as any[];
+    // Ajout en une seule écriture SQL : deux envois simultanés ne s'écrasent plus
+    must(await sb.rpc("stock_stay_add_file", { p_ids: cur.map((c) => c.id), p_file: file }));
     await auditMany(who, cur.map((c) => ({ action: "piece_jointe", entity: "vehicle", entity_id: c.vehicle_id, detail: `Pièce jointe ajoutée : ${file.name}` })));
     return file;
   },
@@ -447,12 +478,13 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return { url: r.data.signedUrl };
   },
   async remove_file(p, who) {
-    agentOnly(who);
+    await can(who, "justifier");
     const st = must(await sb.from("stays").select("id,justif_files,justif_status,vehicle_id").eq("id", Number(p.stay_id)).maybeSingle()) as any;
     if (!st) throw new ApiError("SEJOUR_INTROUVABLE", 404);
     if (!who.isAdmin && st.justif_status === "validee") throw new ApiError("DEJA_VALIDEE");
-    const files = (st.justif_files || []).filter((f: any) => f.path !== p.path);
-    must(await sb.from("stays").update({ justif_files: files }).eq("id", st.id));
+    // seule une pièce de ce séjour peut être retirée
+    if (!(st.justif_files || []).some((f: any) => f.path === p.path)) throw new ApiError("PIECE_INTROUVABLE", 404);
+    must(await sb.rpc("stock_stay_remove_file", { p_id: st.id, p_path: String(p.path) }));
     const still = must(await sb.from("stays").select("id").contains("justif_files", [{ path: p.path }]).limit(1)) as any[];
     if (!still.length) await sb.storage.from("justificatifs").remove([String(p.path)]);
     await audit(who, "piece_jointe_supprimee", "vehicle", st.vehicle_id, "Pièce jointe retirée");
@@ -463,6 +495,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
   // Stock de tous les parcs (ou d'un parc) à une date donnée
   async stock_at(p) {
     const d = String(p.date || today());
+    if (!isoDate(d)) throw new ApiError("DATE_INVALIDE");
     const rows = await fetchAll(() => {
       let q = sb.from("v_stays").select(LIST_COLS).lte("entry_date", d).or(`exit_date.is.null,exit_date.gt.${d}`);
       if (p.parc_id) q = q.eq("parc_id", Number(p.parc_id));
@@ -957,14 +990,20 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(p.date_arrivee))) throw new ApiError("DATE_ARRIVEE_MANQUANTE");
     const items = (Array.isArray(p.items) ? p.items : []).slice(0, 20000);
     if (!items.length) throw new ApiError("AUCUN_CHASSIS");
-    if (!p.force) {
-      const dup = must(await sb.from("ptu_manifestes").select("id").eq("ptu_id", ptu.id).eq("numero", numero).is("cancelled_at", null).limit(1)) as any[];
-      if (dup.length) throw new ApiError("MANIFESTE_DEJA_IMPORTE");
-    }
     const navire = p.navire ? String(p.navire).trim().slice(0, 120) : "";
+    // 6.17 : la fiche du manifeste est créée d'abord ; deux envois simultanés du même numéro ne passent plus tous les deux,
+    // et si l'enregistrement des véhicules échoue, la fiche est retirée (pas de véhicules sans manifeste)
+    const m = must(await sb.from("ptu_manifestes").insert({ ptu_id: ptu.id, numero, navire: navire || null, date_arrivee: p.date_arrivee, file_name: p.file_name || null, nb: items.length, comment: p.comment || null, created_by: who.name }).select("id").single()) as any;
+    if (!p.force) {
+      const dup = must(await sb.from("ptu_manifestes").select("id").eq("ptu_id", ptu.id).eq("numero", numero).is("cancelled_at", null).neq("id", m.id).lt("id", m.id).limit(1)) as any[];
+      if (dup.length) { await sb.from("ptu_manifestes").delete().eq("id", m.id); throw new ApiError("MANIFESTE_DEJA_IMPORTE"); }
+    }
     const its = items.map((it: any) => ({ ...it, manifeste: it.manifeste || numero, navire: it.navire || navire, date_arrivee: it.date_arrivee || p.date_arrivee }));
-    const r: any = must(await sb.rpc("stock_add_moves", { p: { parc_name: ptu.name, kind: "entree", date: p.date_arrivee, motif: `Manifeste ${numero}`, source: "manifeste", file_name: p.file_name || null, items: its, by_uid: who.uid, by_name: who.name } }));
-    const m = must(await sb.from("ptu_manifestes").insert({ ptu_id: ptu.id, numero, navire: navire || null, date_arrivee: p.date_arrivee, file_name: p.file_name || null, nb: Number(r.total) || items.length, batch_id: r.batch_id, comment: p.comment || null, created_by: who.name }).select("id").single()) as any;
+    let r: any;
+    try {
+      r = must(await sb.rpc("stock_add_moves", { p: { parc_name: ptu.name, kind: "entree", date: p.date_arrivee, motif: `Manifeste ${numero}`, source: "manifeste", file_name: p.file_name || null, items: its, by_uid: who.uid, by_name: who.name } }));
+    } catch (e) { await sb.from("ptu_manifestes").delete().eq("id", m.id); throw e; }
+    must(await sb.from("ptu_manifestes").update({ nb: Number(r.total) || items.length, batch_id: r.batch_id }).eq("id", m.id));
     await audit(who, "manifeste_ptu", "parc", ptu.id, `${ptu.name} — manifeste ${numero}${navire ? " (" + navire + ")" : ""} du ${p.date_arrivee} : ${r.ok} véhicule(s) enregistré(s) sur ${r.total}`);
     return { ...r, manifeste_id: m.id };
   },
@@ -1102,7 +1141,7 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     return must(await q.order("move_date", { ascending: false }).order("id", { ascending: false }).limit(Math.min(Number(p.limit) || 2000, 5000)));
   },
   async moves_cancel(p, who) {
-    agentOnly(who);
+    await can(who, "saisir");
     const ids: number[] = (p.ids || []).map(Number).filter(Boolean);
     if (!ids.length) throw new ApiError("AUCUN_CHASSIS");
     if (p.restore) adminOnly(who);
@@ -1159,13 +1198,17 @@ Deno.serve(async (req) => {
       return json({ ok: true, data: await specsEnrich(300) });
     }
     const who = await identify(req, body.token);
-    const fn = actions[String(body.action || "")];
+    const a = String(body.action || "");
+    const fn = Object.hasOwn(actions, a) ? actions[a] : null;
     if (!fn) throw new ApiError("ACTION_INCONNUE");
     const data = await fn(body.params || {}, who);
     return json({ ok: true, data });
   } catch (e) {
     const err = e as ApiError;
     console.error(err?.message || e);
-    return json({ ok: false, error: err?.code || err?.message || "ERREUR" }, err?.status || 500);
+    // 6.17 : seuls les codes métier (ex. IMPORT_ANTERIEUR:2026-11-02) sont renvoyés ; les messages internes restent dans le journal
+    const code = String(err?.code || err?.message || "");
+    const safe = /^[A-Z][A-Z0-9_]{2,}(:[\w.:-]{0,40})?$/.test(code) ? code : "ERREUR_SERVEUR";
+    return json({ ok: false, error: safe }, err?.status || 500);
   }
 });

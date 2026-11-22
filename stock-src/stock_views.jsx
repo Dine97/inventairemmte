@@ -648,10 +648,11 @@ function StkJustifyModal({ stays, onClose, onDone }) {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         setBusy(`Envoi de la pièce ${i + 1}/${files.length}...`);
-        let b64, type = file.type;
-        if (/^image\//.test(file.type)) { const url = await compressImageToDataUrl(file, 1800, 0.72); b64 = url.split(",")[1]; type = "image/jpeg"; }
+        let b64, type = file.type, name = file.name;
+        // une photo est recompressée en JPEG : son nom suit (le serveur déduit le type de l'extension)
+        if (/^image\//.test(file.type)) { const url = await compressImageToDataUrl(file, 1800, 0.72); b64 = url.split(",")[1]; type = "image/jpeg"; name = String(file.name || "photo").replace(/\.[^.]*$/, "") + ".jpg"; }
         else b64 = await stkFileToB64(file);
-        await stkCall("upload_file", { stay_ids: ids, name: file.name, type, b64 });
+        await stkCall("upload_file", { stay_ids: ids, name, type, b64 });
       }
       if (r.warning && r.warning.length) { setWarn(r.warning); setBusy(""); return; }
       toast(`${ids.length} sortie(s) justifiée(s)`);
@@ -672,7 +673,7 @@ function StkJustifyModal({ stays, onClose, onDone }) {
         <StkField label="Bureau de douane"><input value={f.justif_bureau} onChange={set("justif_bureau")} className={stkInput} /></StkField>
         <StkField label="Observation"><textarea rows={2} value={f.justif_note} onChange={set("justif_note")} className={stkInput} /></StkField>
         <StkField label="Pièces jointes (PDF ou photo)" hint="Les photos sont compressées automatiquement. 8 Mo maximum par fichier.">
-          <input type="file" multiple accept="application/pdf,image/*" capture="environment" onChange={(e) => setFiles(Array.from(e.target.files || []))} className="block text-sm" />
+          <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.doc,.docx,.xls,.xlsx" onChange={(e) => setFiles(Array.from(e.target.files || []))} className="block text-sm" />
         </StkField>
         {err && <StkMsg tone="err">{err}</StkMsg>}
       </div>}

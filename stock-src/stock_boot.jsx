@@ -37,7 +37,12 @@ const STK_ERR = {
   DATE_ARRIVEE_MANQUANTE: "Indiquez la date d'arrivée du navire.",
   MANIFESTE_DEJA_IMPORTE: "Ce manifeste a déjà été importé dans ce PTU.",
   MANIFESTE_INTROUVABLE: "Manifeste introuvable ou déjà annulé.",
-  PARC_INCONNU: "Parc introuvable."
+  PARC_INCONNU: "Parc introuvable.",
+  FORMAT_REFUSE: "Type de fichier non accepté : PDF, photo (JPEG, PNG, WebP, HEIC), Word ou Excel seulement.",
+  ENVOI_FICHIER_IMPOSSIBLE: "Le fichier n'a pas pu être enregistré. Réessayez.",
+  PIECE_INTROUVABLE: "Cette pièce n'appartient pas à ce mouvement.",
+  DATE_INVALIDE: "Date invalide.",
+  ERREUR_SERVEUR: "Une erreur est survenue sur le serveur des stocks. Réessayez ; si elle persiste, signalez-la à l'administrateur."
 };
 function stkErrText(e) {
   const m = String((e && e.message) || e || "");

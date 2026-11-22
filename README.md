@@ -227,5 +227,12 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
 - **Recherche technique** (6.16.0) : écran à part (bouton dans la Recherche avancée et entrée du menu) pour chercher par pays de fabrication, marque et modèle d'après le châssis, année-modèle, type, carrosserie, énergie, cylindrée, cylindres, puissance, transmission, parc, statut, séjour et écart avec le parc ; synthèse (énergies, puissance et année moyennes, répartitions), export Excel / PDF, filtres enregistrés propres. Les caractéristiques sont décodées côté serveur (NHTSA, lots de 50) dans la table `vehicle_specs`, à part du stock : après chaque import, à l'ouverture de l'écran et chaque nuit (migration 020).
 - **Filtre « Moteur »** (6.16.1) : choix d'une ou plusieurs cylindrées (1,5 L, 2,0 L…) parmi celles présentes dans le stock décodé, avec le nombre de véhicules pour chacune ; répartition « Par moteur » dans la synthèse (migration 021).
 - **Filtre « Modèle »** (6.16.2) : liste à cocher des modèles d'après le châssis, limitée aux marques choisies (tous les modèles si aucune marque), avec effectifs et recherche dans la liste (migration 022).
+- **Sécurité** (6.17.0, audit du 22/11/2026) :
+  - droits d'administrateur seulement avec une adresse e-mail **vérifiée** (règles Firestore, serveur, application ; bandeau « Confirmez votre adresse e-mail » avec « Renvoyer le lien ») ;
+  - administrateurs de secours du serveur dans le secret Supabase `ADMINS_SECOURS` (plus dans le code) ;
+  - lancer, remplacer ou rouvrir un inventaire (liste MMTE) : administrateurs ; un agent peut clôturer ; suppression définitive d'un pointage : administrateurs ;
+  - serveur : création de parcs réservée aux administrateurs, réglage « Droits » appliqué partout, dates contrôlées, messages d'erreur internes masqués, pièces jointes ajoutées/retirées en une écriture, manifeste PTU sans doublon ni véhicules orphelins, panne NHTSA réessayée ;
+  - fichiers joints : PDF, photos (JPEG, PNG, WebP, HEIC), Word, Excel seulement (type déduit de l'extension) ;
+  - SheetJS 0.20.3 hébergé dans `lib/`, pdf.js sans génération de code, service worker limité aux fichiers de l'application, code invité de 8 caractères minimum (migration 023).
 - **À faire** sur le tableau de bord : fichiers attendus, sorties non justifiées, dépôts proches, véhicules sans date.
 
