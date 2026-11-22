@@ -229,7 +229,7 @@ des sorties avec pièces jointes, exports Excel et PDF, journal d'audit et corbe
 - **Filtre « Modèle »** (6.16.2) : liste à cocher des modèles d'après le châssis, limitée aux marques choisies (tous les modèles si aucune marque), avec effectifs et recherche dans la liste (migration 022).
 - **Sécurité** (6.17.0, audit du 22/11/2026) :
   - droits d'administrateur seulement avec une adresse e-mail **vérifiée** (règles Firestore, serveur, application ; bandeau « Confirmez votre adresse e-mail » avec « Renvoyer le lien ») ;
-  - administrateurs de secours du serveur dans le secret Supabase `ADMINS_SECOURS` (plus dans le code) ;
+  - administrateurs de secours du serveur hors du code : secret `ADMINS_SECOURS` ou, à défaut, table privée `stock_secrets` (clé `admins_secours`) ;
   - lancer, remplacer ou rouvrir un inventaire (liste MMTE) : administrateurs ; un agent peut clôturer ; suppression définitive d'un pointage : administrateurs ;
   - serveur : création de parcs réservée aux administrateurs, réglage « Droits » appliqué partout, dates contrôlées, messages d'erreur internes masqués, pièces jointes ajoutées/retirées en une écriture, manifeste PTU sans doublon ni véhicules orphelins, panne NHTSA réessayée ;
   - fichiers joints : PDF, photos (JPEG, PNG, WebP, HEIC), Word, Excel seulement (type déduit de l'extension) ;

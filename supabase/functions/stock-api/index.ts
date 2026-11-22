@@ -6,8 +6,17 @@ import { createRemoteJWKSet, jwtVerify } from "npm:jose@5.9.6";
 
 const FIREBASE_PROJECT = "benin-control-mmte";
 // Administrateurs de secours : plus écrits dans le code (6.17). Liste d'e-mails séparés par des virgules,
-// dans le secret ADMINS_SECOURS de la fonction (Supabase → Edge Functions → Secrets).
-const FALLBACK_ADMINS = String(Deno.env.get("ADMINS_SECOURS") || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+// dans le secret ADMINS_SECOURS de la fonction, ou à défaut dans la table privée stock_secrets (clé « admins_secours »).
+const ENV_ADMINS = String(Deno.env.get("ADMINS_SECOURS") || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+let fallbackCache: { at: number; list: string[] } | null = null;
+async function fallbackAdmins(): Promise<string[]> {
+  if (ENV_ADMINS.length) return ENV_ADMINS;
+  if (fallbackCache && Date.now() - fallbackCache.at < 300e3) return fallbackCache.list;
+  const r = await sb.from("stock_secrets").select("value").eq("key", "admins_secours").maybeSingle();
+  const list = String((r.data as any)?.value || "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  fallbackCache = { at: Date.now(), list };
+  return list;
+}
 const JWKS = createRemoteJWKSet(new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"));
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 const FS = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT}/databases/(default)/documents`;
@@ -58,7 +67,7 @@ async function identify(req: Request, bodyToken?: string): Promise<Who> {
   if (c && Date.now() - c.at < 30e3) return c.role;
   // 6.17 : un administrateur n'est reconnu à son e-mail que si cet e-mail est vérifié (sinon n'importe qui pourrait créer le compte)
   const verified = payload.email_verified === true;
-  const fallback = verified && FALLBACK_ADMINS.includes(email);
+  const fallback = verified && (await fallbackAdmins()).includes(email);
   const [adm, app, user, suRes] = await Promise.all([
     fallback || !verified ? null : fsGet("config/admins", token),
     fallback || !verified ? null : fsGet("config/app", token),
