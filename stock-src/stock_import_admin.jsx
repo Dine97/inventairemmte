@@ -87,7 +87,6 @@ function StkImport({ preset }) {
   };
   const lastDate = preview && preview.last_stock_date;
   const tooOld = lastDate && date < lastDate;
-  const typos = useMemo(() => preview && !preview.is_initial ? stkTypoPairs(preview.entrees, preview.sorties) : [], [preview]);
   // Points à vérifier : chaque anomalie est corrigée ou acceptée avant la validation
   const prevCount = useMemo(() => { const d = dash.find((y) => y.parc === parc.trim().toUpperCase()); return d && (!d.last_import || date >= d.last_import) ? +d.presents : null; }, [dash, parc, date]);
   const issues = useMemo(() => stkBuildIssues(parsed, preview, date, prevCount), [parsed, preview, date, prevCount]);
@@ -103,7 +102,7 @@ function StkImport({ preset }) {
     const t = setTimeout(async () => { try { setPreview2(await stkCall("preview_import", { parc_name: parc.trim().toUpperCase(), chassis: now })); } catch (e) {} }, 400);
     return () => clearTimeout(t);
   }, [applied, preview]);
-  const pending = issues.filter((i) => !decisions[i.key]);
+  const pending = stkPendingIssues(issues, decisions);
   if (!stkCanEdit(C)) return <><StkPageHead title="Importer le stock d'un parc" /><StkMsg tone="warn">Votre accès au suivi des stocks est en consultation seule : l'import est réservé aux agents MMTE.</StkMsg></>;
   const stockSheets = parsed ? parsed.sheets.filter((s) => s.role === "stock") : [];
   const pv = preview2 || preview;
@@ -186,13 +185,12 @@ function StkImport({ preset }) {
             <StkKpi label="Inchangés" value={pv.inchanges} tone="slate" />
           </div>}
         {tooOld && <StkMsg tone="warn">Ce fichier est <b>antérieur</b> au dernier import du parc (stock du {stkFmt(lastDate)}). Il sera inséré à sa date et tout l'historique du parc sera recalculé automatiquement ; les justificatifs déjà saisis sont conservés. Les chiffres ci-dessus sont indicatifs.</StkMsg>}
-        {typos.length > 0 && <StkMsg tone="warn"><div className="flex flex-wrap gap-2"><span className="flex-1">{typos.length} entrée(s) ressemblent à une sortie à 1 ou 2 caractères près : probablement le même véhicule mal saisi par le parc. Après l'import, utilisez le Centre des anomalies pour les fusionner (la faute sera corrigée automatiquement ensuite).</span><button className="text-xs font-bold underline" onClick={() => setShowList({ title: "Fautes de frappe probables", items: typos.map((t) => `${t.entree}  ↔  ${t.sortie}  (${t.distance} car.)`) })}>Voir</button></div></StkMsg>}
         {pv.autres_parcs.length > 0 && <StkMsg tone="warn"><div className="flex flex-wrap gap-2"><span className="flex-1">{pv.autres_parcs.length} véhicule(s) figurent encore dans le stock d'un autre parc : ils seront enregistrés comme <b>entrées par transfert</b>, et leur sortie de l'autre parc sera reconnue comme transfert à son prochain import.</span><button className="text-xs font-bold underline" onClick={() => setShowList({ title: "Présents dans un autre parc", items: pv.autres_parcs.map((x) => `${x.chassis} — ${x.parc}`) })}>Voir</button></div></StkMsg>}
-        {pv.reapparus.length > 0 && <StkMsg tone="warn"><div className="flex flex-wrap gap-2"><span className="flex-1">{pv.reapparus.length} véhicule(s) déjà sortis réapparaissent dans ce fichier.</span><button className="text-xs font-bold underline" onClick={() => setShowList({ title: "Véhicules sortis qui réapparaissent", items: pv.reapparus })}>Voir</button></div></StkMsg>}
         <StkDeclaredCheck parsed={parsed} preview={pv} rows={(applied || parsed).rows} />{preview2 && <div className="text-xs text-slate-500">Chiffres recalculés après vos corrections.</div>}
-        {pending.length > 0 && <StkMsg tone="warn">{pending.length} point(s) à vérifier restent à décider (étape 2) : corrigez-les ou indiquez qu'ils sont corrects.</StkMsg>}
+        {pending.length > 0 && <StkMsg tone="warn">{pending.length} point(s) à vérifier restent à décider (étape 2) : gardez-les tels quels, corrigez-les ou refusez-les.</StkMsg>}
+        {applied && applied.refused && <StkRefusalBox parc={parc} date={date} reason={applied.refused} />}
         <div className="flex flex-wrap gap-2 pt-1">
-          <StkBtn kind="primary" disabled={!!busy || !parcOk || pending.length > 0} onClick={commit} data-testid="import-validate"><StkIc.Check size={16} /> Valider l'import{applied && applied.excluded ? ` (${new Set(applied.rows.map((r) => r.chassis)).size} véhicules)` : ""}</StkBtn>
+          <StkBtn kind="primary" disabled={!!busy || !parcOk || pending.length > 0 || !!(applied && applied.refused)} onClick={commit} data-testid="import-validate"><StkIc.Check size={16} /> Valider l'import{applied && applied.excluded ? ` (${new Set(applied.rows.map((r) => r.chassis)).size} véhicules)` : ""}</StkBtn>
           <StkBtn onClick={reset}>Annuler</StkBtn>
         </div>
       </StkCard>}

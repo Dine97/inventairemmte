@@ -180,8 +180,10 @@ function StkBulkImport() {
   const isDup = () => false;
   const prevOf = (x) => { const d = dash.find((y) => y.parc === x.parc); return d && (!d.last_import || dOf(x) >= d.last_import) && filesOfParc[x.parc] === 1 && groupOf(x).filter((y) => y.parsed && y.parsed.rows.length).length === 1 ? +d.presents : null; };
   const issuesOf = (x) => (x.parsed ? stkBuildIssues(x.parsed, x.preview, dOf(x), prevOf(x)) : []);
-  const pendingOf = (x) => issuesOf(x).filter((i) => !(x.decisions || {})[i.key]).length;
-  const okSt = (x) => (x.status === "pret" || x.status === "mouvements") && !pendingOf(x);
+  const pendingOf = (x) => stkPendingIssues(issuesOf(x), x.decisions || {}).length;
+  // fichier refusé pendant la revue (fichier incomplet, total annoncé) : jamais importé
+  const refusedOf = (x) => issuesOf(x).some((i) => i.global && ((x.decisions || {})[i.key] || {}).status === "refuse");
+  const okSt = (x) => (x.status === "pret" || x.status === "mouvements") && !pendingOf(x) && !refusedOf(x);
   const readyGroups = Object.values(groups).filter((g) => g.every(okSt)).sort((a, b) => dOf(a[0]).localeCompare(dOf(b[0])) || a[0].id - b[0].id);
   const ready = [].concat(...readyGroups);
   const multiDates = new Set(items.filter((x) => x.include).map(dOf)).size > 1;
@@ -274,7 +276,7 @@ function StkBulkImport() {
           const several = filesOfParc[x.parc] > 1;
           const nIssues = issuesOf(x).length, nPending = pendingOf(x);
           const grp = groupOf(x);
-          const [label, tone] = x.status === "pret" && nPending ? [`${nPending} point(s) à décider`, "bg-amber-50 text-amber-900 border-amber-300"] : ST[x.status] || ST.erreur;
+          const [label, tone] = x.status === "pret" && refusedOf(x) ? ["Fichier refusé", "bg-rose-50 text-rose-800 border-rose-200"] : x.status === "pret" && nPending ? [`${nPending} point(s) à décider`, "bg-amber-50 text-amber-900 border-amber-300"] : ST[x.status] || ST.erreur;
           const res = x.result;
           return <tr key={x.id} className={`border-b border-slate-100 align-top ${x.include ? "" : "opacity-50"}`} data-testid="bulk-row">
             <td className="py-2.5 px-3"><input type="checkbox" checked={x.include} disabled={running || x.status === "ok"} onChange={(e) => upd(x.id, { include: e.target.checked })} aria-label="Inclure ce fichier" /></td>
@@ -282,7 +284,7 @@ function StkBulkImport() {
               <div className="text-[11px] text-slate-500">{(x.file.size / 1024).toFixed(0)} Ko{ps && ps.sheets.length ? ` · ${ps.sheets.length} onglet(s) lu(s)` : ""}{x.how === "nom" ? " · parc reconnu par le nom du fichier" : x.how === "modele" ? " · parc reconnu par la forme du tableau" : x.how === "fichier" ? " · parc reconnu dans le fichier" : ""}</div>
               {late && <div className="text-[11px] text-amber-800 mt-0.5">Antérieur au dernier import du parc ({stkFmt(pv.last_stock_date)}) : l'historique sera recalculé.</div>}
               {same && <div className="text-[11px] text-amber-800 mt-0.5">Un import existe déjà pour ce parc à cette date.</div>}
-              {nIssues > 0 && x.status !== "ok" && <button className={`text-[11px] underline mt-0.5 ${nPending ? "text-amber-800 font-bold" : "text-slate-500"}`} data-testid="bulk-review" onClick={() => setReview(x.id)}>{nPending ? `${nPending} point(s) à vérifier : corriger ou accepter` : `${nIssues} point(s) vérifié(s) : revoir`}</button>}
+              {nIssues > 0 && x.status !== "ok" && <button className={`text-[11px] underline mt-0.5 ${nPending ? "text-amber-800 font-bold" : "text-slate-500"}`} data-testid="bulk-review" onClick={() => setReview(x.id)}>{nPending ? `${nPending} point(s) à vérifier : garder, corriger ou refuser` : `${nIssues} point(s) vérifié(s) : revoir`}</button>}
               {grp.length > 1 && x.status !== "ok" && <div className="text-[11px] text-[#1B4F8C] font-semibold mt-0.5" data-testid="bulk-grouped">Réuni avec {grp.filter((y) => y !== x).map((y) => y.file.name).join(", ")} : un seul import pour ce parc et cette date</div>}
               {ps && ps.sheets.some((sh) => sh.role !== "stock") && <div className="text-[11px] text-slate-500 mt-0.5">{ps.sheets.map((sh) => `${sh.name} : ${STK_ROLE_LABEL[sh.role].toLowerCase()}`).join(" · ")}</div>}
               {x.err && <div className="text-[11px] text-rose-700 mt-0.5">{x.err}</div>}
@@ -308,7 +310,7 @@ function StkBulkImport() {
         {analysing && <StkMsg tone="info">Lecture et comparaison des fichiers en cours...</StkMsg>}
         {multiDates && !done && <StkMsg tone="info">Fichiers de plusieurs dates : ils seront importés dans l'ordre chronologique, et l'historique de chaque parc se construira semaine après semaine. Les entrées et sorties des parcs ayant plusieurs fichiers sont calculées au moment de l'import.</StkMsg>}
         {!analysing && blocking.length > 0 && !done && <StkMsg tone="warn">{blocking.length} fichier(s) ne seront pas importés tant qu'ils ne sont pas corrigés : choisissez le parc, retirez le fichier en double, ou décochez-le. Un fichier dont le tableau n'est pas reconnu s'importe seul depuis « Import d'un seul fichier » (correction des colonnes possible).</StkMsg>}
-        {!analysing && toReview.length > 0 && !running && <StkMsg tone="warn"><div className="flex flex-wrap items-center gap-2"><span className="flex-1">{toReview.length} fichier(s) ont des points à vérifier : ouvrez « points à vérifier » sur chaque ligne pour corriger ou accepter.</span><StkBtn small onClick={() => { if (!window.confirm(`Accepter tels quels tous les points des ${toReview.length} fichier(s) ?`)) return; setItems((xs) => xs.map((y) => (toReview.some((t) => t.id === y.id) ? { ...y, decisions: Object.fromEntries(issuesOf(y).map((i) => [i.key, (y.decisions || {})[i.key] || { status: "accepte" }])) } : y))); }} data-testid="bulk-accept-all">Tout accepter tel quel</StkBtn></div></StkMsg>}
+        {!analysing && toReview.length > 0 && !running && <StkMsg tone="warn"><div className="flex flex-wrap items-center gap-2"><span className="flex-1">{toReview.length} fichier(s) ont des points à vérifier : ouvrez « points à vérifier » sur chaque ligne pour corriger ou accepter.</span><StkBtn small onClick={() => { if (!window.confirm(`Accepter tels quels tous les points des ${toReview.length} fichier(s) ?`)) return; setItems((xs) => xs.map((y) => (toReview.some((t) => t.id === y.id) ? { ...y, decisions: Object.fromEntries(issuesOf(y).map((i) => [i.key, (y.decisions || {})[i.key] && y.decisions[i.key].status !== "partiel" ? y.decisions[i.key] : { status: "accepte" }])) } : y))); }} data-testid="bulk-accept-all">Tout accepter tel quel</StkBtn></div></StkMsg>}
         {done && <StkMsg tone={items.some((x) => x.status === "echec") ? "warn" : "ok"}><b>{okItems.length} fichier(s) importé(s)</b> : {tot.v.toLocaleString("fr-FR")} véhicules, {tot.e} entrées, {tot.s} sorties, {tot.t} transferts.{items.some((x) => x.status === "echec") ? " Certains fichiers ont échoué (voir le détail) : vous pouvez relancer." : ""}</StkMsg>}
         <div className="flex flex-wrap gap-2 items-center">
           <StkBtn kind="primary" disabled={running || analysing || !ready.length} onClick={importAll} data-testid="bulk-go"><StkIc.Check size={16} /> {running ? "Import en cours..." : `Importer ${ready.length} fichier(s)`}</StkBtn>
