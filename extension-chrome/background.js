@@ -31,12 +31,14 @@ async function waitComplete(tabId, ms = 30000) {
 // Fenêtre de travail réduite, un onglet par plateforme, réutilisé d'une recherche à l'autre
 async function workTab(k) {
   const site = SITES[k];
+  if (workWin == null) workWin = ((await chrome.storage.session.get("workWin").catch(() => ({}))) || {}).workWin ?? null;
   let tab = workTabs[k] != null ? await chrome.tabs.get(workTabs[k]).catch(() => null) : null;
   if (!tab) {
     let win = workWin != null ? await chrome.windows.get(workWin).catch(() => null) : null;
     if (!win) {
       win = await chrome.windows.create({ url: site.url, focused: false, state: "minimized" });
       workWin = win.id;
+      await chrome.storage.session.set({ workWin }).catch(() => {});
       tab = win.tabs[0];
     } else {
       tab = await chrome.tabs.create({ windowId: workWin, url: site.url, active: false });
@@ -57,7 +59,9 @@ function armIdle() {
 }
 async function closeWork() {
   clearTimeout(idleTimer);
+  if (workWin == null) workWin = ((await chrome.storage.session.get("workWin").catch(() => ({}))) || {}).workWin ?? null;
   if (workWin != null) await chrome.windows.remove(workWin).catch(() => {});
+  await chrome.storage.session.remove("workWin").catch(() => {});
   workWin = null;
   delete workTabs.mmte;
   delete workTabs.guce;
@@ -238,7 +242,18 @@ async function viaTab(k, ch) {
     return { etat: "erreur", message: m.slice(0, 200) };
   }
 }
+// le mode choisi est gardé pendant la session de Chrome (le service de l'extension peut être mis en veille)
+let modeLoaded = false;
+async function loadMode() {
+  if (modeLoaded) return;
+  modeLoaded = true;
+  const st = (await chrome.storage.session.get(["mode", "probed"]).catch(() => ({}))) || {};
+  if (st.mode) Object.assign(mode, st.mode);
+  if (st.probed) Object.assign(probed, st.probed);
+}
+const saveMode = () => chrome.storage.session.set({ mode, probed }).catch(() => {});
 async function runOn(k, ch) {
+  await loadMode();
   const job = queues[k].then(async () => {
     if (mode[k] === "tab") return viaTab(k, ch);
     let r;
@@ -247,6 +262,7 @@ async function runOn(k, ch) {
       probed[k] = true;
       const t = await viaTab(k, ch);
       if (t.etat === "trouve" || t.etat === "non_trouve") mode[k] = "tab";
+      saveMode();
       return t;
     }
     return r;
@@ -261,7 +277,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   (async () => {
     armIdle();
     const op = msg && msg.op;
-    if (op === "ping") return { version: chrome.runtime.getManifest().version, mode };
+    if (op === "ping") { await loadMode(); return { version: chrome.runtime.getManifest().version, mode }; }
+    // fin d'une série de recherches : la fenêtre de travail éventuelle est fermée tout de suite
     if (op === "search") {
       const ch = String((msg.args && msg.args.chassis) || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 40);
       if (ch.length < 4) throw new Error("CHASSIS_INVALIDE");
