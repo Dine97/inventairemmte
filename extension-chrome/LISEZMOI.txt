@@ -1,4 +1,4 @@
-Bénin Control — Recherche MMTE et GUCE (extension Chrome) — version 1.1.1
+Bénin Control — Recherche MMTE et GUCE (extension Chrome) — version 1.2.0
 =========================================================================
 
 À quoi elle sert
@@ -26,9 +26,13 @@ Installation (une fois par ordinateur, environ 2 minutes)
 Utilisation
 -----------
 - Collez un ou plusieurs châssis (un par ligne), cliquez sur « Rechercher ».
-- La recherche se fait en arrière-plan, sans ouvrir de fenêtre (version 1.1).
-  Cas rare : si Chrome refuse de partager une connexion avec ce mode, l'extension passe d'elle-même
-  à l'ancienne méthode (une fenêtre réduite, refermée dès la fin de la recherche).
+- La recherche se fait en arrière-plan, sans ouvrir de fenêtre.
+  Si Chrome refuse de partager votre connexion avec ce mode, l'extension utilise un onglet MMTE ou
+  GUCE déjà ouvert (la page affichée n'est pas modifiée) : gardez donc un onglet de chaque plateforme
+  ouvert. En dernier recours seulement, une fenêtre réduite s'ouvre et se referme à la fin.
+- Pour que le mode sans fenêtre marche partout : chrome://settings/cookies → « Sites autorisés à
+  utiliser des cookies tiers » → Ajouter [*.]benincontrol.com, puis guce.gouv.bj. Ensuite, dans
+  l'application, cliquez sur « Réessayer sans fenêtre ».
 - Résultats possibles : Trouvé, Non trouvé, Non connecté (reconnectez-vous puis relancez),
   Page indisponible (site lent ou en panne), Erreur.
 - « Détails » affiche la fiche et tout l'historique ; « Excel » exporte la synthèse et les
@@ -38,7 +42,7 @@ Mise à jour
 -----------
 Remplacez le contenu du dossier par la nouvelle version (mêmes fichiers, au même endroit), puis dans
 chrome://extensions cliquez sur la flèche « Actualiser » de l'extension, et actualisez la page de
-l'application. Le badge doit afficher la nouvelle version (v1.1.1).
+l'application. Le badge doit afficher la nouvelle version (v1.2.0).
 
 Si MMTE ou le GUCE changent leurs écrans, la lecture peut cesser de fonctionner
 (« Page indisponible » ou « Erreur ») : il faudra alors une nouvelle version de l'extension.

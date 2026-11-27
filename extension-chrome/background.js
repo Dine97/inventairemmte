@@ -209,7 +209,7 @@ async function guceInPage(ch) {
   return { etat: "trouve", unites, plus: hits.length > 5 ? hits.length - 5 : 0 };
 }
 
-// Mode par défaut (1.1) : lecture directe sans fenêtre, par la page « offscreen » de l'extension.
+// Mode par défaut (1.1) : lecture directe sans fenêtre, par la page « offscreen » de l'extension (lecture.js).
 // Si la plateforme y paraît « non connectée », on vérifie une fois avec l'ancienne méthode (fenêtre réduite) ;
 // si celle-ci voit l'utilisateur connecté, on la garde pour ce site jusqu'au prochain démarrage de Chrome.
 const mode = { mmte: "direct", guce: "direct" };
@@ -252,20 +252,40 @@ async function loadMode() {
   if (st.probed) Object.assign(probed, st.probed);
 }
 const saveMode = () => chrome.storage.session.set({ mode, probed }).catch(() => {});
+// Repli 1 : un onglet MMTE / GUCE déjà ouvert par l'utilisateur (hors fenêtre de travail) : la lecture s'y fait
+// par des requêtes du même site, sans toucher à la page affichée. Repli 2 : la fenêtre de travail réduite.
+const HOSTS = { mmte: "https://mmte.benincontrol.com/*", guce: "https://guce.gouv.bj/*" };
+async function viaUserTab(k, ch) {
+  const tabs = (await chrome.tabs.query({ url: HOSTS[k] }).catch(() => [])).filter((t) => t.windowId !== workWin && t.status === "complete" && !t.discarded);
+  if (!tabs.length) return null;
+  const tab = tabs.sort((x, y) => (y.lastAccessed || 0) - (x.lastAccessed || 0))[0];
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["lecture.js"] });
+    const [res] = await withTimeout(chrome.scripting.executeScript({ target: { tabId: tab.id }, func: (site, c) => (site === "mmte" ? self.BCL.mmteSearch(c) : self.BCL.guceSearch(c)), args: [k, ch] }), DELAI).then((x) => (Array.isArray(x) ? x : [{ result: x }]));
+    return (res && res.result) || null;
+  } catch (e) { return null; }
+}
+const isNC = (r) => r && r.etat === "non_connecte";
+const diag = { mmte: null, guce: null };
 async function runOn(k, ch) {
   await loadMode();
   const job = queues[k].then(async () => {
-    if (mode[k] === "tab") return viaTab(k, ch);
-    let r;
-    try { r = await direct(k, ch); } catch (e) { r = { etat: "erreur", message: String((e && e.message) || e).slice(0, 200) }; }
-    if ((r.etat === "non_connecte" || (r.etat === "erreur" && /offscreen|Receiving end/i.test(r.message || ""))) && !probed[k]) {
-      probed[k] = true;
-      const t = await viaTab(k, ch);
-      if (t.etat === "trouve" || t.etat === "non_trouve") mode[k] = "tab";
-      saveMode();
-      return t;
+    let r = null;
+    if (mode[k] === "direct") {
+      try { r = await direct(k, ch); } catch (e) { r = { etat: "erreur", message: String((e && e.message) || e).slice(0, 200) }; }
+      const broken = r.etat === "erreur" && /offscreen|Receiving end/i.test(r.message || "");
+      if (!isNC(r) && !broken) return r;
+      diag[k] = { at: new Date().toISOString(), etat: r.etat, detail: r.detail || r.message || "" };
     }
-    return r;
+    const u = await viaUserTab(k, ch);
+    if (u && !isNC(u)) { if (mode[k] !== "onglet") { mode[k] = "onglet"; saveMode(); } return u; }
+    if (u && isNC(u)) return u; // l'onglet ouvert n'est pas connecté non plus : il faut se reconnecter
+    if (mode[k] === "direct" && probed[k]) return r; // pas d'onglet ouvert, et la fenêtre a déjà été essayée sans succès
+    probed[k] = true;
+    const t = await viaTab(k, ch);
+    if ((t.etat === "trouve" || t.etat === "non_trouve") && mode[k] === "direct") mode[k] = "fenetre";
+    saveMode();
+    return t;
   });
   queues[k] = job.catch(() => {});
   return job;
@@ -277,7 +297,8 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
   (async () => {
     armIdle();
     const op = msg && msg.op;
-    if (op === "ping") { await loadMode(); return { version: chrome.runtime.getManifest().version, mode }; }
+    if (op === "ping") { await loadMode(); return { version: chrome.runtime.getManifest().version, mode, diag }; }
+    if (op === "retry_direct") { mode.mmte = "direct"; mode.guce = "direct"; probed.mmte = probed.guce = false; saveMode(); return { mode }; }
     // fin d'une série de recherches : la fenêtre de travail éventuelle est fermée tout de suite
     if (op === "search") {
       const ch = String((msg.args && msg.args.chassis) || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 40);

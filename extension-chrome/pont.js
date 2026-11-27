@@ -2,7 +2,7 @@
 (() => {
   const V = chrome.runtime.getManifest().version;
   document.documentElement.setAttribute("data-bc-recherche", V);
-  const OPS = new Set(["ping", "search", "open", "close"]);
+  const OPS = new Set(["ping", "search", "open", "close", "retry_direct"]);
   window.addEventListener("message", (e) => {
     if (e.source !== window || !e.data || e.data.bcr !== "req" || !OPS.has(e.data.op)) return;
     const { id, op, args } = e.data;

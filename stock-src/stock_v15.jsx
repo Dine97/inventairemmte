@@ -92,7 +92,7 @@ async function stkPfRun() {
   STK_PF.rows = STK_PF.rows.map((r) => ({ ...r, mmte: r.mmte && ["file", "encours"].includes(r.mmte.etat) ? { etat: "attente" } : r.mmte, guce: r.guce && ["file", "encours"].includes(r.guce.etat) ? { etat: "attente" } : r.guce }));
   STK_PF.run = false; stkPfNotify();
   stkBcrCall("close", {}, 10000).catch(() => {}); // referme la fenêtre de travail de l'extension s'il y en a une
-  stkBcrCall("ping", {}, 5000).then((d) => { STK_BCR.mode = d.mode; window.dispatchEvent(new Event("stk-bcr")); }).catch(() => {});
+  stkBcrCall("ping", {}, 5000).then((d) => { STK_BCR.mode = d.mode; STK_BCR.diag = d.diag; window.dispatchEvent(new Event("stk-bcr")); }).catch(() => {});
   const n = STK_PF.rows.length;
   if (n && !STK_PF.stop && STK_PF.toast) STK_PF.toast(`Recherche MMTE / GUCE terminée : ${n} châssis.`);
 }
@@ -110,6 +110,21 @@ function stkPfAdd(list, ext, replace) {
 }
 function stkPfRetry(ch) { stkPfUpd(ch, { mmte: { etat: "file" }, guce: { etat: "file" } }); stkPfRun(); }
 
+// Mode de lecture de l'extension : sans fenêtre, depuis un onglet déjà ouvert, ou fenêtre de travail
+function StkPfMode() {
+  const [, force] = useState(0);
+  const m = STK_BCR.mode || {}, d = STK_BCR.diag || {};
+  const nom = (k) => (k === "mmte" ? "MMTE" : "GUCE");
+  const lab = { direct: "sans fenêtre", onglet: "depuis votre onglet ouvert", fenetre: "fenêtre de travail", tab: "fenêtre de travail" };
+  const all = Object.values(m).every((x) => x === "direct");
+  const why = Object.keys(d).filter((k) => d[k]).map((k) => `${nom(k)} : ${d[k].detail || d[k].etat}`).join(" · ");
+  return <span className="inline-flex items-center gap-1.5 flex-wrap" data-testid="bcr-mode">
+    <StkBadge tone={all ? "bg-slate-50 text-slate-600 border-slate-200" : "bg-amber-50 text-amber-900 border-amber-300"}>{all ? "Recherche sans fenêtre" : ["mmte", "guce"].map((k) => `${nom(k)} : ${lab[m[k]] || m[k]}`).join(" · ")}</StkBadge>
+    {!all && <button className="text-xs underline font-bold text-[#1B4F8C]" title={why ? "Raison : " + why : ""} onClick={() => stkBcrCall("retry_direct", {}, 5000).then((x) => { STK_BCR.mode = x.mode; STK_BCR.diag = {}; force((n) => n + 1); })}>Réessayer sans fenêtre</button>}
+    {!all && why && <span className="text-[11px] text-slate-500">({why})</span>}
+  </span>;
+}
+
 function StkPlatformSearch() {
   const C = React.useContext(StkCtx);
   const { openVehicle, toast } = C;
@@ -124,7 +139,7 @@ function StkPlatformSearch() {
   useEffect(() => {
     const f = () => setVer(stkBcrVersion());
     window.addEventListener("stk-bcr", f);
-    const t = setTimeout(() => stkBcrCall("ping", {}, 3000).then((d) => { STK_BCR.version = d.version; STK_BCR.mode = d.mode; f(); }).catch(() => {}), 400);
+    const t = setTimeout(() => stkBcrCall("ping", {}, 3000).then((d) => { STK_BCR.version = d.version; STK_BCR.mode = d.mode; STK_BCR.diag = d.diag; f(); }).catch(() => {}), 400);
     return () => { window.removeEventListener("stk-bcr", f); clearTimeout(t); };
   }, []);
   const list = useMemo(() => [...new Set(String(text).split(/[\s,;]+/).map(stkPfNorm).filter((c) => c.length >= 5))], [text]);
@@ -180,7 +195,7 @@ function StkPlatformSearch() {
   return <>
     <StkPageHead title="Recherche MMTE et GUCE" sub="Un ou plusieurs châssis : situation dans nos stocks, fiche et historique complet dans MMTE et dans le GUCE. Information seulement : rien n'est modifié." />
     <StkCard className="p-4 md:p-5 space-y-3">
-      {ver ? <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="bcr-ok"><StkBadge tone="bg-emerald-50 text-emerald-800 border-emerald-200">Extension active · v{ver}</StkBadge>{STK_BCR.mode && <StkBadge tone="bg-slate-50 text-slate-600 border-slate-200">{Object.values(STK_BCR.mode).every((m) => m === "direct") ? "Recherche sans fenêtre" : `Fenêtre de travail pour ${Object.keys(STK_BCR.mode).filter((k) => STK_BCR.mode[k] !== "direct").map((k) => (k === "mmte" ? "MMTE" : "le GUCE")).join(" et ")}`}</StkBadge>}<span className="text-slate-500">Les recherches utilisent vos connexions MMTE et GUCE dans ce navigateur.</span>
+      {ver ? <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="bcr-ok"><StkBadge tone="bg-emerald-50 text-emerald-800 border-emerald-200">Extension active · v{ver}</StkBadge>{STK_BCR.mode && <StkPfMode />}<span className="text-slate-500">Les recherches utilisent vos connexions MMTE et GUCE dans ce navigateur.</span>
         <span className="flex-1" /><StkBtn small kind="ghost" onClick={() => stkBcrCall("open", { site: "mmte" })}>Ouvrir MMTE</StkBtn><StkBtn small kind="ghost" onClick={() => stkBcrCall("open", { site: "guce" })}>Ouvrir le GUCE</StkBtn></div>
         : <StkMsg tone="warn"><span data-testid="bcr-absente"><b>Extension non détectée.</b> Sans elle, seuls nos stocks sont consultés. Pour chercher dans MMTE et le GUCE, installez l'extension « Bénin Control — Recherche MMTE et GUCE » dans Chrome (guide fourni avec le dossier <code>extension-chrome</code>), puis actualisez la page. En attendant : <a className="underline font-bold" href="https://mmte.benincontrol.com/roulant/chassis" target="_blank" rel="noopener">ouvrir MMTE</a> · <a className="underline font-bold" href="https://guce.gouv.bj/emovement/gen/genHandlingUnit/list" target="_blank" rel="noopener">ouvrir le GUCE</a>.</span></StkMsg>}
       <textarea data-testid="bcr-saisie" value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder={"Collez un ou plusieurs châssis (un par ligne, ou séparés par des espaces)\nWAUZZZ4F46N176736"} className={`${stkInput} font-plex-mono`} />
