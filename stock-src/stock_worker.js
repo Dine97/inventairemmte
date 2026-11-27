@@ -43,6 +43,13 @@ self.onmessage = (e) => {
       const res = stkParseWorkbook(book, e.data.opts || {});
       stkProgress = null;
       reply({ ok: res });
+    } else if (op === "aoa") {
+      // 6.19 : export MMTE lu en arrière-plan ; la page reçoit le tableau de la première feuille
+      reply({ progress: { phase: "ouverture" } });
+      const wb = XLSX.read(e.data.buf, { cellDates: true, type: "array" });
+      reply({ progress: { phase: "lignes" } });
+      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" });
+      reply({ ok: aoa });
     } else if (op === "close") {
       STK_BOOKS.delete(key);
       reply({ ok: true });

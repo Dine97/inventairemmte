@@ -536,12 +536,28 @@ const actions: Record<string, (p: any, who: Who) => Promise<unknown>> = {
     await audit(who, "reactivation_import", "import", p.id, "Import réactivé");
     return { ok: true };
   },
+  // 6.19 : chaque contrôle est enregistré (historique) avec ses listes détaillées
   async mmte_sync(p, who) {
     agentOnly(who);
     if (!Array.isArray(p.rows)) throw new ApiError("DONNEES_INCOMPLETES");
-    const r = must(await sb.rpc("stock_mmte_sync", { p: { rows: p.rows, parc_name: p.parc_name || "" } })) as any;
-    await audit(who, "controle_mmte", "mmte", p.parc_name || "tous", `Contrôle MMTE${p.parc_name ? " — " + p.parc_name : ""} : ${r.lus} lus, ${r.trouves} trouvés, ${(r.ecarts || []).length} écarts de date`);
+    const names = (Array.isArray(p.parc_names) ? p.parc_names : p.parc_name ? [p.parc_name] : []).slice(0, 200).map((x: unknown) => String(x).slice(0, 80));
+    const r = must(await sb.rpc("stock_mmte_sync", { p: { rows: p.rows.slice(0, 200000), parc_names: names, tous: p.tous === true, source: String(p.source || "").slice(0, 200), by_uid: who.uid, by_name: who.name } })) as any;
+    await audit(who, "controle_mmte", "mmte", r.id, `Contrôle MMTE — ${r.parcs || "sans parc"} : ${r.lus} lus, ${r.communs} présents des deux côtés, ${r.absents} au parc absents de MMTE, ${r.sortis} sortis selon le parc, ${r.inconnus} inconnus des stocks, ${r.ecarts} écarts de dépôt`);
     return r;
+  },
+  async mmte_controles() {
+    return must(await sb.from("mmte_controles").select("id,at,by_name,scope_key,parcs,source,lus,communs,absents,sortis,autres,inconnus,ecarts,depot_lus,nouveaux,regularises,prev_id").is("deleted_at", null).order("at", { ascending: false }).limit(300));
+  },
+  async mmte_controle(p) {
+    const r = must(await sb.from("mmte_controles").select("*").eq("id", Number(p.id)).is("deleted_at", null).maybeSingle());
+    if (!r) throw new ApiError("CONTROLE_INTROUVABLE", 404);
+    return r;
+  },
+  async mmte_controle_delete(p, who) {
+    adminOnly(who);
+    must(await sb.from("mmte_controles").update({ deleted_at: new Date().toISOString() }).eq("id", Number(p.id)));
+    await audit(who, "suppression", "mmte", p.id, "Contrôle MMTE retiré de l'historique");
+    return { ok: true };
   },
   // ---- Filtres de recherche enregistrés ----
   async filters_list(_p, who) {
