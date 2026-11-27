@@ -33,6 +33,7 @@ const STK_PF_ETAT = {
   erreur: ["Erreur", "bg-rose-50 text-rose-800 border-rose-200"],
   attente: ["En attente", "bg-slate-50 text-slate-500 border-slate-200"],
   encours: ["Recherche…", "bg-sky-50 text-sky-800 border-sky-200"],
+  file: ["En file", "bg-slate-50 text-slate-500 border-slate-200"],
 };
 const stkPfNorm = (s) => String(s || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 // Résumés lisibles pour le tableau
@@ -53,16 +54,71 @@ function StkPfBadge({ r }) {
   return <StkBadge tone={e[1]}>{e[0]}</StkBadge>;
 }
 
+// État partagé de la recherche : elle continue quand on change d'écran, et l'écran reste utilisable
+const STK_PF = { rows: [], run: false, stop: false, text: "", toast: null, subs: new Set() };
+function stkPfNotify() { STK_PF.subs.forEach((f) => f()); }
+function stkPfUpd(ch, patch) { STK_PF.rows = STK_PF.rows.map((r) => (r.chassis === ch ? { ...r, ...patch } : r)); stkPfNotify(); }
+function useStkPf() {
+  const [, force] = useState(0);
+  useEffect(() => { const h = () => force((x) => x + 1); STK_PF.subs.add(h); return () => STK_PF.subs.delete(h); }, []);
+  return STK_PF;
+}
+function stkPfLookup(list) {
+  stkCall("lookup", { chassis: list }).then((res) => {
+    const by = {}; (res || []).forEach((x) => (by[stkPfNorm(x.saisi)] = x));
+    STK_PF.rows = STK_PF.rows.map((r) => (by[r.chassis] ? { ...r, stock: by[r.chassis] } : r)); stkPfNotify();
+  }).catch(() => {});
+}
+// Deux files indépendantes (MMTE et GUCE) : la plus rapide n'attend pas l'autre
+async function stkPfLoop(k) {
+  while (!STK_PF.stop) {
+    const r = STK_PF.rows.find((x) => x[k] && x[k].etat === "file");
+    if (!r) break;
+    stkPfUpd(r.chassis, { [k]: { etat: "encours" } });
+    try {
+      const d = await stkBcrCall("search", { chassis: r.chassis, sites: [k] });
+      stkPfUpd(r.chassis, { [k]: d[k] || { etat: "erreur", message: "Réponse vide." } });
+    } catch (e) {
+      const m = String(e.message || e);
+      stkPfUpd(r.chassis, { [k]: { etat: "erreur", message: m === "DELAI" ? "Pas de réponse de l'extension." : m } });
+      if (/EXTENSION_RECHARGEE|Extension context|Receiving end/i.test(m)) { STK_PF.stop = true; STK_PF.toast && STK_PF.toast("L'extension a été rechargée : actualisez la page puis relancez."); }
+    }
+  }
+}
+async function stkPfRun() {
+  if (STK_PF.run) return;
+  STK_PF.run = true; STK_PF.stop = false; stkPfNotify();
+  await Promise.all([stkPfLoop("mmte"), stkPfLoop("guce")]);
+  STK_PF.rows = STK_PF.rows.map((r) => ({ ...r, mmte: r.mmte && ["file", "encours"].includes(r.mmte.etat) ? { etat: "attente" } : r.mmte, guce: r.guce && ["file", "encours"].includes(r.guce.etat) ? { etat: "attente" } : r.guce }));
+  STK_PF.run = false; stkPfNotify();
+  const n = STK_PF.rows.length;
+  if (n && !STK_PF.stop && STK_PF.toast) STK_PF.toast(`Recherche MMTE / GUCE terminée : ${n} châssis.`);
+}
+// Ajoute des châssis (remplace la liste si aucune recherche n'est en cours) ; sans extension, seuls nos stocks
+function stkPfAdd(list, ext, replace) {
+  const have = new Set(replace ? [] : STK_PF.rows.map((r) => r.chassis));
+  const add = list.filter((c) => !have.has(c)).slice(0, Math.max(0, 500 - (replace ? 0 : STK_PF.rows.length)));
+  const q = ext ? { etat: "file" } : { etat: "attente" };
+  const fresh = add.map((c) => ({ chassis: c, stock: null, mmte: q, guce: q }));
+  STK_PF.rows = replace ? fresh : STK_PF.rows.concat(fresh);
+  stkPfNotify();
+  if (add.length) stkPfLookup(add);
+  if (ext) stkPfRun();
+  return add.length;
+}
+function stkPfRetry(ch) { stkPfUpd(ch, { mmte: { etat: "file" }, guce: { etat: "file" } }); stkPfRun(); }
+
 function StkPlatformSearch() {
   const C = React.useContext(StkCtx);
   const { openVehicle, toast } = C;
+  const S = useStkPf();
+  STK_PF.toast = toast;
   const [ver, setVer] = useState(stkBcrVersion());
-  const [text, setText] = useState("");
-  const [rows, setRows] = useState([]);
-  const [run, setRun] = useState(false);
+  const [text, setTextS] = useState(STK_PF.text);
+  const setText = (v) => { STK_PF.text = v; setTextS(v); };
+  const rows = S.rows, run = S.run;
   const [sel, setSel] = useState(null);
   const [q, setQ] = useState("");
-  const stop = useRef(false);
   useEffect(() => {
     const f = () => setVer(stkBcrVersion());
     window.addEventListener("stk-bcr", f);
@@ -70,38 +126,16 @@ function StkPlatformSearch() {
     return () => { window.removeEventListener("stk-bcr", f); clearTimeout(t); };
   }, []);
   const list = useMemo(() => [...new Set(String(text).split(/[\s,;]+/).map(stkPfNorm).filter((c) => c.length >= 5))], [text]);
-  const upd = (ch, patch) => setRows((rs) => rs.map((r) => (r.chassis === ch ? { ...r, ...patch } : r)));
-  const start = async (only) => {
-    const todo = only ? [only] : list.slice(0, 500);
-    if (!todo.length) return;
-    stop.current = false;
-    setRun(true);
-    if (!only) { setRows(todo.map((c) => ({ chassis: c, mmte: null, guce: null, stock: null }))); setSel(null); }
-    else upd(only, { mmte: null, guce: null });
-    // nos stocks, en une seule demande
-    stkCall("lookup", { chassis: todo }).then((res) => {
-      const by = {}; (res || []).forEach((x) => (by[stkPfNorm(x.saisi)] = x));
-      setRows((rs) => rs.map((r) => (by[r.chassis] ? { ...r, stock: by[r.chassis] } : r)));
-    }).catch(() => {});
-    if (ver) {
-      for (const c of todo) {
-        if (stop.current) break;
-        upd(c, { mmte: { etat: "encours" }, guce: { etat: "encours" } });
-        try {
-          const d = await stkBcrCall("search", { chassis: c });
-          upd(c, { mmte: d.mmte, guce: d.guce, at: d.at });
-        } catch (e) {
-          const m = String(e.message || e);
-          upd(c, { mmte: { etat: "erreur", message: m }, guce: { etat: "erreur", message: m } });
-          if (/EXTENSION_RECHARGEE|Extension context|Receiving end/i.test(m)) { toast && toast("L'extension a été rechargée : actualisez la page puis relancez."); break; }
-        }
-      }
-      setRows((rs) => rs.map((r) => (r.mmte && r.mmte.etat === "encours" ? { ...r, mmte: { etat: "attente" }, guce: { etat: "attente" } } : r)));
-    }
-    setRun(false);
+  const start = () => {
+    if (!list.length) return;
+    const n = stkPfAdd(list, !!ver, !run);
+    if (!run) setSel(null);
+    if (run && toast) toast(n ? `${n} châssis ajouté(s) à la recherche en cours.` : "Ces châssis sont déjà dans la recherche.");
+    setText("");
   };
   const shown = q ? rows.filter((r) => r.chassis.includes(stkPfNorm(q))) : rows;
-  const done = rows.filter((r) => r.mmte && !["encours", "attente"].includes(r.mmte.etat)).length;
+  const fini = (x) => x && !["encours", "attente", "file"].includes(x.etat);
+  const done = rows.filter((r) => fini(r.mmte) && fini(r.guce)).length;
   const cnt = (k, e) => rows.filter((r) => r[k] && r[k].etat === e).length;
   const nc = rows.some((r) => (r.mmte && r.mmte.etat === "non_connecte") || (r.guce && r.guce.etat === "non_connecte"));
   const stockCell = (s) => !s ? <span className="text-slate-400">…</span> : !s.trouve ? <span className="text-slate-500">Inconnu des stocks</span> : s.parc ? <span><b>{s.parc}</b><span className="block text-[11px] text-slate-500">{[s.marque, s.modele].filter(Boolean).join(" ")}</span></span> : <span className="text-slate-600">Sorti{s.sortie && s.sortie.parc ? ` de ${s.sortie.parc}` : ""}</span>;
@@ -147,23 +181,24 @@ function StkPlatformSearch() {
       {ver ? <div className="flex flex-wrap items-center gap-2 text-sm" data-testid="bcr-ok"><StkBadge tone="bg-emerald-50 text-emerald-800 border-emerald-200">Extension active · v{ver}</StkBadge><span className="text-slate-500">Les recherches utilisent vos connexions MMTE et GUCE dans ce navigateur.</span>
         <span className="flex-1" /><StkBtn small kind="ghost" onClick={() => stkBcrCall("open", { site: "mmte" })}>Ouvrir MMTE</StkBtn><StkBtn small kind="ghost" onClick={() => stkBcrCall("open", { site: "guce" })}>Ouvrir le GUCE</StkBtn></div>
         : <StkMsg tone="warn"><span data-testid="bcr-absente"><b>Extension non détectée.</b> Sans elle, seuls nos stocks sont consultés. Pour chercher dans MMTE et le GUCE, installez l'extension « Bénin Control — Recherche MMTE et GUCE » dans Chrome (guide fourni avec le dossier <code>extension-chrome</code>), puis actualisez la page. En attendant : <a className="underline font-bold" href="https://mmte.benincontrol.com/roulant/chassis" target="_blank" rel="noopener">ouvrir MMTE</a> · <a className="underline font-bold" href="https://guce.gouv.bj/emovement/gen/genHandlingUnit/list" target="_blank" rel="noopener">ouvrir le GUCE</a>.</span></StkMsg>}
-      <textarea data-testid="bcr-saisie" value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder={"Collez un ou plusieurs châssis (un par ligne, ou séparés par des espaces)\nWAUZZZ4F46N176736"} className={`${stkInput} font-plex-mono`} disabled={run} />
+      <textarea data-testid="bcr-saisie" value={text} onChange={(e) => setText(e.target.value)} rows={4} placeholder={"Collez un ou plusieurs châssis (un par ligne, ou séparés par des espaces)\nWAUZZZ4F46N176736"} className={`${stkInput} font-plex-mono`} />
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-slate-600">{list.length.toLocaleString("fr-FR")} châssis{list.length > 500 ? " (500 au plus par recherche)" : ""}</span>
         <span className="flex-1" />
-        {run ? <StkBtn kind="danger" onClick={() => (stop.current = true)} data-testid="bcr-stop">Arrêter</StkBtn> : <StkBtn kind="primary" disabled={!list.length} onClick={() => start()} data-testid="bcr-go"><Search size={16} /> Rechercher</StkBtn>}
+        {run && <StkBtn kind="danger" onClick={() => { STK_PF.stop = true; stkPfNotify(); }} data-testid="bcr-stop">Arrêter</StkBtn>}
+        <StkBtn kind="primary" disabled={!list.length} onClick={start} data-testid="bcr-go"><Search size={16} /> {run ? "Ajouter à la recherche" : "Rechercher"}</StkBtn>
       </div>
-      {rows.length > 0 && ver && <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{run ? "Recherche en cours…" : "Terminé"} : {done} / {rows.length}</span><span>MMTE : {cnt("mmte", "trouve")} trouvé(s), {cnt("mmte", "non_trouve")} non trouvé(s) · GUCE : {cnt("guce", "trouve")} trouvé(s), {cnt("guce", "non_trouve")} non trouvé(s)</span></div><div className="h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full bg-[#1B4F8C] transition-all" style={{ width: `${Math.max(2, Math.round((done / rows.length) * 100))}%` }} /></div></div>}
+      {rows.length > 0 && ver && <div className="space-y-1"><div className="flex justify-between text-xs text-slate-500"><span>{run ? "Recherche en cours (vous pouvez continuer à travailler ou changer d'écran)…" : "Terminé"} : {done} / {rows.length}</span><span>MMTE : {cnt("mmte", "trouve")} trouvé(s), {cnt("mmte", "non_trouve")} non trouvé(s) · GUCE : {cnt("guce", "trouve")} trouvé(s), {cnt("guce", "non_trouve")} non trouvé(s)</span></div><div className="h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full bg-[#1B4F8C] transition-all" style={{ width: `${Math.max(2, Math.round((done / rows.length) * 100))}%` }} /></div></div>}
       {nc && <StkMsg tone="warn">Vous n'êtes pas connecté à une des plateformes dans ce navigateur. Connectez-vous ({<button className="underline font-bold" onClick={() => stkBcrCall("open", { site: "mmte" })}>MMTE</button>} · {<button className="underline font-bold" onClick={() => stkBcrCall("open", { site: "guce" })}>GUCE</button>}), puis relancez la recherche.</StkMsg>}
     </StkCard>
     {rows.length > 0 && <StkCard className="p-4 md:p-5 space-y-3 mt-4" data-testid="bcr-resultats">
       <div className="flex flex-wrap items-center gap-2">
         <div className="font-bold text-[#0B1F38] flex-1">Résultats ({rows.length})</div>
         <div className="w-[220px]"><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtrer un châssis" className={stkInput} /></div>
-        <StkExportBar disabled={!rows.length || run} onXlsx={exportX} onPdf={exportP} />
+        <StkExportBar disabled={!rows.length} onXlsx={exportX} onPdf={exportP} />
       </div>
       <StkTable columns={cols} rows={shown} rowKey={(r) => r.chassis} onRow={(r) => setSel(sel === r.chassis ? null : r.chassis)} empty="Aucun châssis." />
-      {cur && <StkPfDetail r={cur} openVehicle={openVehicle} onRetry={() => start(cur.chassis)} run={run} ext={!!ver} />}
+      {cur && <StkPfDetail r={cur} openVehicle={openVehicle} onRetry={() => stkPfRetry(cur.chassis)} run={run} ext={!!ver} />}
     </StkCard>}
   </>;
 }
@@ -173,7 +208,7 @@ function StkPfDetail({ r, openVehicle, onRetry, run, ext }) {
   const KV = ({ o }) => <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-0.5 text-[12.5px]">{Object.entries(o || {}).filter(([, v]) => v !== "" && v != null).map(([k, v]) => <React.Fragment key={k}><dt className="text-slate-500">{k}</dt><dd className="font-semibold text-[#0B1F38] break-words">{v}</dd></React.Fragment>)}</dl>;
   const Box = ({ title, badge, children, tid }) => <div className="rounded-2xl border border-[#E1EAF4] bg-[#F7FAFE] p-3 space-y-2 min-w-0" data-testid={tid}><div className="flex items-center gap-2"><div className="font-extrabold text-[#123A66] text-sm uppercase tracking-wide flex-1">{title}</div>{badge}</div>{children}</div>;
   return <div className="space-y-3 pt-2" data-testid="bcr-detail">
-    <div className="flex items-center gap-2"><div className="font-plex-mono font-extrabold text-lg text-[#0B1F38] flex-1">{r.chassis}</div>{ext && <StkBtn small disabled={run} onClick={onRetry}>Relancer ce châssis</StkBtn>}</div>
+    <div className="flex items-center gap-2"><div className="font-plex-mono font-extrabold text-lg text-[#0B1F38] flex-1">{r.chassis}</div>{ext && <StkBtn small onClick={onRetry}>Relancer ce châssis</StkBtn>}</div>
     <div className="grid lg:grid-cols-3 gap-3">
       <Box title="Nos stocks" tid="bcr-d-stock" badge={s.trouve ? <StkBadge tone="bg-emerald-50 text-emerald-800 border-emerald-200">{s.parc ? "Présent" : "Sorti"}</StkBadge> : r.stock ? <StkBadge tone="bg-slate-100 text-slate-700 border-slate-300">Inconnu</StkBadge> : null}>
         {s.trouve ? <><KV o={{ Parc: s.parc || (s.sortie && s.sortie.parc ? `Sorti de ${s.sortie.parc}` : "Sorti"), "Au parc depuis": stkFmt(s.entry_date), Véhicule: [s.marque, s.modele, s.annee].filter(Boolean).join(" "), Navire: s.navire, Manifeste: s.manifeste, BL: s.bl, Arrivée: stkFmt(s.date_arrivee), "Dépôt MMTE": stkFmt(s.mmte_depot_date) }} /><StkBtn small onClick={() => openVehicle({ id: s.vehicle_id })}>Fiche du véhicule</StkBtn></> : <div className="text-sm text-slate-500">{r.stock ? `Ce châssis n'est dans aucun stock déclaré${s.suggestion ? ` (proche : ${s.suggestion})` : ""}.` : "…"}</div>}
