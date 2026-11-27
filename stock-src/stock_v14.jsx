@@ -18,6 +18,8 @@ async function stkReadMmteFile(f, onStep) {
   return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" });
 }
 const STK_MMTE_TABS = [
+  { key: "lus", label: "Lus dans MMTE", tone: "slate" },
+  { key: "communs", label: "Présents des deux côtés", tone: "slate" },
   { key: "absents", label: "Au parc, absents de MMTE", tone: "amber" },
   { key: "sortis", label: "Dans MMTE, sortis selon le parc", tone: "rose" },
   { key: "autres", label: "Dans MMTE, présents dans un autre parc", tone: "slate" },
@@ -164,11 +166,37 @@ function StkMmteResult({ ctl }) {
     ...(cnt((r) => r.sit === "sans_date") ? [["sans_date", `Sans date (${cnt((r) => r.sit === "sans_date")})`]] : []), ["jamais", `Jamais vus dans MMTE (${cnt((r) => r.mm === "jamais")})`], ["disparu", `Disparus de MMTE (${cnt((r) => r.mm === "disparu")})`],
     ...(ctl.nouveaux != null ? [["nouveau", `Nouveaux depuis le contrôle précédent (${cnt((r) => r.nouveau)})`]] : [])];
   const absShown = abs.filter((r) => !sit || r.sit === sit || r.mm === sit || (sit === "nouveau" && r.nouveau));
-  const data = { absents: absShown, sortis: R.sortis || [], autres: R.autres || [], inconnus: R.inconnus || [], ecarts: R.ecarts || [] }[tab];
+  // 6.19.1 : présents des deux côtés (avec situation) et liste complète des lus (présents + sortis + autres parcs + inconnus)
+  const hasCom = Array.isArray(R.communs);
+  const com = useMemo(() => (R.communs || []).map((r) => { const s = stkSit({ ...r, mmte_depot_date: r.depot_mmte }, ref, cfg); return { ...r, sit: s.code, sitLabel: s.label, depot: s.depot }; }), [ctl.id, cfg]);
+  const [comSit, setComSit] = useState("");
+  const comShown = com.filter((r) => !comSit || r.sit === comSit || (comSit === "ecart" && r.ecart != null && Math.abs(r.ecart) > 3));
+  const ccnt = (f) => com.filter(f).length;
+  const comChips = [["", `Tous (${com.length})`], ["disponible", `En délai légal (${ccnt((r) => r.sit === "disponible")})`], ["bientot", `Bientôt en dépôt (${ccnt((r) => r.sit === "bientot")})`], ["depot", `En dépôt (${ccnt((r) => r.sit === "depot")})`],
+    ...(ccnt((r) => r.sit === "sans_date") ? [["sans_date", `Sans date (${ccnt((r) => r.sit === "sans_date")})`]] : []), ["ecart", `Écart de dépôt (${ccnt((r) => r.ecart != null && Math.abs(r.ecart) > 3)})`]];
+  const LUS_ST = { communs: ["Au parc contrôlé", "bg-emerald-50 text-emerald-800 border-emerald-200"], sortis: ["Sorti selon le parc", "bg-rose-50 text-rose-800 border-rose-200"], autres: ["Dans un autre parc", "bg-sky-50 text-sky-800 border-sky-200"], inconnus: ["Inconnu des stocks", "bg-amber-50 text-amber-900 border-amber-300"] };
+  const lus = useMemo(() => [
+    ...com.map((r) => ({ chassis: r.chassis, id: r.id, st: "communs", veh: [r.marque, r.modele, r.annee].filter(Boolean).join(" "), parc: r.parc, navire: r.mmte_navire || r.navire, manifeste: r.mmte_manifeste || r.manifeste, depot_mmte: r.depot_mmte })),
+    ...(R.sortis || []).map((r) => ({ chassis: r.chassis, id: r.id, st: "sortis", veh: [r.marque, r.modele, r.annee].filter(Boolean).join(" "), parc: r.parc, navire: (r.mmte || {}).navire, manifeste: (r.mmte || {}).manifeste, depot_mmte: r.depot_mmte })),
+    ...(R.autres || []).map((r) => ({ chassis: r.chassis, id: r.id, st: "autres", veh: [r.marque, r.modele].filter(Boolean).join(" "), parc: r.parc, navire: (r.mmte || {}).navire, manifeste: (r.mmte || {}).manifeste, depot_mmte: r.depot_mmte })),
+    ...(R.inconnus || []).map((r) => ({ chassis: r.chassis, st: "inconnus", veh: (r.mmte || {}).description || "", parc: "", navire: (r.mmte || {}).navire, manifeste: (r.mmte || {}).manifeste, depot_mmte: r.depot_mmte })),
+  ], [ctl.id, com]);
+  const [lusSt, setLusSt] = useState("");
+  const lusShown = lus.filter((r) => !lusSt || r.st === lusSt);
+  const lusChips = [["", `Tous (${lus.length.toLocaleString("fr-FR")})`], ...Object.keys(LUS_ST).filter((k) => k !== "autres" || ctl.autres > 0).map((k) => [k, `${LUS_ST[k][0]} (${lus.filter((r) => r.st === k).length.toLocaleString("fr-FR")})`])];
+  const data = { lus: lusShown, communs: comShown, absents: absShown, sortis: R.sortis || [], autres: R.autres || [], inconnus: R.inconnus || [], ecarts: R.ecarts || [] }[tab];
   const mm = (r) => r.mmte || {};
   const veh = (r) => [r.marque, r.modele, r.annee].filter(Boolean).join(" ");
   const chassisCell = (r) => r.id ? <button className="font-plex-mono font-bold text-[#1B4F8C] underline whitespace-nowrap" onClick={() => openVehicle({ id: r.id })}>{r.chassis}</button> : <span className="font-plex-mono font-bold whitespace-nowrap">{r.chassis}</span>;
   const cols = {
+    lus: [{ key: "chassis", label: "Châssis (MMTE)", render: chassisCell }, { key: "st", label: "Statut", sort: (r) => LUS_ST[r.st][0], render: (r) => <StkBadge tone={LUS_ST[r.st][1]}>{LUS_ST[r.st][0]}</StkBadge> },
+      { key: "veh", label: "Véhicule / description" }, { key: "parc", label: "Parc", render: (r) => r.parc ? (r.st === "sortis" ? `${r.parc} (sorti)` : r.parc) : "—" },
+      { key: "nav", label: "MMTE : navire · manifeste", sort: (r) => r.navire, render: (r) => [r.navire, r.manifeste].filter(Boolean).join(" · ") }, { key: "depot_mmte", label: "Dépôt MMTE", render: (r) => stkFmt(r.depot_mmte) }],
+    communs: [{ key: "chassis", label: "Châssis", render: chassisCell }, ...(multi ? [{ key: "parc", label: "Parc" }] : []), { key: "veh", label: "Véhicule", sort: veh, render: veh },
+      { key: "nav", label: "Navire · manifeste", sort: (r) => r.navire, render: (r) => [r.navire, r.manifeste].filter(Boolean).join(" · ") },
+      { key: "date_arrivee", label: "Arrivée", render: (r) => stkFmt(r.date_arrivee) }, { key: "depot_mmte", label: "Dépôt MMTE", render: (r) => stkFmt(r.depot_mmte) },
+      { key: "ecart", label: "Écart", sort: (r) => (r.ecart == null ? -1 : Math.abs(r.ecart)), render: (r) => r.ecart == null ? "—" : Math.abs(r.ecart) > 3 ? <b className="text-rose-700">{`${r.ecart > 0 ? "+" : ""}${r.ecart} j`}</b> : "ok" },
+      { key: "sit", label: "Situation", render: (r) => <StkBadge tone={STK_SIT_TONE[r.sit]}>{r.sitLabel}</StkBadge> }],
     absents: [{ key: "chassis", label: "Châssis", render: chassisCell }, ...(multi ? [{ key: "parc", label: "Parc" }] : []), { key: "veh", label: "Véhicule", sort: veh, render: veh },
       { key: "nav", label: "Navire · manifeste", sort: (r) => r.navire, render: (r) => [r.navire, r.manifeste].filter(Boolean).join(" · ") },
       { key: "date_arrivee", label: "Arrivée", render: (r) => stkFmt(r.date_arrivee) }, { key: "depot", label: "Dépôt le", render: (r) => stkFmt(r.depot) },
@@ -190,6 +218,8 @@ function StkMmteResult({ ctl }) {
   const exp = (k) => {
     const T = STK_MMTE_TABS.find((x) => x.key === tab).label;
     const X = {
+      lus: [{ h: "Châssis", k: "chassis", w: 22 }, { h: "Statut", x: (r) => LUS_ST[r.st][0] }, { h: "Véhicule / description", k: "veh" }, { h: "Parc", k: "parc" }, { h: "MMTE navire", k: "navire" }, { h: "MMTE manifeste", k: "manifeste" }, { h: "Dépôt MMTE", x: (r) => stkFmt(r.depot_mmte) }],
+      communs: [{ h: "Châssis", k: "chassis", w: 22 }, { h: "Parc", k: "parc" }, { h: "Véhicule", x: veh }, { h: "Navire", k: "navire" }, { h: "Manifeste", k: "manifeste" }, { h: "Arrivée", x: (r) => stkFmt(r.date_arrivee) }, { h: "Dépôt MMTE", x: (r) => stkFmt(r.depot_mmte) }, { h: "Écart (jours)", x: (r) => (r.ecart == null ? "" : r.ecart) }, { h: "Situation", k: "sitLabel" }],
       absents: [{ h: "Châssis", k: "chassis", w: 22 }, { h: "Parc", k: "parc" }, { h: "Véhicule", x: veh }, { h: "Navire", k: "navire" }, { h: "Manifeste", k: "manifeste" }, { h: "BL", k: "bl" }, { h: "Arrivée", x: (r) => stkFmt(r.date_arrivee) }, { h: "Dépôt le", x: (r) => stkFmt(r.depot) }, { h: "Situation", k: "sitLabel" }, { h: "Au parc depuis", x: (r) => stkFmt(r.entry_date) }, { h: "Type d'entrée", x: (r) => (r.entry_kind === "transfert" && r.from_parc ? `Transfert de ${r.from_parc}` : STK_ENTRY[r.entry_kind] || "") }, { h: "Dans MMTE", x: (r) => (r.mm === "disparu" ? `Disparu (vu le ${stkFmt(String(r.mmte_vu).slice(0, 10))})` : "Jamais vu") }, { h: "Nouveau", x: (r) => (r.nouveau ? "oui" : "") }],
       sortis: [{ h: "Châssis", k: "chassis", w: 22 }, { h: "Véhicule", x: veh }, { h: "Dernier parc", k: "parc" }, { h: "Sorti le", x: (r) => stkFmt(r.exit_date) }, { h: "Justification", x: (r) => (STK_JUSTIF[r.justif_status] || {}).label || "" }, { h: "Type", k: "justif_type" }, { h: "N° déclaration", k: "justif_numero" }, { h: "MMTE navire", x: (r) => mm(r).navire }, { h: "MMTE manifeste", x: (r) => mm(r).manifeste }, { h: "Dépôt MMTE", x: (r) => stkFmt(r.depot_mmte) }],
       autres: [{ h: "Châssis", k: "chassis", w: 22 }, { h: "Véhicule", x: veh }, { h: "Présent chez", k: "parc" }, { h: "MMTE navire", x: (r) => mm(r).navire }, { h: "MMTE manifeste", x: (r) => mm(r).manifeste }],
@@ -209,8 +239,8 @@ function StkMmteResult({ ctl }) {
     <div className="text-xs text-slate-500">Source : {ctl.source}{ctl.nouveaux != null && <> · par rapport au contrôle précédent des mêmes parcs : <b>{ctl.nouveaux}</b> nouveau(x) absent(s), <b>{ctl.regularises}</b> régularisé(s)</>}</div>
     {!ctl.depot_lus && <StkMsg tone="warn">Aucune date de dépôt n'a été lue dans l'export : les écarts de date n'ont pas pu être contrôlés.</StkMsg>}
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-      <Kpi label="Lus dans MMTE" value={n(ctl.lus)} />
-      <Kpi label="Présents des deux côtés" value={n(ctl.communs)} />
+      <Kpi k="lus" label="Lus dans MMTE" value={n(ctl.lus)} />
+      <Kpi k="communs" label="Présents des deux côtés" value={n(ctl.communs)} />
       <Kpi k="absents" label="Au parc, absents de MMTE" value={ctl.scope_key === "aucun" ? "—" : n(ctl.absents)} tone="amber" />
       <Kpi k="sortis" label="Dans MMTE, sortis selon le parc" value={n(ctl.sortis)} tone="rose" />
       <Kpi k="inconnus" label="Dans MMTE, inconnus des stocks" value={n(ctl.inconnus)} tone="amber" />
@@ -223,6 +253,10 @@ function StkMmteResult({ ctl }) {
     </div>
     {tab === "absents" && ctl.scope_key === "aucun" && <StkMsg tone="info">Aucun parc n'a été indiqué pour ce contrôle : la liste des véhicules au parc absents de MMTE n'a pas pu être établie.</StkMsg>}
     {tab === "absents" && abs.length > 0 && <div className="flex flex-wrap gap-1.5" data-testid="mmte-sit">{sitChips.map(([k, l]) => <button key={k} type="button" onClick={() => setSit(k)} className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${sit === k ? "bg-[#123A66] text-white border-[#123A66]" : "bg-white text-slate-600 border-slate-200"}`}>{l}</button>)}</div>}
+    {(tab === "lus" || tab === "communs") && !hasCom && <StkMsg tone="info">Ce contrôle date d'avant l'enregistrement de cette liste : relancez le contrôle pour l'obtenir.</StkMsg>}
+    {tab === "communs" && com.length > 0 && <div className="flex flex-wrap gap-1.5" data-testid="mmte-comsit">{comChips.map(([k, l]) => <button key={k} type="button" onClick={() => setComSit(k)} className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${comSit === k ? "bg-[#123A66] text-white border-[#123A66]" : "bg-white text-slate-600 border-slate-200"}`}>{l}</button>)}</div>}
+    {tab === "lus" && lus.length > 0 && <div className="flex flex-wrap gap-1.5" data-testid="mmte-lusst">{lusChips.map(([k, l]) => <button key={k} type="button" onClick={() => setLusSt(k)} className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${lusSt === k ? "bg-[#123A66] text-white border-[#123A66]" : "bg-white text-slate-600 border-slate-200"}`}>{l}</button>)}</div>}
+    {tab === "lus" && ctl.inconnus > (R.inconnus || []).length && <div className="text-xs text-slate-500">Seuls les {(R.inconnus || []).length.toLocaleString("fr-FR")} premiers inconnus sont conservés.</div>}
     {tab === "inconnus" && ctl.inconnus > 300 && <div className="text-xs text-slate-500">Recherche d'un châssis proche faite pour les 300 premiers.</div>}
     <StkTable rows={data} rowKey={(r) => r.chassis} columns={cols} empty="Aucun véhicule dans cette liste." />
     <div className="text-xs text-slate-500">Situation calculée au jour du contrôle. Les dates MMTE sont notées sur les fiches véhicules ; rien d'autre n'est modifié dans le stock.</div>
