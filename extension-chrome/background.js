@@ -1,6 +1,7 @@
 // Bénin Control — Recherche MMTE et GUCE (lecture seule)
 // L'application envoie un châssis ; l'extension le cherche dans MMTE et dans le GUCE avec les connexions
-// de l'utilisateur, dans une fenêtre de travail réduite, et renvoie la fiche et tout l'historique.
+// de l'utilisateur — sans fenêtre (page offscreen, 1.1), ou à défaut dans une fenêtre de travail réduite —
+// et renvoie la fiche et tout l'historique.
 // Rien n'est jamais saisi ni validé sur les deux plateformes.
 
 const SITES = {
@@ -204,30 +205,63 @@ async function guceInPage(ch) {
   return { etat: "trouve", unites, plus: hits.length > 5 ? hits.length - 5 : 0 };
 }
 
+// Mode par défaut (1.1) : lecture directe sans fenêtre, par la page « offscreen » de l'extension.
+// Si la plateforme y paraît « non connectée », on vérifie une fois avec l'ancienne méthode (fenêtre réduite) ;
+// si celle-ci voit l'utilisateur connecté, on la garde pour ce site jusqu'au prochain démarrage de Chrome.
+const mode = { mmte: "direct", guce: "direct" };
+const probed = { mmte: false, guce: false };
+let offscreenReady = null;
+async function ensureOffscreen() {
+  if (offscreenReady) return offscreenReady;
+  offscreenReady = (async () => {
+    const ctxs = chrome.runtime.getContexts ? await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] }) : [];
+    if (!ctxs.length) await chrome.offscreen.createDocument({ url: "offscreen.html", reasons: ["DOM_PARSER"], justification: "Lecture des pages MMTE et GUCE pour l'application Inventaire MMTE" });
+  })().catch((e) => { offscreenReady = null; throw e; });
+  return offscreenReady;
+}
+async function direct(k, ch) {
+  await ensureOffscreen();
+  const r = await withTimeout(chrome.runtime.sendMessage({ target: "offscreen", site: k, chassis: ch }), DELAI);
+  return r || { etat: "erreur", message: "Aucune réponse." };
+}
+async function viaTab(k, ch) {
+  try {
+    const tab = await workTab(k);
+    const host = new URL(SITES[k].url).host;
+    if (!String(tab.url || "").includes(host)) return { etat: "non_connecte" };
+    if (!String(tab.url || "").startsWith(SITES[k].url)) return { etat: "non_connecte" };
+    const [res] = await withTimeout(chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: k === "mmte" ? mmteInPage : guceInPage, args: [ch] }), DELAI).then((x) => (Array.isArray(x) ? x : [{ result: x }]));
+    return (res && res.result) || { etat: "erreur", message: "Aucune réponse de la page." };
+  } catch (e) {
+    const m = String((e && e.message) || e);
+    if (/error page|ERR_|net::|ONGLET_FERME|No tab|Cannot access/i.test(m)) return { etat: "page_indisponible", message: "La plateforme est inaccessible (réseau coupé ou site en panne)." };
+    return { etat: "erreur", message: m.slice(0, 200) };
+  }
+}
 async function runOn(k, ch) {
   const job = queues[k].then(async () => {
-    try {
-      const tab = await workTab(k);
-      const host = new URL(SITES[k].url).host;
-      if (!String(tab.url || "").includes(host)) return { etat: "non_connecte" };
-      if (!String(tab.url || "").startsWith(SITES[k].url)) return { etat: "non_connecte" };
-      const [res] = await withTimeout(chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: k === "mmte" ? mmteInPage : guceInPage, args: [ch] }), DELAI).then((x) => (Array.isArray(x) ? x : [{ result: x }]));
-      return (res && res.result) || { etat: "erreur", message: "Aucune réponse de la page." };
-    } catch (e) {
-      const m = String((e && e.message) || e);
-      if (/error page|ERR_|net::|ONGLET_FERME|No tab|Cannot access/i.test(m)) return { etat: "page_indisponible", message: "La plateforme est inaccessible (réseau coupé ou site en panne)." };
-      return { etat: "erreur", message: m.slice(0, 200) };
+    if (mode[k] === "tab") return viaTab(k, ch);
+    let r;
+    try { r = await direct(k, ch); } catch (e) { r = { etat: "erreur", message: String((e && e.message) || e).slice(0, 200) }; }
+    if ((r.etat === "non_connecte" || (r.etat === "erreur" && /offscreen|Receiving end/i.test(r.message || ""))) && !probed[k]) {
+      probed[k] = true;
+      const t = await viaTab(k, ch);
+      if (t.etat === "trouve" || t.etat === "non_trouve") mode[k] = "tab";
+      return t;
     }
+    return r;
   });
   queues[k] = job.catch(() => {});
   return job;
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, reply) => {
+  if (msg && msg.target === "offscreen") return; // destiné à la page de lecture
+  if (sender && sender.url && sender.url.startsWith(chrome.runtime.getURL(""))) return;
   (async () => {
     armIdle();
     const op = msg && msg.op;
-    if (op === "ping") return { version: chrome.runtime.getManifest().version };
+    if (op === "ping") return { version: chrome.runtime.getManifest().version, mode };
     if (op === "search") {
       const ch = String((msg.args && msg.args.chassis) || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 40);
       if (ch.length < 4) throw new Error("CHASSIS_INVALIDE");

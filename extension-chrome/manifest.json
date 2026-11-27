@@ -2,9 +2,9 @@
   "manifest_version": 3,
   "name": "Bénin Control — Recherche MMTE et GUCE",
   "short_name": "Recherche MMTE GUCE",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Recherche des châssis dans MMTE et le GUCE pour l'application Inventaire MMTE. Lecture seule, avec vos propres connexions.",
-  "permissions": ["scripting", "tabs"],
+  "permissions": ["scripting", "tabs", "offscreen"],
   "host_permissions": ["https://mmte.benincontrol.com/*", "https://guce.gouv.bj/*"],
   "background": { "service_worker": "background.js" },
   "content_scripts": [

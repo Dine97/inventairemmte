@@ -1,4 +1,4 @@
-Bénin Control — Recherche MMTE et GUCE (extension Chrome) — version 1.0.0
+Bénin Control — Recherche MMTE et GUCE (extension Chrome) — version 1.1.0
 =========================================================================
 
 À quoi elle sert
@@ -26,9 +26,9 @@ Installation (une fois par ordinateur, environ 2 minutes)
 Utilisation
 -----------
 - Collez un ou plusieurs châssis (un par ligne), cliquez sur « Rechercher ».
-- Pendant la recherche, une fenêtre Chrome réduite s'ouvre : c'est la fenêtre de travail de
-  l'extension (un onglet MMTE, un onglet GUCE). Ne la fermez pas pendant une recherche ;
-  elle se ferme seule après 4 minutes sans recherche.
+- La recherche se fait en arrière-plan, sans ouvrir de fenêtre (version 1.1).
+  Cas rare : si Chrome refuse de partager une connexion avec ce mode, l'extension passe d'elle-même
+  à l'ancienne méthode (une fenêtre réduite qui s'ouvre puis se ferme seule après 4 minutes).
 - Résultats possibles : Trouvé, Non trouvé, Non connecté (reconnectez-vous puis relancez),
   Page indisponible (site lent ou en panne), Erreur.
 - « Détails » affiche la fiche et tout l'historique ; « Excel » exporte la synthèse et les
@@ -36,8 +36,9 @@ Utilisation
 
 Mise à jour
 -----------
-Remplacez le contenu du dossier par la nouvelle version, puis dans chrome://extensions
-cliquez sur la flèche « Actualiser » de l'extension, et actualisez la page de l'application.
+Remplacez le contenu du dossier par la nouvelle version (mêmes fichiers, au même endroit), puis dans
+chrome://extensions cliquez sur la flèche « Actualiser » de l'extension, et actualisez la page de
+l'application. Le badge doit afficher la nouvelle version (v1.1.0).
 
 Si MMTE ou le GUCE changent leurs écrans, la lecture peut cesser de fonctionner
 (« Page indisponible » ou « Erreur ») : il faudra alors une nouvelle version de l'extension.
