@@ -59,6 +59,7 @@ function StkApp({ parcsList, isAdmin, section, setSection, userName }) {
   else if (section === "ptu") body = <StkPtu />;
   else if (section === "suivis") body = <StkSuivis />;
   else if (section === "technique") body = <StkTechSearch />;
+  else if (section === "plateformes") body = <StkPlatformSearch />;
   else if (section === "search") body = <StkSearch key={JSON.stringify(searchPreset)} preset={searchPreset} />;
   else if (section === "rapport") body = <StkReport />;
   else if (section === "anomalies") body = <StkAnomalies />;

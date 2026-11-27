@@ -1,0 +1,43 @@
+Bénin Control — Recherche MMTE et GUCE (extension Chrome) — version 1.0.0
+=========================================================================
+
+À quoi elle sert
+----------------
+Elle permet à l'écran « Recherche MMTE / GUCE » de l'application Inventaire MMTE
+(https://dine97.github.io/inventairemmte/) de chercher des châssis dans MMTE et dans le GUCE,
+avec VOS connexions, et d'afficher la fiche et tout l'historique de chaque véhicule.
+
+Elle ne fait que lire : elle ne saisit, ne valide et ne modifie jamais rien sur MMTE ni sur le GUCE.
+Elle n'agit que sur trois adresses : mmte.benincontrol.com, guce.gouv.bj et l'application.
+
+Installation (une fois par ordinateur, environ 2 minutes)
+---------------------------------------------------------
+1. Dézippez le dossier « extension-chrome » à un endroit où il restera (par exemple Documents).
+   Ne le supprimez pas ensuite : Chrome l'utilise à chaque démarrage.
+2. Dans Chrome, ouvrez l'adresse : chrome://extensions
+3. En haut à droite, activez « Mode développeur ».
+4. Cliquez sur « Charger l'extension non empaquetée » et choisissez le dossier « extension-chrome ».
+5. L'extension « Bénin Control — Recherche MMTE et GUCE » apparaît. Vous pouvez l'épingler
+   (icône puzzle, puis punaise) pour la voir dans la barre.
+6. Connectez-vous à MMTE et au GUCE dans ce même Chrome, comme d'habitude.
+7. Ouvrez (ou actualisez) l'application, menu « Recherche MMTE / GUCE » :
+   le badge vert « Extension active » doit s'afficher.
+
+Utilisation
+-----------
+- Collez un ou plusieurs châssis (un par ligne), cliquez sur « Rechercher ».
+- Pendant la recherche, une fenêtre Chrome réduite s'ouvre : c'est la fenêtre de travail de
+  l'extension (un onglet MMTE, un onglet GUCE). Ne la fermez pas pendant une recherche ;
+  elle se ferme seule après 4 minutes sans recherche.
+- Résultats possibles : Trouvé, Non trouvé, Non connecté (reconnectez-vous puis relancez),
+  Page indisponible (site lent ou en panne), Erreur.
+- « Détails » affiche la fiche et tout l'historique ; « Excel » exporte la synthèse et les
+  historiques complets.
+
+Mise à jour
+-----------
+Remplacez le contenu du dossier par la nouvelle version, puis dans chrome://extensions
+cliquez sur la flèche « Actualiser » de l'extension, et actualisez la page de l'application.
+
+Si MMTE ou le GUCE changent leurs écrans, la lecture peut cesser de fonctionner
+(« Page indisponible » ou « Erreur ») : il faudra alors une nouvelle version de l'extension.
